@@ -291,8 +291,7 @@ export class CreateRequestWizard {
       try {
         ibanRawData = this.parseIbanRequest(input);
       } catch (error) {
-        ctx.sendMessage(`${error.message}`);
-        // await this.cancel(ctx);
+        await ctx.sendMessage(`${error.message}`);
         return;
       }
       const rates = await this.ratesService.getAllRates();

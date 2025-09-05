@@ -29,6 +29,21 @@ export class TelegramService {
   ) {}
 
   private lastWorkerIndex = -1;
+
+  /**
+   * Check if a chat exists by attempting to get chat information
+   */
+  async checkChatExists(chatId: number): Promise<boolean> {
+    try {
+      await this.bot.telegram.getChat(chatId);
+      return true;
+    } catch (error) {
+      this.logger.warn(
+        `Chat ${chatId} not found or inaccessible: ${error.message}`,
+      );
+      return false;
+    }
+  }
   async updateWorkerMessages(requestId: string) {
     try {
       const request = await this.requestService.findById(requestId);
@@ -311,41 +326,68 @@ export class TelegramService {
 
       if (foundWorker) {
         if (foundWorker.telegramId) {
+          const chatId = Number(foundWorker.telegramId);
+
+          // Check if chat exists before attempting to send message
+          const chatExists = await this.checkChatExists(chatId);
+          if (!chatExists) {
+            this.logger.warn(
+              `Skipping worker ${foundWorker.username} (${chatId}) - chat not found`,
+            );
+            processedRequestsId.push({
+              requestId: requestId,
+              username: foundWorker.username || 'Unknown',
+              proceeded: false,
+            });
+            return processedRequestsId;
+          }
+
           await this.userService.appendRequestToUser(foundWorker.id, requestId);
 
-          const chatId = Number(foundWorker.telegramId);
-          const photoMsg = await this.bot.telegram.sendPhoto(
-            chatId,
-            {
-              source: createReadStream(
-                message.photoUrl ? message.photoUrl : './src/assets/0056.jpg',
-              ),
-            },
-            {
-              reply_markup: inline_keyboard,
-              caption: message.text || '',
-              parse_mode: 'HTML',
-            },
-          );
-          const messageToSave: SerializedMessage = {
-            chatId: BigInt(chatId),
-            photoUrl: message.photoUrl ? message.photoUrl : '',
-            messageId: photoMsg.message_id,
-            text: message.text || '',
-            requestId: requestId,
-            accessType: 'WORKER',
-          };
-          processedRequestsId.push({
-            requestId: requestId,
-            username: foundWorker.username ? foundWorker.username : 'Unknown',
-            proceeded: true,
-          });
-          if (photoMsg) {
-            await this.userService.saveWorkerRequestPhotoMessage(
-              messageToSave,
-              requestId,
-              foundWorker.id,
+          try {
+            const photoMsg = await this.bot.telegram.sendPhoto(
+              chatId,
+              {
+                source: createReadStream(
+                  message.photoUrl ? message.photoUrl : './src/assets/0056.jpg',
+                ),
+              },
+              {
+                reply_markup: inline_keyboard,
+                caption: message.text || '',
+                parse_mode: 'HTML',
+              },
             );
+            const messageToSave: SerializedMessage = {
+              chatId: BigInt(chatId),
+              photoUrl: message.photoUrl ? message.photoUrl : '',
+              messageId: photoMsg.message_id,
+              text: message.text || '',
+              requestId: requestId,
+              accessType: 'WORKER',
+            };
+            processedRequestsId.push({
+              requestId: requestId,
+              username: foundWorker.username ? foundWorker.username : 'Unknown',
+              proceeded: true,
+            });
+            if (photoMsg) {
+              await this.userService.saveWorkerRequestPhotoMessage(
+                messageToSave,
+                requestId,
+                foundWorker.id,
+              );
+            }
+          } catch (sendError) {
+            this.logger.error(
+              `Failed to send photo to worker ${foundWorker.username} (${chatId}):`,
+              sendError,
+            );
+            processedRequestsId.push({
+              requestId: requestId,
+              username: foundWorker.username || 'Unknown',
+              proceeded: false,
+            });
           }
         }
       } else {
@@ -376,6 +418,16 @@ export class TelegramService {
       for (const admin of admins) {
         if (admin.telegramId) {
           const chatId = Number(admin.telegramId);
+
+          // Check if chat exists before attempting to send message
+          const chatExists = await this.checkChatExists(chatId);
+          if (!chatExists) {
+            this.logger.warn(
+              `Skipping admin ${admin.username} (${chatId}) - chat not found`,
+            );
+            continue;
+          }
+
           this.logger.log(
             `Sending message to admin ${admin.username} (${chatId})`,
           );
@@ -390,32 +442,40 @@ export class TelegramService {
               message.photoUrl ? message.photoUrl : './src/assets/0056.jpg',
             );
             // console.log(messageE.inWork().caption);
-            const photoMsg = await this.bot.telegram.sendPhoto(
-              chatId,
-              {
-                source: messageE.inWork().source,
-              },
-              {
-                parse_mode: 'HTML',
-                caption: messageE.inWork().caption,
-                reply_markup: messageE.inWork(undefined, request.id).markup,
-              },
-            );
-            const messageToSave: SerializedMessage = {
-              chatId: BigInt(chatId),
-              photoUrl: message.photoUrl ? message.photoUrl : '',
-              messageId: photoMsg.message_id,
-              text: message.text || '',
-              requestId: requestId,
-              accessType: 'ADMIN',
-            };
-            if (photoMsg.message_id) {
-              await this.userService.saveRequestPhotoMessage(
-                messageToSave,
-                requestId,
-                admin.id,
+            try {
+              const photoMsg = await this.bot.telegram.sendPhoto(
+                chatId,
+                {
+                  source: messageE.inWork().source,
+                },
+                {
+                  parse_mode: 'HTML',
+                  caption: messageE.inWork().caption,
+                  reply_markup: messageE.inWork(undefined, request.id).markup,
+                },
               );
-              processedAdmins.add(admin.id);
+              const messageToSave: SerializedMessage = {
+                chatId: BigInt(chatId),
+                photoUrl: message.photoUrl ? message.photoUrl : '',
+                messageId: photoMsg.message_id,
+                text: message.text || '',
+                requestId: requestId,
+                accessType: 'ADMIN',
+              };
+              if (photoMsg.message_id) {
+                await this.userService.saveRequestPhotoMessage(
+                  messageToSave,
+                  requestId,
+                  admin.id,
+                );
+                processedAdmins.add(admin.id);
+              }
+            } catch (sendError) {
+              this.logger.error(
+                `Failed to send photo to admin ${admin.username} (${chatId}):`,
+                sendError,
+              );
+              continue;
             }
           }
         }
@@ -660,8 +720,19 @@ export class TelegramService {
   ) {
     try {
       if (!worker || !worker.telegramId) return;
-      await this.userService.appendRequestToUser(worker.id, requestId);
+
       const chatId = Number(worker.telegramId);
+
+      // Check if chat exists before attempting to send message
+      const chatExists = await this.checkChatExists(chatId);
+      if (!chatExists) {
+        this.logger.warn(
+          `Skipping worker ${worker.username} (${chatId}) - chat not found`,
+        );
+        return;
+      }
+
+      await this.userService.appendRequestToUser(worker.id, requestId);
       const photoMsg = await this.bot.telegram.sendPhoto(
         chatId,
         {

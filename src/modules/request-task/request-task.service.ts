@@ -23,12 +23,7 @@ export class RequestTaskService {
     try {
       const requests =
         (await this.requestService.findAllNotProcessedRequests()) as FullRequestType[];
-      const workers = await this.userService.getAllActiveWorkers();
-      this.logger.log(
-        `Found ${requests.length} not processed requests and ${workers.length} workers at ${new Date().toISOString()}`,
-      );
       if (requests.length === 0) return;
-
       for (let i = 0; i < requests.length; i++) {
         await this.telegramService.sendRequestToWorkGroup(requests[i]);
         const adminMenu = MenuFactory.createAdminMenu(

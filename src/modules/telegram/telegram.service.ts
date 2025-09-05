@@ -40,7 +40,6 @@ export class TelegramService {
           request as unknown as FullRequestType,
           './src/assets/0056.jpg',
         );
-        console.log('adminMenu', adminMenu.inWork().caption);
         await this.bot.telegram.editMessageCaption(
           Number(message.chatId),
           Number(message.messageId),
@@ -185,7 +184,6 @@ export class TelegramService {
         requestId: requestId,
         accessType: 'WORKER',
       };
-
       if (photoMsg) {
         await this.userService.saveWorkerRequestPhotoMessage(
           messageToSave,
@@ -193,6 +191,7 @@ export class TelegramService {
           userId ? userId : '',
         );
       }
+      return photoMsg;
     } catch (error) {
       this.logger.error('Error sending message to user', error);
       throw error;
@@ -302,10 +301,6 @@ export class TelegramService {
           (request) =>
             request.status !== 'COMPLETED' && request.status !== 'FAILED',
         );
-
-        // console.log(
-        //   `Worker ${currentWorker.username} has ${notDoneActiveRequests.length} active requests`,
-        // );
 
         if (notDoneActiveRequests.length <= 1) {
           foundWorker = currentWorker;
@@ -433,6 +428,7 @@ export class TelegramService {
   async updateAllWorkersMessagesWithRequestsId(
     newMessage: ReplyPhotoMessage,
     requestId?: string,
+    excludeMessageIds?: number[],
   ) {
     try {
       if (!requestId) {
@@ -447,6 +443,12 @@ export class TelegramService {
         return;
       }
       for (const message of messages) {
+        if (
+          excludeMessageIds &&
+          excludeMessageIds.includes(Number(message.messageId))
+        ) {
+          continue;
+        }
         const chatId = Number(message.chatId);
         const messageId = Number(message.messageId);
         const newCaption = newMessage.text ? newMessage.text : message.text;
@@ -616,7 +618,6 @@ export class TelegramService {
             chatId,
             {
               source: source,
-
               filename: fileName,
             },
             { parse_mode: 'HTML', caption: caption || '' },

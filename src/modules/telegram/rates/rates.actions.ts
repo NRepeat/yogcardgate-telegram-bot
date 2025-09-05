@@ -11,10 +11,11 @@ export class RatesActions {
 
   @Hears('Обновить курсы')
   async onRates(@Ctx() ctx: SceneContext) {
-    // this.ratesService.createRates(ctx, Currency.UAH);
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const isAdmin = await this.userService.isAdminChat(ctx);
     if (!isAdmin) {
-      // await ctx.reply('You are not allowed to use this command');
+      //
       return;
     }
     await ctx.scene.enter('create-rates');

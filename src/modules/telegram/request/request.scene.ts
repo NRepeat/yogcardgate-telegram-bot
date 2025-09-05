@@ -215,7 +215,6 @@ export class CreateRequestWizard {
         const bankName = await this.utilsService.getBankNameByCardNumber(
           cardDetail.cardNumber,
         );
-        // console.log('Bank name found:', bankName);
         const cardRequest: CardRequestType = {
           amount: cardDetail.amount,
           currencyId: foundRate.currencyId,
@@ -223,6 +222,7 @@ export class CreateRequestWizard {
           status: 'PENDING',
           vendorId: vendor?.id,
           rateId: foundRate.id,
+          rate: String(foundRate.rate),
           card: {
             card: cardDetail.cardNumber,
             comment: 'Card request created via bot',
@@ -270,7 +270,6 @@ export class CreateRequestWizard {
       }
       await this.cancel(ctx);
     }
-    // await ctx.scene.leave();
   }
 
   @WizardStep(2)
@@ -292,8 +291,7 @@ export class CreateRequestWizard {
       try {
         ibanRawData = this.parseIbanRequest(input);
       } catch (error) {
-        ctx.sendMessage(`${error.message}`);
-        // await this.cancel(ctx);
+        await ctx.sendMessage(`${error.message}`);
         return;
       }
       const rates = await this.ratesService.getAllRates();
@@ -335,6 +333,7 @@ export class CreateRequestWizard {
         notificationSent: false,
         status: 'PENDING',
         vendorId: vendor?.id,
+        rate: String(foundRate.rate),
         rateId: foundRate.id,
         iban: {
           iban: ibanRawData.iban,

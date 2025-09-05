@@ -145,7 +145,7 @@ abstract class BaseRequestMenu {
         : '';
       const card =
         cardMethods.length > 0 && cardMethods[0]?.card
-          ? `💳<b>Номер карты:</b> <code>${(acceptedBy || currentAccessType === 'ADMIN') && !this.isWorkGroup ? cardMethods[0].card : Array.from(cardMethods[0].card, () => '*').join('')}</code>\n`
+          ? `💳<b>Номер карты:</b> <code>${((acceptedBy || currentAccessType === 'ADMIN') && !this.isWorkGroup) || currentAccessType === 'ADMIN' ? cardMethods[0].card : Array.from(cardMethods[0].card, () => '*').join('')}</code>\n`
           : '';
       const payedBy = this.request.payedByUser?.username
         ? '<b>Оплачено:</b> @' + this.request.payedByUser.username + '\n'

@@ -44,7 +44,11 @@ export class TelegramService {
       return false;
     }
   }
-  async updateWorkerMessages(requestId: string) {
+  async updateWorkerMessages(
+    requestId: string,
+    isWorkGroup = false,
+    isHubGroup = false,
+  ) {
     try {
       const request = await this.requestService.findById(requestId);
       if (!request) throw new Error('Request not found');
@@ -54,6 +58,9 @@ export class TelegramService {
         const adminMenu = MenuFactory.createWorkerMenu(
           request as unknown as FullRequestType,
           './src/assets/0056.jpg',
+          undefined,
+          isWorkGroup,
+          isHubGroup,
         );
         await this.bot.telegram.editMessageCaption(
           Number(message.chatId),
@@ -116,32 +123,36 @@ export class TelegramService {
         const messages = request.message?.filter(
           (m) => m.accessType === 'WORKER',
         );
-        if (messages && messages.length > 0) {
-          // Send a simple notification message without trying to reply to a non-existent message
-          try {
-            await this.bot.telegram.sendMessage(
-              chatId,
-              `⚠️ Обратите внимание на заявку #${request.id}\n` +
-              `Статус: ${request.status}\n` +
-              `Отправлено работникам: ${messages.length} сообщений`,
-              {
-                parse_mode: 'HTML',
-              },
-            );
-          } catch (sendError) {
-            this.logger.error(`Failed to send notification for request ${request.id}:`, sendError);
+        if (messages) {
+          for (const message of messages) {
+            if (message.messageId) {
+              await this.bot.telegram.sendMessage(
+                chatId,
+                `Обратите внимание на заявку #${request.id}`,
+                {
+                  reply_parameters: {
+                    message_id: Number(message.messageId),
+                  },
+                },
+              );
+            }
           }
         }
       }
     } catch (error) {
       // It's a good practice to log the error for debugging
-      this.logger.error('Error sending message to work group:', error);
-      // Don't rethrow the error to prevent the entire cron job from failing
+      console.error('Error sending message to work group:', error);
     }
   }
   async sendRequestToWorkGroup(request: FullRequestType) {
     try {
-      const workerMenu = MenuFactory.createWorkerMenu(request, photoUrl);
+      const workerMenu = MenuFactory.createWorkerMenu(
+        request,
+        photoUrl,
+        undefined,
+        false,
+        true,
+      );
       const chatId = this.configService.get<number>('WORK_GROUP_CHAT');
       if (!chatId) {
         throw new Error('Work group chat not found');

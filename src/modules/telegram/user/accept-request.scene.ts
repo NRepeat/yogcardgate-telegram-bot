@@ -27,7 +27,6 @@ export class AcceptRequestScene {
       return;
     }
     const userId = ctx.from.id;
-    const chatId = ctx.message?.chat.id;
     try {
       const accessCheck = await this.accessControlService.canAcceptRequest(
         state.requestId,
@@ -101,16 +100,15 @@ export class AcceptRequestScene {
     const workerMenu = MenuFactory.createWorkerMenu(
       request as unknown as FullRequestType,
       './src/assets/0056.jpg',
+      undefined,
+      false,
+      true,
     );
     const newPaymentButton = Markup.button.callback('В работе', 'in_work_');
-    const newCancelButton = Markup.button.callback(
-      'Отмена',
-      'cancel_payment_' + requestId,
-    );
     const inline_keyboard = Markup.inlineKeyboard([[newPaymentButton]]);
     await this.telegramService.updateAllWorkersMessagesWithRequestsId(
       {
-        text: workerMenu.done().caption,
+        text: workerMenu.inWork().caption,
         inline_keyboard: inline_keyboard.reply_markup,
       },
       requestId,

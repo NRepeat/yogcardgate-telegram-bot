@@ -101,17 +101,20 @@ abstract class BaseRequestMenu {
   url: string;
   source: Buffer<ArrayBufferLike>;
   isWorkGroup?: boolean;
+  isHubGroup?: boolean;
   constructor(
     url: string,
     request: FullRequestType,
     source?: Buffer<ArrayBufferLike>,
     isWorkGroup?: boolean,
+    isHubGroup?: boolean,
   ) {
     const photoUrl = './src/assets/0056.jpg';
     this.request = request;
     this.url = url ? url : photoUrl;
     this.source = source || Buffer.from([]);
     this.isWorkGroup = isWorkGroup || false;
+    this.isHubGroup = isHubGroup || false;
   }
 
   protected abstract getAccessType(): AccessType;
@@ -120,6 +123,11 @@ abstract class BaseRequestMenu {
     if (!this.request) {
       return MESSAGES.NO_DATA;
     }
+    console.log(
+      'Generating message for request:',
+      this.isWorkGroup,
+      this.isHubGroup,
+    );
     const currentAccessType = accessType || this.getAccessType();
     const isCard = this.request.paymentMethod?.nameEn === 'CARD';
     if (isCard) {
@@ -145,7 +153,11 @@ abstract class BaseRequestMenu {
         : '';
       const card =
         cardMethods.length > 0 && cardMethods[0]?.card
-          ? `💳<b>Номер карты:</b> <code>${((acceptedBy || currentAccessType === 'ADMIN') && !this.isWorkGroup) || currentAccessType === 'ADMIN' ? cardMethods[0].card : Array.from(cardMethods[0].card, () => '*').join('')}</code>\n`
+          ? `💳<b>Номер карты:</b> <code>${Array.from(cardMethods[0].card, () => '*').join('')}</code>\n`
+          : '';
+      const publicCard =
+        cardMethods.length > 0 && cardMethods[0]?.card
+          ? `💳<b>Номер карты:</b> <code>${cardMethods[0].card}</code>\n`
           : '';
       const payedBy = this.request.payedByUser?.username
         ? '<b>Оплачено:</b> @' + this.request.payedByUser.username + '\n'
@@ -157,7 +169,11 @@ abstract class BaseRequestMenu {
         `💵<b>Сумма:</b> <code>${amount}</code>\n` +
         rate +
         usdt +
-        card +
+        (currentAccessType === 'PUBLIC' || this.isWorkGroup
+          ? publicCard
+          : this.isHubGroup && !this.isWorkGroup
+            ? card
+            : publicCard) +
         (currentAccessType === 'ADMIN' || currentAccessType === 'WORKER'
           ? acceptedBy
           : '') +
@@ -179,6 +195,11 @@ abstract class BaseRequestMenu {
         ibanMethods.length > 0 && ibanMethods[0]?.iban
           ? `🏦<b>IBAN:</b> <code>${ibanMethods[0].iban}</code>\n`
           : '';
+      const publicIban =
+        ibanMethods.length > 0 && ibanMethods[0]?.iban
+          ? `🏦<b>IBAN:</b> <code>${ibanMethods[0].iban.replace(/.(?=.{4})/g, '*')}</code>\n`
+          : '';
+
       const inn =
         ibanMethods.length > 0 && ibanMethods[0]?.inn
           ? `📋<b>ИНН:</b> <code>${ibanMethods[0].inn}</code>\n`
@@ -208,7 +229,11 @@ abstract class BaseRequestMenu {
         rate +
         usdt +
         name +
-        iban +
+        (currentAccessType === 'PUBLIC' || this.isWorkGroup
+          ? iban
+          : this.isHubGroup && !this.isWorkGroup
+            ? publicIban
+            : iban) +
         inn +
         comment +
         (currentAccessType === 'ADMIN' || currentAccessType === 'WORKER'
@@ -391,8 +416,9 @@ export class MenuFactory {
     url: string,
     source?: Buffer<ArrayBufferLike>,
     isWorkGroup = false,
+    isHubGroup = false,
   ): WorkMenu {
-    return new WorkMenu(url, request, source, isWorkGroup);
+    return new WorkMenu(url, request, source, isWorkGroup, isHubGroup);
   }
   static createAdminMenu(
     request: FullRequestType,

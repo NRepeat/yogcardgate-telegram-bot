@@ -13,10 +13,8 @@ const photoUrl = './src/assets/0056.jpg';
 export class RequestTaskService {
   private readonly logger = new Logger('RequestTaskService');
   constructor(
-    @InjectBot() private readonly bot: Telegraf<Context>,
     private readonly requestService: RequestService,
     private readonly telegramService: TelegramService,
-    private readonly userService: UserService,
   ) {}
   @Cron(CronExpression.EVERY_10_SECONDS)
   async handleRequests() {

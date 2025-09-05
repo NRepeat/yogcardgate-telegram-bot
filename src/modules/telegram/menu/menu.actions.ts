@@ -50,30 +50,24 @@ export class MenuActions {
       );
     }
   }
-
-  @On('my_chat_member')
-  async onMyChatMember(@Ctx() ctx: Context) {
-    console.log('Chat member updated:', ctx.myChatMember);
-    const chatId = ctx.myChatMember?.chat?.id;
-    if (!chatId) return;
-    if (ctx.myChatMember.new_chat_member.status === 'kicked') {
-      console.log('Bot has been kicked from the chat:', chatId);
+  @Command('start_work_group')
+  async startWorkGroup(@Ctx() ctx: Context) {
+    const userId = ctx.from?.id;
+    const user = await this.userService.findByTelegramId(userId as number);
+    if (!user) {
+      await ctx.reply('User not found');
       return;
     }
-    // Register commands for this chat when bot is added
-    await ctx.telegram.setMyCommands(
-      [
-        { command: 'start', description: 'Начать работу с ботом' },
-        { command: 'report', description: 'Отправить отчет' },
-        { command: 'pay', description: 'Создать заказ' },
-        { command: 'all_rates', description: 'Показать все курсы' },
-      ],
-      { scope: { type: 'chat', chat_id: chatId } },
-    );
-    console.log('Commands registered for chat:', chatId);
+    await this.prismaService.user.update({
+      where: { id: user.id },
+      data: { workGroupChatId: BigInt(ctx.chat?.id as number) },
+    });
+    await ctx.reply('Work group chat set');
   }
   @Command('report')
   async reportVendor(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const chatId = ctx.chat?.id;
     if (!chatId) {
       return;
@@ -94,6 +88,10 @@ export class MenuActions {
     if (!requests.length) return;
     if (requests.length === 0) return ctx.reply('No requests to report');
     const report = await this.reportService.generateReportResult(
+      requests as any as FullRequestType[],
+      false,
+    );
+    const adminReport = await this.reportService.generateReportResult(
       requests as any as FullRequestType[],
       true,
     );
@@ -119,16 +117,18 @@ export class MenuActions {
       );
     }
     await this.telegramService.sendDocumentToAllUsers(
-      report.buffer,
+      adminReport.buffer,
       fileName,
-      report.caption,
+      adminReport.caption,
     );
   }
   @Command('report_all')
   async reportAll(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const isAdmin = await this.userService.isAdminChat(ctx);
     if (!isAdmin) {
-      await ctx.reply('You are not allowed to use this command');
+      //
       return;
     }
     const vendors = await this.vendorService.getAllVendors();
@@ -141,7 +141,6 @@ export class MenuActions {
     for (const vendor of vendors) {
       const chatId = vendor.chatId?.toString();
       if (!vendor.work) {
-        // console.log(`Vendor ${vendor.title} is on pause, skipping...`);
         continue;
       }
       if (!chatId) continue;
@@ -154,6 +153,10 @@ export class MenuActions {
       if (!requests.length) continue;
       if (requests.length === 0) continue;
       const report = await this.reportService.generateReportResult(
+        requests as any as FullRequestType[],
+        false,
+      );
+      const adminReport = await this.reportService.generateReportResult(
         requests as any as FullRequestType[],
         true,
       );
@@ -168,11 +171,10 @@ export class MenuActions {
           { caption: report.caption },
         );
         allReports.push({
-          report: report.buffer,
+          report: adminReport.buffer,
           filename: fileName,
-          caption: report.caption,
+          caption: adminReport.caption,
         });
-        // console.log(`Report sent to vendor ${vendor.title}`);
         await this.vendorService.updateVendor({
           ...vendor,
           lastReportedAt: new Date(),
@@ -197,6 +199,8 @@ export class MenuActions {
   }
   @Command('reg')
   async registration(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const chatId = ctx.chat?.id;
     const isAdmin = await this.userService.isAdminChat(ctx);
     // console.log(`Chat ID: ${chatId}, isAdmin: ${isAdmin}`);
@@ -223,6 +227,8 @@ export class MenuActions {
   }
   @Hears('Показать пользователей')
   async onUsersShow(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const users = await this.userService.getAllUsers();
     if (users.length === 0) {
       await ctx.reply('No users found');
@@ -259,7 +265,7 @@ export class MenuActions {
     }
     const isAdmin = await this.userService.isAdminChat(ctx);
     if (!isAdmin) {
-      await ctx.reply('You are not allowed to use this command');
+      //
       return;
     }
     await this.userService.updateUser(
@@ -279,7 +285,6 @@ export class MenuActions {
     }
     const isAdmin = await this.userService.isAdminChat(ctx);
     if (!isAdmin) {
-      await ctx.reply('You are not allowed to use this command');
       return;
     }
     const card = ctx.text?.split(' ')[1]?.trim();
@@ -299,6 +304,8 @@ export class MenuActions {
   }
   @Command('remove_blacklist')
   async removeBlacklist(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const userId = ctx.from?.id;
     if (!userId) {
       await ctx.reply('User ID not found');
@@ -306,7 +313,6 @@ export class MenuActions {
     }
     const isAdmin = await this.userService.isAdminChat(ctx);
     if (!isAdmin) {
-      await ctx.reply('You are not allowed to use this command');
       return;
     }
     const card = ctx.text?.split(' ')[1]?.trim();
@@ -331,6 +337,8 @@ export class MenuActions {
   }
   @Command('resume')
   async resume(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const userId = ctx.from?.id;
     if (!userId) {
       await ctx.reply('User ID not found');
@@ -338,7 +346,6 @@ export class MenuActions {
     }
     const isAdmin = await this.userService.isAdminChat(ctx);
     if (!isAdmin) {
-      await ctx.reply('You are not allowed to use this command');
       return;
     }
     await this.userService.updateUser(
@@ -351,17 +358,37 @@ export class MenuActions {
   }
   @Command('on')
   async on(@Ctx() ctx: Context) {
-    await this.prismaService.settings.update({
-      where: { name: 'default' },
-      data: { onPause: false },
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
+    await this.prismaService.settings.upsert({
+      where: {
+        name: 'default',
+      },
+      update: {
+        onPause: false,
+      },
+      create: {
+        name: 'default',
+        onPause: false,
+      },
     });
     await ctx.reply('Bot is now active');
   }
   @Command('off')
   async off(@Ctx() ctx: Context) {
-    await this.prismaService.settings.update({
-      where: { name: 'default' },
-      data: { onPause: true },
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
+    await this.prismaService.settings.upsert({
+      where: {
+        name: 'default',
+      },
+      update: {
+        onPause: true,
+      },
+      create: {
+        name: 'default',
+        onPause: true,
+      },
     });
     await ctx.reply('Bot is now paused');
   }
@@ -371,14 +398,19 @@ export class MenuActions {
       return;
     }
     const allRates = await this.utilsService.getAllPublicRatesMarkupMessage();
+
     if (!allRates) {
       await ctx.reply('No rates available');
       return;
     }
     await ctx.reply(allRates, { parse_mode: 'HTML' });
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
   }
   @Hears('Показать поставщиков')
   async onVendorShow(@Ctx() ctx: SceneContext) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const isAdmin = await this.userService.isAdminChat(ctx);
     if (!isAdmin) {
       return;
@@ -388,9 +420,10 @@ export class MenuActions {
 
   @Hears('Черный список')
   async onBlackList(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const isAdmin = await this.userService.isAdminChat(ctx);
     if (!isAdmin) {
-      await ctx.reply('You are not allowed to use this command');
       return;
     }
     const blackList = await this.requestService.getBlackList();
@@ -414,6 +447,8 @@ export class MenuActions {
   }
   @Command('pay')
   async onPayCommand(@Ctx() ctx: CustomSceneContext) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     if (await this.isBotPaused(ctx)) {
       return;
     }
@@ -436,6 +471,7 @@ export class MenuActions {
       // await ctx.reply('You are not allowed to create requests. Chat on pause');
       return;
     }
+
     await ctx.scene.enter('create-request');
   }
 }

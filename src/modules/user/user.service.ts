@@ -10,7 +10,10 @@ export class UserService {
   // private readonly logger = new Logger(TelegramService.name);
 
   constructor(private readonly userRepository: UserRepository) {}
-
+  async getWorkers() {
+    const workers = await this.userRepository.getAllWorkers();
+    return workers;
+  }
   async getAllUsers() {
     const users = await this.userRepository.findAll();
     return users;
@@ -59,6 +62,7 @@ export class UserService {
           username: username,
           onPause: true,
           telegramId: BigInt(userId),
+          workGroupChatId: BigInt(userId),
         },
         RoleEnum.WORKER,
       );
@@ -104,7 +108,7 @@ export class UserService {
     requestId: string,
     userId: string,
   ) {
-    return this.userRepository.saveWorkerRequestPhotoMessage(
+    return this.userRepository.saveRequestPhotoMessage(
       message,
       requestId,
       userId,

@@ -38,7 +38,6 @@ export default class PaymentWizard {
     });
     ctx.session.messagesToDelete = ctx.session.messagesToDelete || [];
     ctx.session.requestMenuMessageId = ctx.session.requestMenuMessageId || [];
-    // ctx.session.messagesToDelete.push(msg.message_id);
     ctx.session.requestMenuMessageId.push(msg.message_id);
     console.log('ctx.session.messagesToDelete:', ctx.session.messagesToDelete);
     ctx.wizard.next();
@@ -47,7 +46,6 @@ export default class PaymentWizard {
   @WizardStep(1)
   async proceedFinalStep(@Ctx() ctx: CustomSceneContext) {
     const message = ctx.message as { photo?: PaymentPhoto[] };
-    console.log('PaymentWizard proceedFinalStep message:', message);
     ctx.session.messagesToDelete?.push(ctx.message?.message_id || 0);
     if (message && Array.isArray(message.photo)) {
       this.paymentPhotos.push(message.photo[message.photo.length - 1]);

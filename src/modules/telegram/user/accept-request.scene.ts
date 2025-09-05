@@ -40,10 +40,16 @@ export class AcceptRequestScene {
         await ctx.scene.leave();
         return;
       }
+      await this.requestService.acceptRequest(state.requestId, userId, userId);
       const request = (await this.requestService.findById(
         state.requestId,
       )) as FullRequestType;
-      const workerMenu = MenuFactory.createWorkerMenu(request, photoUrl);
+      const workerMenu = MenuFactory.createWorkerMenu(
+        request,
+        photoUrl,
+        undefined,
+        true,
+      );
       const user = await this.userService.findByTelegramId(userId);
       if (!user) {
         await ctx.scene.leave();
@@ -54,6 +60,7 @@ export class AcceptRequestScene {
         await ctx.scene.leave();
         return;
       }
+
       const message = await this.telegramService.sendMessageToUser(
         {
           text: workerMenu.inProcess(undefined, state.requestId).caption,
@@ -71,7 +78,6 @@ export class AcceptRequestScene {
       (ctx.wizard.state as { requestId: string; msId?: number }).msId =
         message.message_id;
 
-      await this.requestService.acceptRequest(state.requestId, userId, userId);
       await this.notifyUsers(ctx);
       await ctx.scene.leave();
       // ctx.wizard.selectStep(1);

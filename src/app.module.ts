@@ -71,50 +71,78 @@ export class AppModule implements OnModuleInit {
       },
     );
     const admin = await this.userService.getAdmins();
+    const workers = await this.userService.getWorkers();
+    if (!workers || workers.length === 0) {
+      console.warn('No workers found, skipping worker command registration');
+    } else {
+      for (const user of workers) {
+        if (user.telegramId) {
+          try {
+            await bot.telegram.setMyCommands(
+              [
+                { command: 'all_rates', description: 'Показать все курсы' },
+                {
+                  command: 'start_work_group',
+                  description: 'Начать работу в группе',
+                },
+              ],
+              { scope: { type: 'chat', chat_id: Number(user.telegramId) } },
+            );
+          } catch (error) {
+            console.error(
+              `Error setting commands for user ${user.telegramId}:`,
+              error,
+            );
+            continue;
+          }
+        }
+      }
+    }
     if (!admin || !admin.users || admin.users.length === 0) {
       console.warn('No admins found, skipping admin command registration');
-      return;
+    } else {
+      for (const user of admin.users) {
+        if (user.telegramId) {
+          try {
+            await bot.telegram.setMyCommands(
+              [
+                {
+                  command: 'report_all',
+                  description: 'Отправить отчет всем',
+                },
+                { command: 'all_rates', description: 'Показать все курсы' },
+                { command: 'pause', description: 'Остановить работу' },
+                { command: 'resume', description: 'Запустить работу' },
+                {
+                  command: 'blacklist',
+                  description: 'Добавить в черный список',
+                },
+                { command: 'on', description: 'Включить бота' },
+                { command: 'off', description: 'Выключить бота' },
+                {
+                  command: 'remove_blacklist',
+                  description: 'Удалить из черного списка',
+                },
+              ],
+              { scope: { type: 'chat', chat_id: Number(user.telegramId) } },
+            );
+          } catch (error) {
+            console.error(
+              `Error setting commands for user ${user.telegramId}:`,
+              error,
+            );
+            continue;
+          }
+        }
+      }
     }
     const chatId = this.configService.get<number>('WORK_GROUP_CHAT');
     await bot.telegram.setMyCommands(
       [
         { command: 'start', description: 'Начать работу с ботом' },
-        // { command: 'report', description: 'Отправить отчет' },
-        // { command: 'pay', description: 'Создать заказ' },
         { command: 'all_rates', description: 'Показать все курсы' },
       ],
       { scope: { type: 'chat', chat_id: Number(chatId) } },
     );
-    for (const user of admin.users) {
-      if (user.telegramId) {
-        try {
-          await bot.telegram.setMyCommands(
-            [
-              {
-                command: 'report_all',
-                description: 'Отправить отчет всем',
-              },
-              { command: 'all_rates', description: 'Показать все курсы' },
-              { command: 'pause', description: 'Остановить работу' },
-              { command: 'resume', description: 'Запустить работу' },
-              { command: 'blacklist', description: 'Добавить в черный список' },
-              { command: 'on', description: 'Включить бота' },
-              { command: 'off', description: 'Выключить бота' },
-              {
-                command: 'remove_blacklist',
-                description: 'Удалить из черного списка',
-              },
-            ],
-            { scope: { type: 'chat', chat_id: Number(user.telegramId) } },
-          );
-        } catch (error) {
-          console.error(
-            `Error setting commands for user ${user.telegramId}:`,
-            error,
-          );
-          continue;
-        }
-      }
-    }
   }
 }

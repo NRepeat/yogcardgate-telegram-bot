@@ -40,7 +40,6 @@ export class TelegramService {
           request as unknown as FullRequestType,
           './src/assets/0056.jpg',
         );
-        console.log('adminMenu', adminMenu.inWork().caption);
         await this.bot.telegram.editMessageCaption(
           Number(message.chatId),
           Number(message.messageId),

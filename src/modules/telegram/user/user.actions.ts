@@ -298,7 +298,6 @@ export class UserActions {
       } else if (callbackQuery.data.includes('back_to_take_request_')) {
         const requestId = callbackQuery.data.split('_')[4];
         console.log('back_to_take_request_', requestId);
-        // Проверка прав на управление заявкой
         const accessCheck = await this.accessControlService.canManageRequest(
           requestId,
           currentUserId,

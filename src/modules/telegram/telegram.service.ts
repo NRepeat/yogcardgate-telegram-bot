@@ -122,14 +122,17 @@ export class TelegramService {
             await this.bot.telegram.sendMessage(
               chatId,
               `⚠️ Обратите внимание на заявку #${request.id}\n` +
-              `Статус: ${request.status}\n` +
-              `Отправлено работникам: ${messages.length} сообщений`,
+                `Статус: ${request.status}\n` +
+                `Отправлено работникам: ${messages.length} сообщений`,
               {
                 parse_mode: 'HTML',
               },
             );
           } catch (sendError) {
-            this.logger.error(`Failed to send notification for request ${request.id}:`, sendError);
+            this.logger.error(
+              `Failed to send notification for request ${request.id}:`,
+              sendError,
+            );
           }
         }
       }

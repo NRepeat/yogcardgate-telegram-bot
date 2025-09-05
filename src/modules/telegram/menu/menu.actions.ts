@@ -88,11 +88,11 @@ export class MenuActions {
     if (!requests.length) return;
     if (requests.length === 0) return ctx.reply('No requests to report');
     const report = await this.reportService.generateReportResult(
-      requests as any as FullRequestType[],
+      requests as FullRequestType[],
       false,
     );
     const adminReport = await this.reportService.generateReportResult(
-      requests as any as FullRequestType[],
+      requests as FullRequestType[],
       true,
     );
     const fileName = `${vendor.title}-report_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx`;
@@ -153,11 +153,11 @@ export class MenuActions {
       if (!requests.length) continue;
       if (requests.length === 0) continue;
       const report = await this.reportService.generateReportResult(
-        requests as any as FullRequestType[],
+        requests as FullRequestType[],
         false,
       );
       const adminReport = await this.reportService.generateReportResult(
-        requests as any as FullRequestType[],
+        requests as FullRequestType[],
         true,
       );
       const fileName = `${vendor.title}-report_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx`;

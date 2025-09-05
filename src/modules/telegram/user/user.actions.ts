@@ -123,20 +123,16 @@ export class UserActions {
       }
       if (callbackQuery.data.includes('accept_request_')) {
         const requestId = callbackQuery.data.split('_')[2];
-        console.log('Accepting request with ID:', requestId);
-        // Проверка прав на принятие заявки
         const acceptCheck = await this.accessControlService.canAcceptRequest(
           requestId,
           currentUserId,
         );
-        console.log('acceptCheck', acceptCheck);
         if (!acceptCheck.allowed) {
           await ctx.answerCbQuery(acceptCheck.message);
           return;
         }
         try {
           await ctx.scene.enter('accept-request', { requestId });
-          await ctx.answerCbQuery('Request accepted');
           return;
         } catch (error) {
           console.error('Error accepting request:', error);
@@ -319,6 +315,7 @@ export class UserActions {
         }
         try {
           await this.requestService.unlinkUser(request.id);
+          await ctx.deleteMessage(callbackQuery.message?.message_id);
           await this.telegramService.updateAdminMessages(request.id);
           await this.telegramService.updateWorkerMessages(request.id);
           await ctx.answerCbQuery('Заявка возвращена в очередь');

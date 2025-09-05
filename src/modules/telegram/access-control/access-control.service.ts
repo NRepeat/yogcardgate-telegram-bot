@@ -29,7 +29,6 @@ export class AccessControlService {
         return { allowed: false, message: '❌ Заявка не найдена' };
       }
 
-      // Проверка что заявка еще не принята
       if (request.activeUser) {
         if (Number(request.activeUser.telegramId) !== telegramUserId) {
           return {
@@ -39,7 +38,6 @@ export class AccessControlService {
         }
       }
 
-      // Проверка что пользователь является воркером
       const user = await this.userService.findByTelegramId(telegramUserId);
       if (!user) {
         return { allowed: false, message: '❌ Пользователь не найден' };

@@ -6,7 +6,6 @@ import {
   SerializedMessage,
 } from 'src/types/types';
 import { UserService } from '../user/user.service';
-import { VendorService } from '../vendor/vendor.service';
 import { Status } from '@prisma/client';
 
 @Injectable()
@@ -14,7 +13,6 @@ export class RequestService {
   constructor(
     private readonly requestRepo: RequestRepository,
     private readonly userService: UserService,
-    private readonly vendorService: VendorService,
   ) {}
   async unlinkUser(requestId: string) {
     await this.requestRepo.unlinkUser(requestId);
@@ -23,13 +21,10 @@ export class RequestService {
     await this.requestRepo.updateRequestNotificationStatus(requestId, sended);
   }
   async getBlackList() {
-    // console.log('Fetching blacklist');
     const blackList = await this.requestRepo.getBlackList();
     if (!blackList || blackList.length === 0) {
-      // console.log('Blacklist is empty');
       return [];
     }
-    // console.log(`Found ${blackList.length} cards in blacklist`);
     return blackList.map((card) => ({
       card: card.card[0].card,
       comment: card.reason,
@@ -37,7 +32,6 @@ export class RequestService {
     }));
   }
   async findBlackListCardByCardNumber(cardNumber: string) {
-    // console.log(`Finding blacklist card by number: ${cardNumber}`);
     const blackListCard =
       await this.requestRepo.findBlackListByCardNumber(cardNumber);
     if (!blackListCard) {
@@ -46,13 +40,11 @@ export class RequestService {
     return blackListCard;
   }
   async removeFromBlackList(cardNumber: string) {
-    // console.log(`Removing card ${cardNumber} from blacklist`);
     await this.requestRepo.removeFromBlackList(cardNumber);
   }
   async getAllPublicMessagesWithRequestsId(
     requestId: string | undefined,
   ): Promise<SerializedMessage[]> {
-    // console.log(`Fetching all public messages with request ID: ${requestId}`);
     if (!requestId) {
       throw new Error('Request ID is required');
     }

@@ -48,6 +48,7 @@ model User {
   paymentRequests           PaymentRequests[]
   payedRequests             PaymentRequests[]           @relation("payedByUser")
   activeRequests            PaymentRequests[]           @relation("activeRequests")
+  workGroupChatId           BigInt?                     @unique
   vendors                   Vendors[]
   adminRequestPhotoMessage  AdminRequestPhotoMessage[]
   WorkerRequestPhotoMessage WorkerRequestPhotoMessage[]

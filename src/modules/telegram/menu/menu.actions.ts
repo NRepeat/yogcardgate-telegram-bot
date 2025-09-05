@@ -50,30 +50,24 @@ export class MenuActions {
       );
     }
   }
-
-  @On('my_chat_member')
-  async onMyChatMember(@Ctx() ctx: Context) {
-    console.log('Chat member updated:', ctx.myChatMember);
-    const chatId = ctx.myChatMember?.chat?.id;
-    if (!chatId) return;
-    if (ctx.myChatMember.new_chat_member.status === 'kicked') {
-      console.log('Bot has been kicked from the chat:', chatId);
+  @Command('start_work_group')
+  async startWorkGroup(@Ctx() ctx: Context) {
+    const userId = ctx.from?.id;
+    const user = await this.userService.findByTelegramId(userId as number);
+    if (!user) {
+      await ctx.reply('User not found');
       return;
     }
-    // Register commands for this chat when bot is added
-    await ctx.telegram.setMyCommands(
-      [
-        { command: 'start', description: 'Начать работу с ботом' },
-        { command: 'report', description: 'Отправить отчет' },
-        { command: 'pay', description: 'Создать заказ' },
-        { command: 'all_rates', description: 'Показать все курсы' },
-      ],
-      { scope: { type: 'chat', chat_id: chatId } },
-    );
-    console.log('Commands registered for chat:', chatId);
+    await this.prismaService.user.update({
+      where: { id: user.id },
+      data: { workGroupChatId: BigInt(ctx.chat?.id as number) },
+    });
+    await ctx.reply('Work group chat set');
   }
   @Command('report')
   async reportVendor(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const chatId = ctx.chat?.id;
     if (!chatId) {
       return;
@@ -130,6 +124,8 @@ export class MenuActions {
   }
   @Command('report_all')
   async reportAll(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const isAdmin = await this.userService.isAdminChat(ctx);
     if (!isAdmin) {
       //
@@ -203,6 +199,8 @@ export class MenuActions {
   }
   @Command('reg')
   async registration(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const chatId = ctx.chat?.id;
     const isAdmin = await this.userService.isAdminChat(ctx);
     // console.log(`Chat ID: ${chatId}, isAdmin: ${isAdmin}`);
@@ -229,6 +227,8 @@ export class MenuActions {
   }
   @Hears('Показать пользователей')
   async onUsersShow(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const users = await this.userService.getAllUsers();
     if (users.length === 0) {
       await ctx.reply('No users found');
@@ -304,6 +304,8 @@ export class MenuActions {
   }
   @Command('remove_blacklist')
   async removeBlacklist(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const userId = ctx.from?.id;
     if (!userId) {
       await ctx.reply('User ID not found');
@@ -335,6 +337,8 @@ export class MenuActions {
   }
   @Command('resume')
   async resume(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const userId = ctx.from?.id;
     if (!userId) {
       await ctx.reply('User ID not found');
@@ -354,6 +358,8 @@ export class MenuActions {
   }
   @Command('on')
   async on(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     await this.prismaService.settings.upsert({
       where: {
         name: 'default',
@@ -370,6 +376,8 @@ export class MenuActions {
   }
   @Command('off')
   async off(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     await this.prismaService.settings.upsert({
       where: {
         name: 'default',
@@ -390,14 +398,19 @@ export class MenuActions {
       return;
     }
     const allRates = await this.utilsService.getAllPublicRatesMarkupMessage();
+
     if (!allRates) {
       await ctx.reply('No rates available');
       return;
     }
     await ctx.reply(allRates, { parse_mode: 'HTML' });
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
   }
   @Hears('Показать поставщиков')
   async onVendorShow(@Ctx() ctx: SceneContext) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const isAdmin = await this.userService.isAdminChat(ctx);
     if (!isAdmin) {
       return;
@@ -407,6 +420,8 @@ export class MenuActions {
 
   @Hears('Черный список')
   async onBlackList(@Ctx() ctx: Context) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     const isAdmin = await this.userService.isAdminChat(ctx);
     if (!isAdmin) {
       return;
@@ -432,6 +447,8 @@ export class MenuActions {
   }
   @Command('pay')
   async onPayCommand(@Ctx() ctx: CustomSceneContext) {
+    const msId = ctx.message?.message_id;
+    await ctx.deleteMessage(msId);
     if (await this.isBotPaused(ctx)) {
       return;
     }
@@ -454,6 +471,7 @@ export class MenuActions {
       // await ctx.reply('You are not allowed to create requests. Chat on pause');
       return;
     }
+
     await ctx.scene.enter('create-request');
   }
 }

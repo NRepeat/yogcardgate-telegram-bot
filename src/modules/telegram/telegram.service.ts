@@ -185,7 +185,6 @@ export class TelegramService {
         requestId: requestId,
         accessType: 'WORKER',
       };
-
       if (photoMsg) {
         await this.userService.saveWorkerRequestPhotoMessage(
           messageToSave,
@@ -193,6 +192,7 @@ export class TelegramService {
           userId ? userId : '',
         );
       }
+      return photoMsg;
     } catch (error) {
       this.logger.error('Error sending message to user', error);
       throw error;
@@ -302,10 +302,6 @@ export class TelegramService {
           (request) =>
             request.status !== 'COMPLETED' && request.status !== 'FAILED',
         );
-
-        // console.log(
-        //   `Worker ${currentWorker.username} has ${notDoneActiveRequests.length} active requests`,
-        // );
 
         if (notDoneActiveRequests.length <= 1) {
           foundWorker = currentWorker;
@@ -433,6 +429,7 @@ export class TelegramService {
   async updateAllWorkersMessagesWithRequestsId(
     newMessage: ReplyPhotoMessage,
     requestId?: string,
+    excludeMessageIds?: number[],
   ) {
     try {
       if (!requestId) {
@@ -447,6 +444,12 @@ export class TelegramService {
         return;
       }
       for (const message of messages) {
+        if (
+          excludeMessageIds &&
+          excludeMessageIds.includes(Number(message.messageId))
+        ) {
+          continue;
+        }
         const chatId = Number(message.chatId);
         const messageId = Number(message.messageId);
         const newCaption = newMessage.text ? newMessage.text : message.text;

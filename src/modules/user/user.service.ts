@@ -59,6 +59,7 @@ export class UserService {
           username: username,
           onPause: true,
           telegramId: BigInt(userId),
+          workGroupChatId: BigInt(userId),
         },
         RoleEnum.WORKER,
       );
@@ -104,7 +105,7 @@ export class UserService {
     requestId: string,
     userId: string,
   ) {
-    return this.userRepository.saveWorkerRequestPhotoMessage(
+    return this.userRepository.saveRequestPhotoMessage(
       message,
       requestId,
       userId,

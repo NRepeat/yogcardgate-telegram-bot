@@ -120,10 +120,8 @@ abstract class BaseRequestMenu {
     }
     const currentAccessType = accessType || this.getAccessType();
     const isCard = this.request.paymentMethod?.nameEn === 'CARD';
-    console.log('isCard:', isCard, 'currentAccessType:', currentAccessType);
     if (isCard) {
       const cardMethods = this.request.cardMethods || [];
-      console.log('cardMethods', this.request);
 
       const bank = cardMethods[0]?.bank?.bankName
         ? cardMethods[0]?.bank?.bankName
@@ -296,7 +294,6 @@ abstract class BaseRequestMenu {
       BUTTON_TEXTS.DONE,
       BUTTON_CALLBACKS.DONE,
     );
-    console.log('Creating done menu with request:', this.messageFromRequest());
     return new MenuWithMedia(
       this.messageFromRequest(),
       markup,

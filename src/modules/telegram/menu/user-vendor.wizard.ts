@@ -12,7 +12,6 @@ export class UserVendorWizard {
   @WizardStep(0)
   async showVendors(@Ctx() ctx: CustomSceneContext) {
     await this.sendVendorsList(ctx, false);
-    // ctx.wizard.next();
     await ctx.scene.leave();
   }
 
@@ -25,12 +24,10 @@ export class UserVendorWizard {
     if (data.startsWith('provider_')) {
       const vendorId = data.replace('provider_', '');
       if (!vendorId) {
-        await ctx.answerCbQuery('Некорректный ID поставщика');
         return;
       }
       const vendor = await this.vendorService.getVendorById(vendorId);
       if (!vendor) {
-        await ctx.answerCbQuery('Поставщик не найден');
         return;
       }
       await this.vendorService.updateVendor({
@@ -45,7 +42,6 @@ export class UserVendorWizard {
       }
       const vendor = await this.vendorService.getVendorById(vendorId);
       if (!vendor) {
-        await ctx.answerCbQuery('Поставщик не найден');
         return;
       }
       await this.vendorService.updateVendor({
@@ -53,15 +49,12 @@ export class UserVendorWizard {
         work: !vendor.work,
       });
     } else if (data === 'close') {
-      await ctx.editMessageText('Меню закрыто.');
       await ctx.scene.leave();
       return;
     } else {
-      await ctx.answerCbQuery('Неизвестная команда');
       return;
     }
     await this.sendVendorsList(ctx, true);
-    await ctx.answerCbQuery('Изменения сохранены');
   }
 
   private async sendVendorsList(ctx: CustomSceneContext, edit = false) {
@@ -106,7 +99,6 @@ export class UserVendorWizard {
   @SceneLeave()
   async onSceneLeave(@Ctx() ctx: CustomSceneContext) {
     console.log('@Scene(user-vendor-wizard) leave');
-    // await ctx.deleteMessages(ctx.session.messagesToDelete || []);
     ctx.session.customState = '';
     ctx.session.messagesToDelete = [];
   }

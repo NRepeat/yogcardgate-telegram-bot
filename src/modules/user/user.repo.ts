@@ -129,7 +129,7 @@ export default class UserRepository implements Repository<SerializedUser> {
   async getAllActiveAdmins() {
     return this.prisma.user.findMany({
       where: {
-        // onPause: false,
+        onPause: false,
         Role: {
           some: {
             name: RoleEnum.ADMIN,

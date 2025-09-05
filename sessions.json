@@ -1,0 +1,27 @@
+{
+  "sessions": [
+    {
+      "id": "-4868917152:375905624",
+      "data": {
+        "__scenes": {},
+        "messagesToDelete": [],
+        "customState": "",
+        "requestType": "card"
+      }
+    },
+    {
+      "id": "-1002887877945:375905624",
+      "data": {
+        "__scenes": {}
+      }
+    },
+    {
+      "id": "-4739116846:375905624",
+      "data": {
+        "__scenes": {},
+        "messagesToDelete": [],
+        "customState": ""
+      }
+    }
+  ]
+}

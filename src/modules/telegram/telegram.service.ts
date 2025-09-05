@@ -116,25 +116,27 @@ export class TelegramService {
         const messages = request.message?.filter(
           (m) => m.accessType === 'WORKER',
         );
-        if (messages) {
-          for (const message of messages) {
-            if (message.messageId) {
-              await this.bot.telegram.sendMessage(
-                chatId,
-                `Обратите внимание на заявку #${request.id}`,
-                {
-                  reply_parameters: {
-                    message_id: Number(message.messageId),
-                  },
-                },
-              );
-            }
+        if (messages && messages.length > 0) {
+          // Send a simple notification message without trying to reply to a non-existent message
+          try {
+            await this.bot.telegram.sendMessage(
+              chatId,
+              `⚠️ Обратите внимание на заявку #${request.id}\n` +
+              `Статус: ${request.status}\n` +
+              `Отправлено работникам: ${messages.length} сообщений`,
+              {
+                parse_mode: 'HTML',
+              },
+            );
+          } catch (sendError) {
+            this.logger.error(`Failed to send notification for request ${request.id}:`, sendError);
           }
         }
       }
     } catch (error) {
       // It's a good practice to log the error for debugging
-      console.error('Error sending message to work group:', error);
+      this.logger.error('Error sending message to work group:', error);
+      // Don't rethrow the error to prevent the entire cron job from failing
     }
   }
   async sendRequestToWorkGroup(request: FullRequestType) {

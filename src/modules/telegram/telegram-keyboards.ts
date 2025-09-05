@@ -390,7 +390,7 @@ export class MenuFactory {
     request: FullRequestType,
     url: string,
     source?: Buffer<ArrayBufferLike>,
-    isWorkGroup?: boolean,
+    isWorkGroup = false,
   ): WorkMenu {
     return new WorkMenu(url, request, source, isWorkGroup);
   }

@@ -111,6 +111,14 @@ export class TelegramService {
       if (!chatId) {
         throw new Error('Work group chat not found');
       }
+
+      // Check if work group chat exists before attempting to send messages
+      const chatExists = await this.checkChatExists(chatId);
+      if (!chatExists) {
+        this.logger.warn(`Work group chat ${chatId} not found or inaccessible`);
+        return;
+      }
+
       const filteredRequeste = requests.filter((r) => r.status === 'PENDING');
       for (const request of filteredRequeste) {
         const messages = request.message?.filter(

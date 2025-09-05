@@ -100,16 +100,18 @@ abstract class BaseRequestMenu {
   request: FullRequestType;
   url: string;
   source: Buffer<ArrayBufferLike>;
-
+  isWorkGroup?: boolean;
   constructor(
     url: string,
     request: FullRequestType,
     source?: Buffer<ArrayBufferLike>,
+    isWorkGroup?: boolean,
   ) {
     const photoUrl = './src/assets/0056.jpg';
     this.request = request;
     this.url = url ? url : photoUrl;
     this.source = source || Buffer.from([]);
+    this.isWorkGroup = isWorkGroup || false;
   }
 
   protected abstract getAccessType(): AccessType;
@@ -143,7 +145,7 @@ abstract class BaseRequestMenu {
         : '';
       const card =
         cardMethods.length > 0 && cardMethods[0]?.card
-          ? `💳<b>Номер карты:</b> <code>${acceptedBy ? cardMethods[0].card : Array.from(cardMethods[0].card, () => '*').join('')}</code>\n`
+          ? `💳<b>Номер карты:</b> <code>${(acceptedBy || currentAccessType === 'ADMIN') && !this.isWorkGroup ? cardMethods[0].card : Array.from(cardMethods[0].card, () => '*').join('')}</code>\n`
           : '';
       const payedBy = this.request.payedByUser?.username
         ? '<b>Оплачено:</b> @' + this.request.payedByUser.username + '\n'
@@ -388,8 +390,9 @@ export class MenuFactory {
     request: FullRequestType,
     url: string,
     source?: Buffer<ArrayBufferLike>,
+    isWorkGroup?: boolean,
   ): WorkMenu {
-    return new WorkMenu(url, request, source);
+    return new WorkMenu(url, request, source, isWorkGroup);
   }
   static createAdminMenu(
     request: FullRequestType,

@@ -6,7 +6,21 @@ import { RoleEnum } from '@prisma/client';
 @Injectable()
 export default class UserRepository implements Repository<SerializedUser> {
   constructor(private readonly prisma: PrismaService) {}
-
+  async getAllWorkers() {
+    return this.prisma.user.findMany({
+      where: {
+        Role: {
+          some: {
+            name: RoleEnum.WORKER,
+          },
+        },
+      },
+      include: {
+        Role: true,
+        paymentRequests: true,
+      },
+    });
+  }
   async updateUser(
     user: Partial<SerializedUser>,
     id: number,

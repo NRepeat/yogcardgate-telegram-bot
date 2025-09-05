@@ -1,7 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { Ctx, On, SceneLeave, Wizard, WizardStep } from 'nestjs-telegraf';
+import {
+  Ctx,
+  InjectBot,
+  On,
+  SceneLeave,
+  Wizard,
+  WizardStep,
+} from 'nestjs-telegraf';
 import { CustomSceneContext, FullRequestType } from 'src/types/types';
-import { Markup } from 'telegraf';
+import { Context, Markup, Telegraf } from 'telegraf';
 import { TelegramService } from '../telegram.service';
 import { UtilsService } from 'src/modules/utils/utils.service';
 import { ConfigService } from '@nestjs/config';
@@ -23,6 +30,7 @@ export default class PaymentWizard {
   constructor(
     private readonly telegramService: TelegramService,
     private readonly utilsService: UtilsService,
+    @InjectBot() private bot: Telegraf<Context>,
     private readonly configService: ConfigService,
     private readonly requestService: RequestService,
   ) {}
@@ -130,9 +138,18 @@ export default class PaymentWizard {
           'data' in ctx.callbackQuery &&
           ctx.callbackQuery.data === 'cancel_payment_photo_proceed'
         ) {
-          const state = ctx.wizard.state as { requestId: string };
+          const state = ctx.wizard.state as {
+            requestId: string;
+            messageId?: number;
+          };
           const requestId = state.requestId;
+          const messageId = state.messageId;
           const request = await this.requestService.findById(requestId);
+          console.log(
+            'Canceling payment photo proceed for request:',
+            requestId,
+            ctx.message,
+          );
           if (!request) {
             await ctx.scene.leave();
             throw new Error('Request not found');
@@ -143,15 +160,40 @@ export default class PaymentWizard {
             request as unknown as FullRequestType,
             photoUrl,
           );
-          await this.telegramService.updateAllWorkersMessagesWithRequestsId(
+          // await this.telegramService.updateAllWorkersMessagesWithRequestsId(
+          //   {
+          //     text: workerMenu.inWork().caption,
+          //     inline_keyboard: workerMenu.inProcess(undefined, request.id)
+          //       .markup,
+          //   },
+          //   requestId,
+          // );
+          //    chatId,
+          // messageId,
+          // undefined,
+          // {
+          //   parse_mode: 'HTML',
+          //   caption: newCaption || '',
+          //   type: 'photo',
+          //   media: { source: newMessage.source },
+          // },
+          // { reply_markup: newMessage.inline_keyboard },
+          await this.bot.telegram.editMessageMedia(
+            ctx.chat?.id!,
+            messageId!,
+            undefined,
             {
-              text: workerMenu.inWork().caption,
-              inline_keyboard: workerMenu.inProcess(undefined, request.id)
-                .markup,
+              media: {
+                source: photoUrl,
+              },
+              type: 'photo',
+              caption: workerMenu.inWork().caption,
+              parse_mode: 'HTML',
             },
-            requestId,
+            {
+              reply_markup: workerMenu.inProcess(undefined, request.id).markup,
+            },
           );
-
           await ctx.scene.leave();
         } else if (
           'data' in ctx.callbackQuery &&

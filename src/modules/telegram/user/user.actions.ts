@@ -297,12 +297,10 @@ export class UserActions {
         );
       } else if (callbackQuery.data.includes('back_to_take_request_')) {
         const requestId = callbackQuery.data.split('_')[4];
-        console.log('back_to_take_request_', requestId);
         const accessCheck = await this.accessControlService.canManageRequest(
           requestId,
           currentUserId,
         );
-        console.log('accessCheck', accessCheck);
         if (!accessCheck.allowed) {
           await ctx.answerCbQuery(accessCheck.message);
           return;
@@ -316,7 +314,11 @@ export class UserActions {
           await this.requestService.unlinkUser(request.id);
           await ctx.deleteMessage(callbackQuery.message?.message_id);
           await this.telegramService.updateAdminMessages(request.id);
-          await this.telegramService.updateWorkerMessages(request.id);
+          await this.telegramService.updateWorkerMessages(
+            request.id,
+            false,
+            true,
+          );
           await ctx.answerCbQuery('Заявка возвращена в очередь');
         } catch (error) {
           console.error(error);
@@ -328,7 +330,7 @@ export class UserActions {
       if (callbackQuery.data.includes('proceeded_payment_')) {
         const requestId = callbackQuery.data.split('_')[2];
 
-        // Проверка прав на управление заявкой
+        const messageId = callbackQuery.message?.message_id;
         const accessCheck = await this.accessControlService.canManageRequest(
           requestId,
           currentUserId,
@@ -351,14 +353,30 @@ export class UserActions {
           'accept_request_' + requestId,
         );
         const inline_keyboard = Markup.inlineKeyboard([[button]]);
-        await this.telegramService.updateAllWorkersMessagesWithRequestsId(
+        // await this.telegramService.updateAllWorkersMessagesWithRequestsId(
+        //   {
+        //     text: workerMenu.inWork().caption,
+        //     inline_keyboard: inline_keyboard.reply_markup,
+        //   },
+        //   requestId,
+        // );
+        await ctx.editMessageMedia(
           {
-            text: workerMenu.inWork().caption,
-            inline_keyboard: inline_keyboard.reply_markup,
+            media: {
+              source: './src/assets/0056.jpg',
+            },
+            type: 'photo',
+            caption: workerMenu.inWork().caption,
+            parse_mode: 'HTML',
           },
-          requestId,
+          {
+            reply_markup: undefined,
+          },
         );
-        await ctx.scene.enter('payment_photo_proceed', { requestId });
+        await ctx.scene.enter('payment_photo_proceed', {
+          requestId,
+          messageId,
+        });
       }
     } else {
       console.error('Unknown callback query data:', callbackQuery);

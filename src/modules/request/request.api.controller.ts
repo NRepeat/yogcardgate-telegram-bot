@@ -294,7 +294,6 @@ export class RequestApiController {
   @Get('rates')
   async getRates() {
     const allRates = await this.ratesService.getAllRates();
-    // Group by card/iban
     const cardRates = allRates.filter(
       (r) => r.paymentMethod.nameEn.toLowerCase() === 'card',
     );
@@ -305,22 +304,5 @@ export class RequestApiController {
       cardRates,
       ibanRates,
     });
-  }
-
-  // Luhn validation
-  private isValidLuhn(cardNumber: string): boolean {
-    const digits = cardNumber.replace(/\s/g, '');
-    let sum = 0;
-    let alternate = false;
-    for (let i = digits.length - 1; i >= 0; i--) {
-      let n = parseInt(digits[i], 10);
-      if (alternate) {
-        n *= 2;
-        if (n > 9) n -= 9;
-      }
-      sum += n;
-      alternate = !alternate;
-    }
-    return sum % 10 === 0;
   }
 }

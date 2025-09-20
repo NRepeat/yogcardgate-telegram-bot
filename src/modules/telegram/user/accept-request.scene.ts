@@ -85,7 +85,6 @@ export class AcceptRequestScene {
       await ctx.scene.leave();
     }
   }
-  @WizardStep(1)
   async notifyUsers(ctx: CustomSceneContext) {
     const state = ctx.wizard.state as { requestId: string; msId: number };
     console.log('Notify users with state:', state);
@@ -129,13 +128,5 @@ export class AcceptRequestScene {
     await ctx.scene.leave();
   }
   @SceneLeave()
-  async leave(ctx: CustomSceneContext) {
-    const state = ctx.wizard.state as { requestId: string };
-    try {
-      // await this.requestService.cancelRequest(state.requestId);
-    } catch (error) {
-      console.error(error);
-      await ctx.reply('An error occurred while canceling the request.');
-    }
-  }
+  async leave(ctx: CustomSceneContext) {}
 }

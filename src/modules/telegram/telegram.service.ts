@@ -510,7 +510,7 @@ export class TelegramService {
       }
       const messages =
         await this.userService.getAlWorkerMessagesWithRequestsId(requestId);
-
+      console.log('Worker messages to update:', messages);
       if (!messages || messages.length === 0) {
         this.logger.warn('No active admins found');
         return;
@@ -525,6 +525,7 @@ export class TelegramService {
         const chatId = Number(message.chatId);
         const messageId = Number(message.messageId);
         const newCaption = newMessage.text ? newMessage.text : message.text;
+
         if (chatId && messageId) {
           if (newMessage.source) {
             await this.bot.telegram.editMessageMedia(

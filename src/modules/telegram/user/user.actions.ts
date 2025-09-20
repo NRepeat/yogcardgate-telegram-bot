@@ -312,13 +312,17 @@ export class UserActions {
         }
         try {
           await this.requestService.unlinkUser(request.id);
-          await ctx.deleteMessage(callbackQuery.message?.message_id);
           await this.telegramService.updateAdminMessages(request.id);
           await this.telegramService.updateWorkerMessages(
             request.id,
             false,
             true,
           );
+          await this.requestService.findAndDeleteRequestMessageByRequestId(
+            requestId,
+            callbackQuery.message!.message_id,
+          );
+          await ctx.deleteMessage(callbackQuery.message?.message_id);
           await ctx.answerCbQuery('Заявка возвращена в очередь');
         } catch (error) {
           console.error(error);

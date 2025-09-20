@@ -47,7 +47,6 @@ export default class PaymentWizard {
     ctx.session.messagesToDelete = ctx.session.messagesToDelete || [];
     ctx.session.requestMenuMessageId = ctx.session.requestMenuMessageId || [];
     ctx.session.requestMenuMessageId.push(msg.message_id);
-    console.log('ctx.session.messagesToDelete:', ctx.session.messagesToDelete);
     ctx.wizard.next();
   }
 
@@ -74,16 +73,17 @@ export default class PaymentWizard {
         if (!userId) {
           throw new Error('User ID not found in context');
         }
-        await this.requestService.updateRequestStatus(
-          requestId,
-          'COMPLETED',
-          userId,
-        );
         const request = await this.requestService.findById(requestId);
         if (!request) {
           await ctx.scene.leave();
           throw new Error('Request not found');
         }
+        await this.requestService.updateRequestStatus(
+          requestId,
+          'COMPLETED',
+          userId,
+        );
+
         const publicMenu = MenuFactory.createPublicMenu(
           request as unknown as FullRequestType,
           '',
@@ -160,24 +160,6 @@ export default class PaymentWizard {
             request as unknown as FullRequestType,
             photoUrl,
           );
-          // await this.telegramService.updateAllWorkersMessagesWithRequestsId(
-          //   {
-          //     text: workerMenu.inWork().caption,
-          //     inline_keyboard: workerMenu.inProcess(undefined, request.id)
-          //       .markup,
-          //   },
-          //   requestId,
-          // );
-          //    chatId,
-          // messageId,
-          // undefined,
-          // {
-          //   parse_mode: 'HTML',
-          //   caption: newCaption || '',
-          //   type: 'photo',
-          //   media: { source: newMessage.source },
-          // },
-          // { reply_markup: newMessage.inline_keyboard },
           await this.bot.telegram.editMessageMedia(
             ctx.chat?.id!,
             messageId!,

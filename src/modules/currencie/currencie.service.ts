@@ -11,6 +11,7 @@ export class CurrencyService {
   async getAll() {
     return this.prisma.currency.findMany({
       orderBy: { nameEn: 'asc' },
+      include: { Rates: true },
     });
   }
   async findById(id: string) {
@@ -21,12 +22,14 @@ export class CurrencyService {
   }
   async getCurrencyKeyboard() {
     const currencies = await this.getAll();
-    const buttons = currencies.map((currency) =>
-      Markup.button.callback(
-        `${currency.nameEn} (${currency.code})`,
-        `select_currency_${currency.id}`,
-      ),
-    );
+    const buttons = currencies
+      .filter((c) => c.Rates && c.Rates.length > 0)
+      .map((currency) =>
+        Markup.button.callback(
+          `${currency.nameEn} (${currency.code})`,
+          `select_currency_${currency.id}`,
+        ),
+      );
     const caption = 'Select currency:';
     const cancelRequest = Markup.button.callback(
       BUTTON_TEXTS.CANCEL,

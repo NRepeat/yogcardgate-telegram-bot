@@ -40,15 +40,14 @@ export class CreateRequestWizard {
       MenuFactory.createSelectPaymentMethodMenu(username);
     const availableCurrenciesKeyboard =
       await this.currenciesService.getCurrencyKeyboard();
-    console.log(availableCurrenciesKeyboard, ctx.session.customState);
     ctx.session.messagesToDelete = ctx.session.messagesToDelete || [];
     ctx.session.requestMenuMessageId = ctx.session.requestMenuMessageId || [];
-    if (ctx.session.customState !== 'select_method') {
+    if (ctx.session.customState !== 'select_currency') {
       const msg = await ctx.reply(availableCurrenciesKeyboard.caption, {
         reply_markup: availableCurrenciesKeyboard.markup,
         parse_mode: 'HTML',
       });
-      ctx.session.customState = 'select_method';
+      ctx.session.customState = 'select_currency';
       ctx.session.requestMenuMessageId?.push(msg.message_id);
     } else {
       await this.deleteSceneMessages(ctx);
@@ -63,13 +62,11 @@ export class CreateRequestWizard {
 
   @On('callback_query')
   async onCallbackQuery(@Ctx() ctx: CustomSceneContext) {
-    // console.log('@WizardStep callBack');
     const callbackQuery = ctx.callbackQuery;
     if (!callbackQuery || !('data' in callbackQuery)) {
       await ctx.answerCbQuery('Unknown action');
       return;
     }
-    console.log('Callback data:', callbackQuery.data);
     const username = ctx.from?.username || 'Unknown User';
     const selectPaymentMenu =
       MenuFactory.createSelectPaymentMethodMenu(username);
@@ -79,12 +76,12 @@ export class CreateRequestWizard {
     }
     switch (true) {
       case callbackQuery.data.startsWith('select_currency_'): {
-        console.log('Selected currency ID:', currencyId);
         const currency = await this.currenciesService.findById(currencyId!);
         if (!currency) {
           await ctx.answerCbQuery('Currency not found');
           return;
         }
+        ctx.session.selectedCurrencyId = currency.id;
         const paymentMethods = currency.paymentMethod;
         if (!paymentMethods || paymentMethods.length === 0) {
           await ctx.answerCbQuery(
@@ -92,6 +89,10 @@ export class CreateRequestWizard {
           );
           return;
         }
+        const cancelButton = Markup.button.callback(
+          BUTTON_TEXTS.CANCEL,
+          BUTTON_CALLBACKS.CANCEL_REQUEST,
+        );
         const buttons = paymentMethods
           .map((method) => {
             if (method.nameEn === 'CARD') {
@@ -112,9 +113,9 @@ export class CreateRequestWizard {
         const selectPaymentMenu =
           MenuFactory.createSelectPaymentMethodMenu(username);
         const markup: InlineKeyboardMarkup = Markup.inlineKeyboard([
-          [...buttons],
+          [...buttons, cancelButton],
         ]).reply_markup;
-        const msg = await ctx.reply(selectPaymentMenu.caption, {
+        await ctx.editMessageText(selectPaymentMenu.caption, {
           reply_markup: markup,
           parse_mode: 'HTML',
         });
@@ -147,6 +148,7 @@ export class CreateRequestWizard {
           cardRequestMenu.markup,
         );
         ctx.session.customState = 'card_request';
+        console.log('ctx.state', ctx.session);
         ctx.wizard.selectStep(1);
         break;
       }
@@ -224,10 +226,23 @@ export class CreateRequestWizard {
           ctx.wizard.selectStep(1);
           return;
         }
+        const currentCurrencyId = ctx.session.selectedCurrencyId;
+        if (!currentCurrencyId) {
+          const msg = await ctx.reply(
+            'Валюта не выбрана. Пожалуйста, выберите валюту.',
+          );
+          ctx.session.messagesToDelete?.push(msg.message_id);
+          ctx.wizard.selectStep(0);
+          return;
+        }
+        console.log('ctx.state.requestType', ctx.state);
+        const currency =
+          await this.currenciesService.findById(currentCurrencyId);
         const foundRate = rates.find((rate) => {
           if (
-            rate.paymentMethod.nameEn === 'CARD' &&
-            rate.currency.nameEn === 'UAH'
+            rate.paymentMethod.nameEn.toLowerCase() ===
+              ctx.session.requestType?.toLowerCase() &&
+            rate.currency.nameEn === currency?.nameEn
           ) {
             return (
               cardDetail.amount >= rate.minAmount &&

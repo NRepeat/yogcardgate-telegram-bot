@@ -468,7 +468,6 @@ export class MenuActions {
     }
 
     if (!vendor.work) {
-      // await ctx.reply('You are not allowed to create requests. Chat on pause');
       return;
     }
 

@@ -18,6 +18,8 @@ import { UserVendorWizard } from './menu/user-vendor.wizard';
 import { AcceptRequestScene } from './user/accept-request.scene';
 import { AccessControlService } from './access-control/access-control.service';
 import { VendorCallbackService } from './callback/vendors';
+import { CurrencyService } from '../currencie/currencie.service';
+import { CurrencyModule } from '../currencie/currencie.module';
 
 @Module({
   imports: [
@@ -28,6 +30,7 @@ import { VendorCallbackService } from './callback/vendors';
     UtilsModule,
     RequestModule,
     ReportModule,
+    CurrencyModule,
   ],
   controllers: [],
   exports: [TelegramService],
@@ -41,6 +44,7 @@ import { VendorCallbackService } from './callback/vendors';
     MenuActions,
     RatesActions,
     UserActions,
+    CurrencyService,
     AcceptRequestScene,
     AccessControlService,
     VendorCallbackService,

@@ -13,7 +13,13 @@ import {
 } from 'src/types/types';
 import { TelegramService } from '../telegram.service';
 import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
-import { MenuFactory } from '../telegram-keyboards';
+import {
+  BUTTON_CALLBACKS,
+  BUTTON_TEXTS,
+  MenuFactory,
+} from '../telegram-keyboards';
+import { CurrencyService } from 'src/modules/currencie/currencie.service';
+import { Markup } from 'telegraf';
 
 @Injectable()
 @Wizard('create-request')
@@ -24,19 +30,22 @@ export class CreateRequestWizard {
     private readonly vendorService: VendorService,
     private readonly utilsService: UtilsService,
     private readonly telegramService: TelegramService,
+    private readonly currenciesService: CurrencyService,
   ) {}
 
   @WizardStep(0)
   async selectMethod(@Ctx() ctx: CustomSceneContext) {
-    // console.log('@WizardStep selectMethod');
     const username = ctx.from?.username || 'Unknown User';
     const selectPaymentMenu =
       MenuFactory.createSelectPaymentMethodMenu(username);
+    const availableCurrenciesKeyboard =
+      await this.currenciesService.getCurrencyKeyboard();
+    console.log(availableCurrenciesKeyboard, ctx.session.customState);
     ctx.session.messagesToDelete = ctx.session.messagesToDelete || [];
     ctx.session.requestMenuMessageId = ctx.session.requestMenuMessageId || [];
     if (ctx.session.customState !== 'select_method') {
-      const msg = await ctx.reply(selectPaymentMenu.caption, {
-        reply_markup: selectPaymentMenu.markup,
+      const msg = await ctx.reply(availableCurrenciesKeyboard.caption, {
+        reply_markup: availableCurrenciesKeyboard.markup,
         parse_mode: 'HTML',
       });
       ctx.session.customState = 'select_method';
@@ -44,8 +53,8 @@ export class CreateRequestWizard {
     } else {
       await this.deleteSceneMessages(ctx);
       await this.deleteSceneMenuMessages(ctx);
-      const msg = await ctx.reply(selectPaymentMenu.caption, {
-        reply_markup: selectPaymentMenu.markup,
+      const msg = await ctx.reply(availableCurrenciesKeyboard.caption, {
+        reply_markup: availableCurrenciesKeyboard.markup,
         parse_mode: 'HTML',
       });
       ctx.session.requestMenuMessageId?.push(msg.message_id);
@@ -60,12 +69,58 @@ export class CreateRequestWizard {
       await ctx.answerCbQuery('Unknown action');
       return;
     }
-
+    console.log('Callback data:', callbackQuery.data);
     const username = ctx.from?.username || 'Unknown User';
     const selectPaymentMenu =
       MenuFactory.createSelectPaymentMethodMenu(username);
-    switch (callbackQuery.data) {
-      case 'return_to_request_menu': {
+    let currencyId: string | undefined;
+    if (callbackQuery.data.startsWith('select_currency_')) {
+      currencyId = callbackQuery.data.replace('select_currency_', '');
+    }
+    switch (true) {
+      case callbackQuery.data.startsWith('select_currency_'): {
+        console.log('Selected currency ID:', currencyId);
+        const currency = await this.currenciesService.findById(currencyId!);
+        if (!currency) {
+          await ctx.answerCbQuery('Currency not found');
+          return;
+        }
+        const paymentMethods = currency.paymentMethod;
+        if (!paymentMethods || paymentMethods.length === 0) {
+          await ctx.answerCbQuery(
+            'No payment methods available for this currency',
+          );
+          return;
+        }
+        const buttons = paymentMethods
+          .map((method) => {
+            if (method.nameEn === 'CARD') {
+              return Markup.button.callback(
+                BUTTON_TEXTS.CARD,
+                BUTTON_CALLBACKS.CARD_REQUEST,
+              );
+            } else if (method.nameEn === 'IBAN') {
+              return Markup.button.callback(
+                BUTTON_TEXTS.IBAN,
+                BUTTON_CALLBACKS.IBAN_REQUEST,
+              );
+            } else {
+              return null;
+            }
+          })
+          .filter((btn) => btn !== null);
+        const selectPaymentMenu =
+          MenuFactory.createSelectPaymentMethodMenu(username);
+        const markup: InlineKeyboardMarkup = Markup.inlineKeyboard([
+          [...buttons],
+        ]).reply_markup;
+        const msg = await ctx.reply(selectPaymentMenu.caption, {
+          reply_markup: markup,
+          parse_mode: 'HTML',
+        });
+        break;
+      }
+      case callbackQuery.data === 'return_to_request_menu': {
         await this.updateSceneMenuMessage(
           ctx,
           selectPaymentMenu.caption,
@@ -76,14 +131,14 @@ export class CreateRequestWizard {
         ctx.wizard.selectStep(0);
         break;
       }
-      case 'cancel_request': {
+      case callbackQuery.data === 'cancel_request': {
         await ctx.answerCbQuery('Request creation cancelled');
         await this.deleteSceneMessages(ctx);
         ctx.session.customState = '';
         await this.cancel(ctx);
         break;
       }
-      case 'card_request': {
+      case callbackQuery.data === 'card_request': {
         ctx.session.requestType = 'card';
         const cardRequestMenu = MenuFactory.createCardPaymentMenu(username);
         await this.updateSceneMenuMessage(
@@ -95,7 +150,7 @@ export class CreateRequestWizard {
         ctx.wizard.selectStep(1);
         break;
       }
-      case 'iban_request': {
+      case callbackQuery.data === 'iban_request': {
         ctx.session.requestType = 'iban';
         const ibanRequestMenu = MenuFactory.createIbanPaymentMenu(username);
         await this.updateSceneMenuMessage(

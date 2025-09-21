@@ -455,7 +455,7 @@ export class MenuFactory {
 }
 
 // Константы для кнопок и сообщений
-const BUTTON_TEXTS = {
+export const BUTTON_TEXTS = {
   IN_WORK: 'В работе',
   DONE: '✅Выполнено',
   REJECTED: '🚫Отклонено',
@@ -474,7 +474,7 @@ const BUTTON_TEXTS = {
   REJECTED_BY_ADMIN: 'Отклонено админом',
 } as const;
 
-const BUTTON_CALLBACKS = {
+export const BUTTON_CALLBACKS = {
   REJECTED_BY_ADMIN: 'rejected_by_admin_',
   GIVE_NEXT: 'give_next_',
   VALUT_CARD: 'valut_card_',

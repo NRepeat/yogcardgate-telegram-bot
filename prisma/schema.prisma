@@ -24,6 +24,8 @@ enum Status {
 enum CurrencyEnum {
   UAH
   USD
+  EUR
+  AED
 }
 
 enum PaymentMethodEnum {

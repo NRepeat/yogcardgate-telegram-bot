@@ -175,6 +175,7 @@ model PaymentMethod {
   icon            String?
   rates           Rates[]
   paymentRequests PaymentRequests[]
+  currencies      Currency[]
 }
 
 model Currency {
@@ -185,6 +186,7 @@ model Currency {
   symbol          String?
   paymentRequests PaymentRequests[]
   Rates           Rates[]
+  paymentMethod   PaymentMethod[]
 }
 
 model BlackList {

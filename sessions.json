@@ -3,17 +3,38 @@
     {
       "id": "-4868917152:375905624",
       "data": {
-        "__scenes": {
-          "current": "create-request",
-          "state": {},
-          "cursor": 0
-        },
+        "__scenes": {},
         "messagesToDelete": [],
-        "customState": "select_currency",
-        "requestType": "card",
-        "selectedCurrencyId": "cmdxpqhea0004d387wq7ea5kv",
-        "requestMenuMessageId": [
-          4706
+        "customState": "",
+        "requestType": "QR",
+        "selectedCurrencyId": "cmfz5uom0000cd3npj52lh19d",
+        "paymentMethodsMeta": [
+          {
+            "name": "QR",
+            "buttonLabel": "CNY • QR",
+            "instruction": "отправьте, пожалуйста, данные строками в указанном порядке:",
+            "rawDescription": "Оплата по QR-коду",
+            "rawDescriptionEn": "QR payment",
+            "form": {
+              "title": "QR",
+              "intro": "отправьте, пожалуйста, данные строками в указанном порядке:",
+              "fields": [
+                {
+                  "label": "Сумма и валюта",
+                  "description": "например 2812 CNY"
+                },
+                {
+                  "label": "Идентификатор/название получателя",
+                  "description": "например Lub*************"
+                },
+                {
+                  "label": "ФИО латиницей",
+                  "description": "например LIUBCHANKA ILYA"
+                }
+              ],
+              "sample": "2812 CNY\nLub*****************\nLIUBCHANKA ILYA"
+            }
+          }
         ]
       }
     },
@@ -54,16 +75,9 @@
     {
       "id": "375905624:375905624",
       "data": {
-        "__scenes": {
-          "current": "create-rates",
-          "state": {},
-          "cursor": 1
-        },
+        "__scenes": {},
         "customState": "",
-        "messagesToDelete": [
-          4704,
-          4703
-        ]
+        "messagesToDelete": []
       }
     }
   ]

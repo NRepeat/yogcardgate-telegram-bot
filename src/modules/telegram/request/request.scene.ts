@@ -9,10 +9,14 @@ import {
   CustomSceneContext,
   FullRequestType,
   IbanRequestType,
+  PaymentMethodFormDefinition,
   SerializedMessage,
 } from 'src/types/types';
 import { TelegramService } from '../telegram.service';
-import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
+import {
+  InlineKeyboardButton,
+  InlineKeyboardMarkup,
+} from 'telegraf/typings/core/types/typegram';
 import {
   BUTTON_CALLBACKS,
   BUTTON_TEXTS,
@@ -20,6 +24,11 @@ import {
 } from '../telegram-keyboards';
 import { CurrencyService } from 'src/modules/currencie/currencie.service';
 import { Markup } from 'telegraf';
+import { CurrencyEnum, PaymentMethodEnum } from '@prisma/client';
+import { PaymentFormFactory } from './payment-form.factory';
+
+const DEFAULT_FORM_INTRO =
+  'отправьте, пожалуйста, данные строками в указанном порядке:';
 
 @Injectable()
 @Wizard('create-request')
@@ -31,7 +40,7 @@ export class CreateRequestWizard {
     private readonly utilsService: UtilsService,
     private readonly telegramService: TelegramService,
     private readonly currenciesService: CurrencyService,
-  ) {}
+  ) { }
 
   @WizardStep(0)
   async selectMethod(@Ctx() ctx: CustomSceneContext) {
@@ -42,7 +51,8 @@ export class CreateRequestWizard {
       await this.currenciesService.getCurrencyKeyboard();
     ctx.session.messagesToDelete = ctx.session.messagesToDelete || [];
     ctx.session.requestMenuMessageId = ctx.session.requestMenuMessageId || [];
-    if (ctx.session.customState !== 'select_currency') {
+    console.log(ctx.session)
+    if (ctx.session.customState !== 'select_currency' && !ctx.session.selectedCurrencyId) {
       const msg = await ctx.reply(availableCurrenciesKeyboard.caption, {
         reply_markup: availableCurrenciesKeyboard.markup,
         parse_mode: 'HTML',
@@ -50,13 +60,35 @@ export class CreateRequestWizard {
       ctx.session.customState = 'select_currency';
       ctx.session.requestMenuMessageId?.push(msg.message_id);
     } else {
-      await this.deleteSceneMessages(ctx);
-      await this.deleteSceneMenuMessages(ctx);
-      const msg = await ctx.reply(availableCurrenciesKeyboard.caption, {
-        reply_markup: availableCurrenciesKeyboard.markup,
-        parse_mode: 'HTML',
-      });
-      ctx.session.requestMenuMessageId?.push(msg.message_id);
+  
+      if (
+        ctx.session.selectedCurrencyId &&
+        ctx.session.requestMenuMessageId &&
+        ctx.session.requestMenuMessageId.length > 0
+      ) {
+        const messageId = ctx.session.requestMenuMessageId[0];
+        ctx.session.requestMenuMessageId = ctx.session.requestMenuMessageId || [];
+        await ctx.telegram.editMessageText(
+          ctx.chat?.id ?? 0,
+          messageId,
+          undefined,
+          availableCurrenciesKeyboard.caption,
+          {
+            reply_markup: availableCurrenciesKeyboard.markup,
+            parse_mode: 'HTML',
+          },
+        );
+        return 
+      }else{
+        await this.deleteSceneMessages(ctx);
+        await this.deleteSceneMenuMessages(ctx);
+        const msg = await ctx.reply(availableCurrenciesKeyboard.caption, {
+          reply_markup: availableCurrenciesKeyboard.markup,
+          parse_mode: 'HTML',
+        });
+        ctx.session.requestMenuMessageId?.push(msg.message_id);
+      }
+   
     }
   }
 
@@ -74,6 +106,7 @@ export class CreateRequestWizard {
     if (callbackQuery.data.startsWith('select_currency_')) {
       currencyId = callbackQuery.data.replace('select_currency_', '');
     }
+    console.log(callbackQuery.data, 'callbackQuery.data')
     switch (true) {
       case callbackQuery.data.startsWith('select_currency_'): {
         const currency = await this.currenciesService.findById(currencyId!);
@@ -81,55 +114,119 @@ export class CreateRequestWizard {
           await ctx.answerCbQuery('Currency not found');
           return;
         }
+
         ctx.session.selectedCurrencyId = currency.id;
-        const paymentMethods = currency.paymentMethod;
+        const currencyEnum = currency.name as CurrencyEnum;
+        const availableMethodIds = new Set(
+          (currency.Rates || []).map((rate) => rate.paymentMethodId),
+        );
+        const paymentMethods = currency.paymentMethod.filter((method) =>
+          availableMethodIds.has(method.id),
+        );
         if (!paymentMethods || paymentMethods.length === 0) {
           await ctx.answerCbQuery(
             'No payment methods available for this currency',
           );
           return;
         }
-        const cancelButton = Markup.button.callback(
-          BUTTON_TEXTS.CANCEL,
-          BUTTON_CALLBACKS.CANCEL_REQUEST,
-        );
-        const buttons = paymentMethods
-          .map((method) => {
-            if (method.nameEn === 'CARD') {
-              return Markup.button.callback(
-                BUTTON_TEXTS.CARD,
-                BUTTON_CALLBACKS.CARD_REQUEST,
-              );
-            } else if (method.nameEn === 'IBAN') {
-              return Markup.button.callback(
-                BUTTON_TEXTS.IBAN,
-                BUTTON_CALLBACKS.IBAN_REQUEST,
-              );
-            } else {
-              return null;
-            }
-          })
-          .filter((btn) => btn !== null);
-        const selectPaymentMenu =
-          MenuFactory.createSelectPaymentMethodMenu(username);
-        const markup: InlineKeyboardMarkup = Markup.inlineKeyboard([
-          [...buttons, cancelButton],
-        ]).reply_markup;
-        await ctx.editMessageText(selectPaymentMenu.caption, {
-          reply_markup: markup,
-          parse_mode: 'HTML',
+        const fallbackLabels: Partial<Record<PaymentMethodEnum, string>> = {
+          [PaymentMethodEnum.CARD]: BUTTON_TEXTS.CARD,
+          [PaymentMethodEnum.IBAN]: BUTTON_TEXTS.IBAN,
+          [PaymentMethodEnum.BANK_ACCOUNT]: 'Bank transfer',
+          [PaymentMethodEnum.PHONE]: 'Phone transfer',
+          [PaymentMethodEnum.SKRILL_EMAIL]: 'Skrill / email',
+          [PaymentMethodEnum.QR]: 'QR',
+        };
+
+        const paymentMethodsMeta = paymentMethods.map((method) => {
+          const methodEnum = method.nameEn as PaymentMethodEnum;
+          const formDefinition = PaymentFormFactory.getForm(
+            currencyEnum,
+            methodEnum,
+          );
+          const description = method.description?.trim();
+          const descriptionEn = method.descriptionEn?.trim();
+          const baseLabel =
+            formDefinition?.title ||
+            description ||
+            descriptionEn ||
+            fallbackLabels[methodEnum] ||
+            method.nameEn;
+          const buttonLabel = `${currency.code} • ${baseLabel}`;
+          const instruction = formDefinition?.intro
+            ? formDefinition.intro
+            : descriptionEn && descriptionEn.length > 0
+              ? descriptionEn
+              : description && description.includes('\n')
+                ? description
+                : null;
+          return {
+            name: method.nameEn,
+            buttonLabel,
+            instruction,
+            rawDescription: description || null,
+            rawDescriptionEn: descriptionEn || null,
+            form: formDefinition ?? null,
+          };
         });
+        ctx.session.paymentMethodsMeta = paymentMethodsMeta;
+
+
+        const keyboard = await this.buildPaymentMethodKeyboard(
+          ctx,
+          username,
+          paymentMethodsMeta,
+        );
+        if (keyboard) {
+
+          await ctx.editMessageText(keyboard.caption, {
+            reply_markup: keyboard.markup,
+            parse_mode: 'HTML',
+          });
+        } else {
+          await ctx.answerCbQuery('No payment methods available');
+        }
+        break;
+      }
+      case callbackQuery.data.startsWith('select_method_'): {
+        const methodKey = callbackQuery.data
+          .replace('select_method_', '')
+          .toUpperCase();
+        if (!(methodKey in PaymentMethodEnum)) {
+          await ctx.answerCbQuery('Unknown payment method');
+          return;
+        }
+        const methodEnum = methodKey as PaymentMethodEnum;
+        ctx.session.requestType = methodEnum;
+        const instruction = this.getPaymentMethodInstruction(
+          ctx,
+          methodEnum,
+          ctx.from?.username,
+        );
+        await this.showPaymentForm(ctx, methodEnum, instruction, username);
         break;
       }
       case callbackQuery.data === 'return_to_request_menu': {
-        await this.updateSceneMenuMessage(
+        const keyboard = await this.buildPaymentMethodKeyboard(
           ctx,
-          selectPaymentMenu.caption,
-          selectPaymentMenu.markup,
+          username,
         );
+        if (!keyboard) {
+          await this.updateSceneMenuMessage(
+            ctx,
+            selectPaymentMenu.caption,
+            selectPaymentMenu.markup,
+          );
+        } else {
+          await this.updateSceneMenuMessage(
+            ctx,
+            keyboard.caption,
+            keyboard.markup,
+          );
+        }
         ctx.session.customState = 'select_method';
-        await this.deleteSceneMessages(ctx);
-        ctx.wizard.selectStep(0);
+        // await this.deleteSceneMessages(ctx);
+        // ctx.wizard.selectStep(0);
         break;
       }
       case callbackQuery.data === 'cancel_request': {
@@ -139,29 +236,10 @@ export class CreateRequestWizard {
         await this.cancel(ctx);
         break;
       }
-      case callbackQuery.data === 'card_request': {
-        ctx.session.requestType = 'card';
-        const cardRequestMenu = MenuFactory.createCardPaymentMenu(username);
-        await this.updateSceneMenuMessage(
-          ctx,
-          cardRequestMenu.caption,
-          cardRequestMenu.markup,
-        );
-        ctx.session.customState = 'card_request';
-        console.log('ctx.state', ctx.session);
-        ctx.wizard.selectStep(1);
-        break;
-      }
-      case callbackQuery.data === 'iban_request': {
-        ctx.session.requestType = 'iban';
-        const ibanRequestMenu = MenuFactory.createIbanPaymentMenu(username);
-        await this.updateSceneMenuMessage(
-          ctx,
-          ibanRequestMenu.caption,
-          ibanRequestMenu.markup,
-        );
-        ctx.session.customState = 'iban_request';
-        ctx.wizard.selectStep(2);
+      case callbackQuery.data === "return_to_select_currency": {
+        // await this.deleteSceneMessages(ctx);
+        // await this.deleteSceneMenuMessages(ctx);
+        await this.selectMethod(ctx)
         break;
       }
       default: {
@@ -241,7 +319,7 @@ export class CreateRequestWizard {
         const foundRate = rates.find((rate) => {
           if (
             rate.paymentMethod.nameEn.toLowerCase() ===
-              ctx.session.requestType?.toLowerCase() &&
+            ctx.session.requestType?.toLowerCase() &&
             rate.currency.nameEn === currency?.nameEn
           ) {
             return (
@@ -458,7 +536,6 @@ export class CreateRequestWizard {
 
   @SceneLeave()
   async onSceneLeave(@Ctx() ctx: CustomSceneContext) {
-    // console.log('Leaving scene, messages to delete:', ctx.session);
     await this.deleteSceneMessages(ctx);
     await this.deleteSceneMenuMessages(ctx);
     ctx.session.messagesToDelete = [];
@@ -501,6 +578,185 @@ export class CreateRequestWizard {
       console.error('Failed to update scene menu message:', error);
     }
   }
+  private async buildPaymentMethodKeyboard(
+    ctx: CustomSceneContext,
+    username: string,
+    paymentMethodsMeta?: CustomSceneContext['session']['paymentMethodsMeta'],
+  ): Promise<{ caption: string; markup: InlineKeyboardMarkup } | null> {
+    const meta =
+      paymentMethodsMeta ?? ctx.session.paymentMethodsMeta ?? undefined;
+    if (!meta || meta.length === 0) {
+      return null;
+    }
+
+    ctx.session.paymentMethodsMeta = meta;
+    const methodButtons = meta.map((item) =>
+      Markup.button.callback(
+        item.buttonLabel,
+        `select_method_${item.name.toLowerCase()}`,
+      ),
+    );
+    const rows: InlineKeyboardButton[][] = [];
+    const perRow = 2;
+    for (let i = 0; i < methodButtons.length; i += perRow) {
+      rows.push(methodButtons.slice(i, i + perRow));
+    }
+
+    const selectPaymentMenu =
+      MenuFactory.createSelectPaymentMethodMenu(username);
+    const cancelButton = Markup.button.callback(
+      BUTTON_TEXTS.BACK,
+      'return_to_select_currency',
+    );
+    const markup = Markup.inlineKeyboard([
+      ...rows,
+      [cancelButton],
+    ]).reply_markup;
+
+    return {
+      caption: selectPaymentMenu.caption,
+      markup,
+    };
+  }
+
+  private async showPaymentForm(
+    ctx: CustomSceneContext,
+    method: PaymentMethodEnum,
+    instruction: string | null,
+    username?: string,
+  ) {
+    const step = this.resolveMethodStep(method);
+    const caption =
+      instruction ||
+      this.getDefaultFormCaption(method, username) ||
+      'Введите данные для заявки:';
+    const markup = Markup.inlineKeyboard([
+      [
+        Markup.button.callback(
+          BUTTON_TEXTS.BACK,
+          BUTTON_CALLBACKS.RETURN_TO_REQUEST_MENU,
+        ),
+      ],
+      [
+        Markup.button.callback(
+          BUTTON_TEXTS.CANCEL,
+          BUTTON_CALLBACKS.CANCEL_REQUEST,
+        ),
+      ],
+    ]).reply_markup;
+
+    await this.updateSceneMenuMessage(ctx, caption, markup);
+
+    ctx.session.customState =
+      step === 'card' ? 'card_request' : 'iban_request';
+    ctx.wizard.selectStep(step === 'card' ? 1 : 2);
+  }
+
+  private getDefaultFormCaption(
+    method: PaymentMethodEnum,
+    username?: string,
+  ): string | null {
+    const baseCaption =
+      method === PaymentMethodEnum.CARD
+        ? '@username отправьте, пожалуйста, данные карты.'
+        : '@username отправьте, пожалуйста, данные для перевода.';
+    if (!username) {
+      return baseCaption.replace('@username', '').trim();
+    }
+    return baseCaption.replace('@username', `@${username}`).trim();
+  }
+
+  private resolveMethodStep(
+    method: PaymentMethodEnum,
+  ): 'card' | 'iban' {
+    switch (method) {
+      case PaymentMethodEnum.CARD:
+      case PaymentMethodEnum.PHONE:
+      case PaymentMethodEnum.QR:
+        return 'card';
+      default:
+        return 'iban';
+    }
+  }
+
+  private getPaymentMethodMeta(
+    ctx: CustomSceneContext,
+    method: PaymentMethodEnum | string,
+  ) {
+    const methodName =
+      typeof method === 'string' ? method.toUpperCase() : method;
+    return (
+      ctx.session.paymentMethodsMeta?.find(
+        (item) => item.name === methodName,
+      ) ?? null
+    );
+  }
+
+  private getPaymentMethodInstruction(
+    ctx: CustomSceneContext,
+    method: PaymentMethodEnum,
+    username?: string,
+  ): string | null {
+    const meta = this.getPaymentMethodMeta(ctx, method);
+    if (meta?.form) {
+      return this.renderFormInstruction(meta.form, username);
+    }
+    const candidateInstruction = meta?.instruction?.trim();
+    if (candidateInstruction) {
+      return this.prependUsername(candidateInstruction, username);
+    }
+    const fallback = meta?.rawDescriptionEn || meta?.rawDescription;
+    if (fallback) {
+      return this.prependUsername(fallback, username);
+    }
+    return null;
+  }
+
+  private renderFormInstruction(
+    form: PaymentMethodFormDefinition,
+    username?: string,
+  ): string {
+    const segments: string[] = [];
+    const intro = form.intro || DEFAULT_FORM_INTRO;
+    const introWithUsername = this.prependUsername(intro, username);
+    segments.push(introWithUsername);
+
+    if (form.fields?.length) {
+      const lines = form.fields.map((field, index) => {
+        const base = `${index + 1}. ${field.label}${field.optional ? ' (по желанию)' : ''}`;
+        const details: string[] = [];
+        if (field.description) {
+          details.push(field.description);
+        }
+        if (field.example) {
+          details.push(`пример: ${field.example}`);
+        }
+        return details.length ? `${base} — ${details.join(', ')}` : base;
+      });
+      segments.push(lines.join('\n'));
+    }
+
+    if (form.sample) {
+      segments.push(`Пример сообщения:\n${form.sample}`);
+    }
+
+    if (form.notes?.length) {
+      segments.push(form.notes.map((note) => `⚠️ ${note}`).join('\n'));
+    }
+
+    return segments.join('\n\n');
+  }
+
+  private prependUsername(text: string, username?: string): string {
+    if (!username) {
+      return text;
+    }
+    if (text.includes(`@${username}`)) {
+      return text;
+    }
+    return `@${username} ${text}`.trim();
+  }
+
   parseIbanRequest(input: string) {
     const lines = input
       .split('\n')

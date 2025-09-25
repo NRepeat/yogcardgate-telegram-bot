@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  InlineKeyboardButton,
-  InlineKeyboardMarkup,
-} from 'telegraf/typings/core/types/typegram';
+import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
 import { Markup } from 'telegraf';
 import { BUTTON_CALLBACKS, BUTTON_TEXTS } from '../telegram/telegram-keyboards';
 import { CurrencyEnum, PaymentMethodEnum } from '@prisma/client';
@@ -45,7 +42,7 @@ export class CurrencyService {
   async findById(id: string) {
     return this.prisma.currency.findUnique({
       where: { id },
-      include: { paymentMethod: true },
+      include: { paymentMethod: true, Rates: true },
     });
   }
   async getCurrencyKeyboard() {
@@ -57,8 +54,8 @@ export class CurrencyService {
     const buttons = currencies
       .filter((c) => c.Rates && c.Rates.length > 0)
       .sort((a, b) => {
-        const aIndex = popularIndex(a.name);
-        const bIndex = popularIndex(b.name);
+        const aIndex = popularIndex(a.name as string);
+        const bIndex = popularIndex(b.name as string);
         if (aIndex !== bIndex) {
           return aIndex - bIndex;
         }
@@ -79,7 +76,7 @@ export class CurrencyService {
           ),
         );
         const methodLabel = methods.length ? ` • ${methods.join(' / ')}` : '';
-        const text = `${currency.nameEn}${methodLabel}`;
+        const text = `${currency.nameEn}`;
         return Markup.button.callback(
           text,
           `select_currency_${currency.id}`,
@@ -91,13 +88,13 @@ export class CurrencyService {
       BUTTON_TEXTS.CANCEL,
       BUTTON_CALLBACKS.CANCEL_REQUEST,
     );
-    const rows: InlineKeyboardButton[][] = [];
+    const rows: typeof buttons[] = [];
     for (let i = 0; i < buttons.length; i += CHUNK_SIZE) {
       rows.push(buttons.slice(i, i + CHUNK_SIZE));
     }
     rows.push([cancelRequest]);
     const markup: InlineKeyboardMarkup = Markup.inlineKeyboard(rows).reply_markup;
-    return {
+      return {
       caption,
       markup,
     };

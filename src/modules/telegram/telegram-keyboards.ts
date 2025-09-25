@@ -129,124 +129,139 @@ abstract class BaseRequestMenu {
       this.isHubGroup,
     );
     const currentAccessType = accessType || this.getAccessType();
-    const isCard = this.request.paymentMethod?.nameEn === 'CARD';
-    if (isCard) {
-      const cardMethods = this.request.cardMethods || [];
+    const paymentMethod = this.request.paymentMethod?.nameEn;
 
-      const bank = cardMethods[0]?.bank?.bankName
-        ? cardMethods[0]?.bank?.bankName
-        : '-';
-      const amount = this.request.amount || 0;
-      const rateValue = this.request.rates?.rate;
-      const rate = rateValue
-        ? `💱<b>Курс:</b> <code>${rateValue}</code>\n`
-        : '';
-      const usdt = rateValue
-        ? `💎<b>USDT:</b> <code>${(amount / rateValue).toFixed(2)}</code>\n`
-        : '';
-      const isBlacklisted =
-        cardMethods[0]?.blackList && cardMethods[0]?.blackList.length > 0;
-      const blacklist = isBlacklisted ? '🚫Карта в чёрном списке' : '';
-
-      const acceptedBy = this.request.activeUser
-        ? `<b>Пользователь:</b> @${this.request.activeUser.username}\n`
-        : '';
-      const card =
-        cardMethods.length > 0 && cardMethods[0]?.card
-          ? `💳<b>Номер карты:</b> <code>${Array.from(cardMethods[0].card, () => '*').join('')}</code>\n`
-          : '';
-      const publicCard =
-        cardMethods.length > 0 && cardMethods[0]?.card
-          ? `💳<b>Номер карты:</b> <code>${cardMethods[0].card}</code>\n`
-          : '';
-      const payedBy = this.request.payedByUser?.username
-        ? '<b>Оплачено:</b> @' + this.request.payedByUser.username + '\n'
-        : '';
-      const vendor = this.request.vendor?.title || '-';
-      return (
-        `✉️<b>Заявка номер:</b> <code>${this.request.id ?? '-'}</code>\n` +
-        `🏦<b>Банк:</b> <i>${bank}</i>\n` +
-        `💵<b>Сумма:</b> <code>${amount}</code>\n` +
-        rate +
-        usdt +
-        (currentAccessType === 'PUBLIC' || this.isWorkGroup
-          ? publicCard
-          : this.isHubGroup && !this.isWorkGroup
-            ? card
-            : publicCard) +
-        (currentAccessType === 'ADMIN' || currentAccessType === 'WORKER'
-          ? acceptedBy
-          : '') +
-        (currentAccessType === 'ADMIN' ? payedBy : '') +
-        (currentAccessType === 'ADMIN'
-          ? `<b>Партнер:</b> <i>${vendor}</i>\n`
-          : '') +
-        (currentAccessType === 'ADMIN' || currentAccessType === 'WORKER'
-          ? blacklist
-          : '')
-      );
-    } else if (this.request.paymentMethod?.nameEn === 'IBAN') {
-      const ibanMethods = this.request.ibanMethods || [];
-      const name =
-        ibanMethods.length > 0 && ibanMethods[0]?.name
-          ? `👤<b>Имя:</b> <code>${ibanMethods[0].name}</code>\n`
-          : '';
-      const iban =
-        ibanMethods.length > 0 && ibanMethods[0]?.iban
-          ? `🏦<b>IBAN:</b> <code>${ibanMethods[0].iban}</code>\n`
-          : '';
-      const publicIban =
-        ibanMethods.length > 0 && ibanMethods[0]?.iban
-          ? `🏦<b>IBAN:</b> <code>${ibanMethods[0].iban.replace(/.(?=.{4})/g, '*')}</code>\n`
-          : '';
-
-      const inn =
-        ibanMethods.length > 0 && ibanMethods[0]?.inn
-          ? `📋<b>ИНН:</b> <code>${ibanMethods[0].inn}</code>\n`
-          : '';
-      const comment =
-        ibanMethods.length > 0 && ibanMethods[0]?.comment
-          ? `💬<b>Комментарий:</b> <code>${ibanMethods[0].comment}</code>\n`
-          : '';
-      const amount = this.request.amount || 0;
-      const rateValue = this.request.rates?.rate;
-      const rate = rateValue
-        ? `💱<b>Курс:</b> <code>${rateValue}</code>\n`
-        : '';
-      const usdt = rateValue
-        ? `💎<b>USDT:</b> <code>${(amount / rateValue).toFixed(2)}</code>\n`
-        : '';
-      const acceptedBy = this.request.activeUser
-        ? `<b>Принята:</b> @${this.request.activeUser.username}\n`
-        : '';
-      const payedBy = this.request.payedByUser?.username
-        ? '<b>Оплачено:</b> @' + this.request.payedByUser.username + '\n'
-        : '';
-      const vendor = this.request.vendor?.title || '-';
-      return (
-        `✉️<b>Заявка номер:</b> <code>${this.request.id ?? '-'}</code>\n` +
-        `💵<b>Сумма:</b> <code>${amount}</code>\n` +
-        rate +
-        usdt +
-        name +
-        (currentAccessType === 'PUBLIC' || this.isWorkGroup
-          ? iban
-          : this.isHubGroup && !this.isWorkGroup
-            ? publicIban
-            : iban) +
-        inn +
-        comment +
-        (currentAccessType === 'ADMIN' || currentAccessType === 'WORKER'
-          ? acceptedBy
-          : '') +
-        (currentAccessType === 'ADMIN' ? payedBy : '') +
-        (currentAccessType === 'ADMIN'
-          ? `<b>Партнер:</b> <code>${vendor}</code>\n`
-          : '')
-      );
+    if (paymentMethod === 'CARD') {
+      return this.buildCardRequestMessage(currentAccessType);
     }
 
-    return `✉️<b>Заявка номер:</b> <code>${this.request.id ?? '-'}</code>\nНеизвестный тип платежа`;
+    if (paymentMethod === 'IBAN') {
+      return this.buildIbanRequestMessage(currentAccessType);
+    }
+
+    return this.buildUnknownPaymentMessage();
+  }
+
+  private buildCardRequestMessage(accessType: AccessType): string {
+    const cardMethod = this.request.cardMethods?.[0];
+    const amount = this.request.amount ?? 0;
+    const rateValue = this.request.rates?.rate;
+    const rateLines = this.buildRateLines(rateValue, amount);
+    const cardLine = this.buildCardNumberLine(cardMethod?.card, accessType);
+    const lines: Array<string | null> = [
+      this.buildHeaderLine(),
+      `🏦<b>Банк:</b> <i>${cardMethod?.bank?.bankName ?? '-'}</i>`,
+      `💵<b>Сумма:</b> <code>${amount}</code>`,
+      ...rateLines,
+      cardLine,
+    ];
+
+    if ((accessType === 'ADMIN' || accessType === 'WORKER') && this.request.activeUser?.username) {
+      lines.push(`<b>Пользователь:</b> @${this.request.activeUser.username}`);
+    }
+
+    if (accessType === 'ADMIN') {
+      if (this.request.payedByUser?.username) {
+        lines.push(`<b>Оплачено:</b> @${this.request.payedByUser.username}`);
+      }
+      lines.push(`<b>Партнер:</b> <i>${this.request.vendor?.title ?? '-'}</i>`);
+    }
+
+    if ((accessType === 'ADMIN' || accessType === 'WORKER') && cardMethod?.blackList?.length) {
+      lines.push('🚫Карта в чёрном списке');
+    }
+
+    return this.joinMessageLines(lines);
+  }
+
+  private buildIbanRequestMessage(accessType: AccessType): string {
+    const ibanMethod = this.request.ibanMethods?.[0];
+    const amount = this.request.amount ?? 0;
+    const rateValue = this.request.rates?.rate;
+    const rateLines = this.buildRateLines(rateValue, amount);
+    const ibanLine = this.buildIbanLine(ibanMethod?.iban, accessType);
+    const lines: Array<string | null> = [
+      this.buildHeaderLine(),
+      `💵<b>Сумма:</b> <code>${amount}</code>`,
+      ...rateLines,
+      ibanMethod?.name ? `👤<b>Имя:</b> <code>${ibanMethod.name}</code>` : null,
+      ibanLine,
+      ibanMethod?.inn ? `📋<b>ИНН:</b> <code>${ibanMethod.inn}</code>` : null,
+      ibanMethod?.comment ? `💬<b>Комментарий:</b> <code>${ibanMethod.comment}</code>` : null,
+    ];
+
+    if ((accessType === 'ADMIN' || accessType === 'WORKER') && this.request.activeUser?.username) {
+      lines.push(`<b>Принята:</b> @${this.request.activeUser.username}`);
+    }
+
+    if (accessType === 'ADMIN') {
+      if (this.request.payedByUser?.username) {
+        lines.push(`<b>Оплачено:</b> @${this.request.payedByUser.username}`);
+      }
+      lines.push(`<b>Партнер:</b> <code>${this.request.vendor?.title ?? '-'}</code>`);
+    }
+
+    return this.joinMessageLines(lines);
+  }
+
+  private buildUnknownPaymentMessage(): string {
+    return this.joinMessageLines([
+      this.buildHeaderLine(),
+      'Неизвестный тип платежа',
+    ]);
+  }
+
+  private buildHeaderLine(): string {
+    return `✉️<b>Заявка номер:</b> <code>${this.request.id ?? '-'}</code>`;
+  }
+
+  private buildRateLines(rateValue: number | null | undefined, amount: number): string[] {
+    if (!rateValue) {
+      return [];
+    }
+    const lines = [`💱<b>Курс:</b> <code>${rateValue}</code>`];
+    if (rateValue) {
+      lines.push(`💎<b>USDT:</b> <code>${(amount / rateValue).toFixed(2)}</code>`);
+    }
+    return lines;
+  }
+
+  private buildCardNumberLine(cardNumber: string | undefined, accessType: AccessType): string | null {
+    if (!cardNumber) {
+      return null;
+    }
+    const masked = this.maskValue(cardNumber);
+    const visibleNumber =
+      accessType === 'PUBLIC' || this.isWorkGroup
+        ? cardNumber
+        : this.isHubGroup && !this.isWorkGroup
+          ? masked
+          : cardNumber;
+    return `💳<b>Номер карты:</b> <code>${visibleNumber}</code>`;
+  }
+
+  private buildIbanLine(iban: string | undefined, accessType: AccessType): string | null {
+    if (!iban) {
+      return null;
+    }
+    const masked = iban.replace(/.(?=.{4})/g, '*');
+    const value =
+      accessType === 'PUBLIC' || this.isWorkGroup
+        ? iban
+        : this.isHubGroup && !this.isWorkGroup
+          ? masked
+          : iban;
+    return `🏦<b>IBAN:</b> <code>${value}</code>`;
+  }
+
+  private maskValue(value: string): string {
+    return Array.from(value, () => '*').join('');
+  }
+
+  private joinMessageLines(lines: Array<string | null | undefined>): string {
+    return lines
+      .filter((line): line is string => Boolean(line && line.length > 0))
+      .join('\n');
   }
 
   inWork(url?: string, requestId?: string): MenuWithMedia {

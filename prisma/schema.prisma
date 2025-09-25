@@ -22,15 +22,26 @@ enum Status {
 }
 
 enum CurrencyEnum {
+  AED
+  AZN
+  CNY
+  CZK
+  EUR
+  KZT
+  PLN
+  THB
+  TRY
   UAH
   USD
-  EUR
-  AED
 }
 
 enum PaymentMethodEnum {
   CARD
   IBAN
+  BANK_ACCOUNT
+  PHONE
+  SKRILL_EMAIL
+  QR
 }
 
 enum RoleEnum {

@@ -3,11 +3,18 @@
     {
       "id": "-4868917152:375905624",
       "data": {
-        "__scenes": {},
+        "__scenes": {
+          "current": "create-request",
+          "state": {},
+          "cursor": 0
+        },
         "messagesToDelete": [],
-        "customState": "",
+        "customState": "select_currency",
         "requestType": "card",
-        "selectedCurrencyId": "cmdxpqhea0004d387wq7ea5kv"
+        "selectedCurrencyId": "cmdxpqhea0004d387wq7ea5kv",
+        "requestMenuMessageId": [
+          4706
+        ]
       }
     },
     {
@@ -47,9 +54,16 @@
     {
       "id": "375905624:375905624",
       "data": {
-        "__scenes": {},
+        "__scenes": {
+          "current": "create-rates",
+          "state": {},
+          "cursor": 1
+        },
         "customState": "",
-        "messagesToDelete": []
+        "messagesToDelete": [
+          4704,
+          4703
+        ]
       }
     }
   ]

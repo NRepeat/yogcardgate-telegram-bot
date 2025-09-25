@@ -15,14 +15,10 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       intro: DEFAULT_INTRO,
       fields: [
         {
-          label: 'Номер карты',
-        },
-        {
-          label: 'Сумма и валюта',
-          description: 'например 15000 UAH',
+          label: 'Номер карты - Сумма',
         },
       ],
-      sample: '5168742012345678\n15000 UAH',
+      sample: '5168742012345678 15000',
       notes: ['Проверьте, что карта активна и принимает платежи.'],
     },
     [PaymentMethodEnum.IBAN]: {
@@ -58,18 +54,14 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       intro: DEFAULT_INTRO,
       fields: [
         {
-          label: 'Сумма и валюта',
-          description: 'например 1111€',
-        },
-        {
-          label: 'Номер карты',
+          label: 'Номер карты - Сумма',
         },
         {
           label: 'ФИО латиницей',
           description: 'точно как на карте',
         },
       ],
-      sample: '1111€\n4000000012345678\nJOHN DOE',
+      sample: '4000000012345678 1111 JOHN DOE',
     },
     [PaymentMethodEnum.IBAN]: {
       title: 'IBAN',
@@ -80,6 +72,10 @@ const FORM_REGISTRY: PaymentFormRegistry = {
         },
         {
           label: 'IBAN',
+        },
+        {
+          label: 'Комментарий',
+          optional: true,
         },
       ],
       sample: 'JOHN DOE\nDE44500105175407324931',
@@ -116,6 +112,10 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           optional: true,
           description: 'желательно указать',
         },
+        {
+          label: 'Комментарий',
+          optional: true,
+        },
       ],
       sample: 'AE450001234567890123456\nMOHAMMED ALI\nDubai Islamic Bank',
     },
@@ -126,13 +126,15 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       intro: DEFAULT_INTRO,
       fields: [
         {
-          label: 'ФИО латиницей',
+          label: 'Номер карты - Сумма',
         },
         {
-          label: 'Номер карты',
+          label: 'ФИО латиницей',
+          description: 'точно как на карте',
         },
+    
       ],
-      sample: 'JOHN DOE\n4000000012345678',
+      sample: '4000000012345678 1111 JOHN DOE',
     },
     [PaymentMethodEnum.SKRILL_EMAIL]: {
       title: 'Payoneer / Skrill',
@@ -149,7 +151,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       ],
       sample: 'payoneer@mail.com\n1111$',
     },
-    [PaymentMethodEnum.BANK_ACCOUNT]: {
+    [PaymentMethodEnum.WIRE]: {
       title: 'WIRE',
       intro: DEFAULT_INTRO,
       fields: [
@@ -179,12 +181,16 @@ const FORM_REGISTRY: PaymentFormRegistry = {
         {
           label: 'IBAN / номер счёта',
         },
+        {
+          label: 'Комментарий',
+          optional: true,
+        },
       ],
-      sample: 'JAN KOWALSKI\nPL27114020040000300201355387',
+      sample: 'NAME SURNAME\nPL00000000000000000000000000',
     },
   },
   [CurrencyEnum.THB]: {
-    [PaymentMethodEnum.BANK_ACCOUNT]: {
+    [PaymentMethodEnum.WIRE]: {
       title: 'Банковский счёт',
       intro: DEFAULT_INTRO,
       fields: [
@@ -204,11 +210,11 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           label: 'Название банка',
         },
       ],
-      sample: '65000 THB\n3880523258\nWorapan Kittiworaroot\nKrungthai Bank',
+      sample: '50000 THB\n0000000000\nNAME SURNAME\nBank Name',
     },
   },
   [CurrencyEnum.CZK]: {
-    [PaymentMethodEnum.BANK_ACCOUNT]: {
+    [PaymentMethodEnum.WIRE]: {
       title: 'účet',
       intro: DEFAULT_INTRO,
       fields: [
@@ -224,7 +230,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           description: 'например 10000 CZK',
         },
       ],
-      sample: '96092666/5500\nKonstantynov Dmytro\n10000 CZK',
+      sample: '00000000/0000\nNAME SURNAME\n10000 CZK',
     },
   },
   [CurrencyEnum.KZT]: {
@@ -233,18 +239,15 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       intro: DEFAULT_INTRO,
       fields: [
         {
+          label: 'Номер карты - Сумма',
+        },
+        {
           label: 'ФИО латиницей',
+          description: 'точно как на карте',
         },
-        {
-          label: 'Номер карты',
-          description: 'или укажите номер телефона ниже',
-        },
-        {
-          label: 'Номер телефона',
-          optional: true,
-        },
+
       ],
-      sample: 'SERIK NURKEN\n5169497777777777\n+77001234567',
+      sample: '0000000000000000 100000 NAME SURNAME',
     },
     [PaymentMethodEnum.PHONE]: {
       title: 'TEL-NUMBER',
@@ -257,7 +260,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           label: 'Номер телефона',
         },
       ],
-      sample: 'SERIK NURKEN\n+77001234567',
+      sample: 'NAME SURNAME 77000000000',
     },
   },
   [CurrencyEnum.TRY]: {
@@ -275,7 +278,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           label: 'Название банка',
         },
       ],
-      sample: 'AHMET YILMAZ\nTR330006100519786457841326\nZiraat Bankası',
+      sample: 'NAME SURNAME\nTR000000000000000000000000\nBank Name',
     },
   },
   [CurrencyEnum.AZN]: {
@@ -284,16 +287,14 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       intro: DEFAULT_INTRO,
       fields: [
         {
-          label: 'Номер карты',
+          label: 'Номер карты - Сумма',
         },
         {
           label: 'ФИО латиницей',
-        },
-        {
-          label: 'Название банка',
+          description: 'точно как на карте',
         },
       ],
-      sample: '5169497777777777\nSAMIR ALIYEV\nKapital Bank',
+      sample: '4000000012345678 1111 JOHN DOE',
     },
   },
   [CurrencyEnum.CNY]: {
@@ -314,7 +315,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           description: 'например LIUBCHANKA ILYA',
         },
       ],
-      sample: '2812 CNY\nLub*****************\nLIUBCHANKA ILYA',
+      sample: '3000 CNY\nRECIPIENT IDENTIFIER\nNAME SURNAME',
     },
   },
 };

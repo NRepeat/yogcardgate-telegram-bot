@@ -38,8 +38,9 @@ enum CurrencyEnum {
 enum PaymentMethodEnum {
   CARD
   IBAN
-  BANK_ACCOUNT
+  WIRE
   PHONE
+  WIZE
   SKRILL_EMAIL
   QR
 }

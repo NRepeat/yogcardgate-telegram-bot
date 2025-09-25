@@ -93,7 +93,7 @@ const paymentMethods = [
     descriptionEn: 'IBAN transfer',
   },
   {
-    nameEn: PaymentMethodEnum.BANK_ACCOUNT,
+    nameEn: PaymentMethodEnum.WIRE,
     description: 'Оплата по номеру счета / ваер',
     descriptionEn: 'Wire transfer (bank account)',
   },
@@ -118,12 +118,12 @@ const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
   [CurrencyEnum.UAH]: [PaymentMethodEnum.CARD, PaymentMethodEnum.IBAN],
   [CurrencyEnum.USD]: [
     PaymentMethodEnum.CARD,
-    PaymentMethodEnum.BANK_ACCOUNT,
+    PaymentMethodEnum.WIRE,
   ],
   [CurrencyEnum.EUR]: [PaymentMethodEnum.CARD, PaymentMethodEnum.IBAN],
   [CurrencyEnum.PLN]: [PaymentMethodEnum.IBAN],
-  [CurrencyEnum.THB]: [PaymentMethodEnum.BANK_ACCOUNT],
-  [CurrencyEnum.CZK]: [PaymentMethodEnum.BANK_ACCOUNT],
+  [CurrencyEnum.THB]: [PaymentMethodEnum.WIRE],
+  [CurrencyEnum.CZK]: [PaymentMethodEnum.WIRE],
   [CurrencyEnum.KZT]: [PaymentMethodEnum.CARD, PaymentMethodEnum.PHONE],
   [CurrencyEnum.TRY]: [PaymentMethodEnum.IBAN],
   [CurrencyEnum.AZN]: [PaymentMethodEnum.CARD],
@@ -323,7 +323,7 @@ async function seedRates() {
           rate: 37.5,
         },
         {
-          method: PaymentMethodEnum.BANK_ACCOUNT,
+          method: PaymentMethodEnum.WIRE,
           minAmount: 500,
           maxAmount: 100000,
           rate: 37.2,
@@ -361,7 +361,7 @@ async function seedRates() {
       ],
       [CurrencyEnum.THB]: [
         {
-          method: PaymentMethodEnum.BANK_ACCOUNT,
+          method: PaymentMethodEnum.WIRE,
           minAmount: 500,
           maxAmount: 120000,
           rate: 1.05,
@@ -369,7 +369,7 @@ async function seedRates() {
       ],
       [CurrencyEnum.CZK]: [
         {
-          method: PaymentMethodEnum.BANK_ACCOUNT,
+          method: PaymentMethodEnum.WIRE,
           minAmount: 500,
           maxAmount: 150000,
           rate: 1.6,

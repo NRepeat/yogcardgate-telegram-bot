@@ -6,7 +6,7 @@ import { Context } from 'telegraf';
 import Rate from 'src/model/Rate';
 import { VendorService } from '../vendor/vendor.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CurrencyEnum, PaymentMethodEnum, Rates } from '@prisma/client';
+import { CurrencyEnum, PaymentMethodEnum } from '@prisma/client';
 
 @Injectable()
 export class RatesService {
@@ -175,48 +175,92 @@ export class RatesService {
     console.log('New rates', newRates);
 
     try {
-      await this.prisma.$transaction(async (client) => {
-        await client.rates.deleteMany({});
-        const data = await Promise.all(
-          newRates.map(async (rate) => {
-            const currency = await client.currency.findUnique({
-              where: {
-                name: rate.currencyId as CurrencyEnum,
-              },
-            });
-            const paymentMethodId = await client.paymentMethod.findUnique({
-              where: {
-                nameEn: rate.paymentMethodId as PaymentMethodEnum,
-              },
-            });
-            if (!currency || !paymentMethodId) {
-              return null;
-            }
+      const processedCount = await this.prisma.$transaction(async (client) => {
+        const currencyCache = new Map<CurrencyEnum, { id: string }>();
+        const paymentMethodCache = new Map<
+          PaymentMethodEnum,
+          { id: string }
+        >();
+        let updatedRecords = 0;
 
-            return {
+        for (const rate of newRates) {
+          const currencyKey = rate.currencyId as CurrencyEnum;
+          const paymentMethodKey = rate.paymentMethodId as PaymentMethodEnum;
+
+          if (!currencyCache.has(currencyKey)) {
+            const currency = await client.currency.findUnique({
+              where: { name: currencyKey },
+              select: { id: true },
+            });
+            if (!currency) {
+              console.warn(`Currency ${currencyKey} not found. Skipping.`);
+              continue;
+            }
+            currencyCache.set(currencyKey, currency);
+          }
+
+          if (!paymentMethodCache.has(paymentMethodKey)) {
+            const paymentMethod = await client.paymentMethod.findUnique({
+              where: { nameEn: paymentMethodKey },
+              select: { id: true },
+            });
+            if (!paymentMethod) {
+              console.warn(
+                `Payment method ${paymentMethodKey} not found. Skipping.`,
+              );
+              continue;
+            }
+            paymentMethodCache.set(paymentMethodKey, paymentMethod);
+          }
+
+          const currency = currencyCache.get(currencyKey);
+          const paymentMethod = paymentMethodCache.get(paymentMethodKey);
+          if (!currency || !paymentMethod) {
+            continue;
+          }
+
+          const maxAmountValue = rate.maxAmount;
+          const existingRates = await client.rates.findMany({
+            where: {
+              currencyId: currency.id,
+              paymentMethodId: paymentMethod.id,
+              minAmount: rate.minAmount,
+              maxAmount: maxAmountValue,
+            },
+            orderBy: { createdAt: 'asc' },
+          });
+
+          if (existingRates.length > 0) {
+            const targetRate = existingRates[existingRates.length - 1];
+            await client.rates.update({
+              where: { id: targetRate.id },
+              data: {
+                rate: rate.rate,
+                minAmount: rate.minAmount,
+                maxAmount: maxAmountValue,
+              },
+            });
+            updatedRecords += 1;
+            continue;
+          }
+
+          await client.rates.create({
+            data: {
               rate: rate.rate,
               minAmount: rate.minAmount,
-              maxAmount: rate.maxAmount,
+              maxAmount: maxAmountValue,
               currencyId: currency.id,
-              paymentMethodId: paymentMethodId.id,
-            };
-          }),
-        );
-        const filteredData = data.filter(Boolean) as unknown as Rates;
-        const result = await client.rates.createMany({
-          data: filteredData,
-        });
-
-        if (result.count !== newRates.length) {
-          throw new Error(
-            'Failed to create all rates. Transaction will be rolled back.',
-          );
+              paymentMethodId: paymentMethod.id,
+            },
+          });
+          updatedRecords += 1;
         }
 
-        console.log('Rates created successfully');
-        return true;
+        console.log(`Rates processed: ${updatedRecords}`);
+        return updatedRecords;
       });
-      return true;
+
+      return processedCount > 0;
     } catch (error) {
       throw new Error(
         `Failed to create rates: ${error instanceof Error ? error.message : 'Unknown error'}`,

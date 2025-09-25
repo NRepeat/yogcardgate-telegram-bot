@@ -24,21 +24,112 @@ const currencies = [
     nameEn: CurrencyEnum.USD,
     symbol: '$',
   },
+  {
+    code: 'EUR',
+    name: CurrencyEnum.EUR,
+    nameEn: CurrencyEnum.EUR,
+    symbol: '€',
+  },
+  {
+    code: 'PLN',
+    name: CurrencyEnum.PLN,
+    nameEn: CurrencyEnum.PLN,
+    symbol: 'zł',
+  },
+  {
+    code: 'THB',
+    name: CurrencyEnum.THB,
+    nameEn: CurrencyEnum.THB,
+    symbol: '฿',
+  },
+  {
+    code: 'CZK',
+    name: CurrencyEnum.CZK,
+    nameEn: CurrencyEnum.CZK,
+    symbol: 'Kč',
+  },
+  {
+    code: 'KZT',
+    name: CurrencyEnum.KZT,
+    nameEn: CurrencyEnum.KZT,
+    symbol: '₸',
+  },
+  {
+    code: 'TRY',
+    name: CurrencyEnum.TRY,
+    nameEn: CurrencyEnum.TRY,
+    symbol: '₺',
+  },
+  {
+    code: 'AZN',
+    name: CurrencyEnum.AZN,
+    nameEn: CurrencyEnum.AZN,
+    symbol: '₼',
+  },
+  {
+    code: 'CNY',
+    name: CurrencyEnum.CNY,
+    nameEn: CurrencyEnum.CNY,
+    symbol: '¥',
+  },
+  {
+    code: 'AED',
+    name: CurrencyEnum.AED,
+    nameEn: CurrencyEnum.AED,
+    symbol: 'د.إ',
+  },
 ];
 
 // Дані для заповнення моделі PaymentMethod
 const paymentMethods = [
   {
     nameEn: PaymentMethodEnum.CARD,
-    description: 'Visa/MasterCard',
-    descriptionEn: 'Visa/MasterCard',
+    description: 'Оплата по карте',
+    descriptionEn: 'Card payment',
   },
   {
     nameEn: PaymentMethodEnum.IBAN,
-    description: 'Visa/MasterCard',
-    descriptionEn: 'Visa/MasterCard',
+    description: 'Оплата по IBAN',
+    descriptionEn: 'IBAN transfer',
+  },
+  {
+    nameEn: PaymentMethodEnum.BANK_ACCOUNT,
+    description: 'Оплата по номеру счета / ваер',
+    descriptionEn: 'Wire transfer (bank account)',
+  },
+  {
+    nameEn: PaymentMethodEnum.PHONE,
+    description: 'Оплата по номеру телефона',
+    descriptionEn: 'Phone number transfer',
+  },
+  {
+    nameEn: PaymentMethodEnum.SKRILL_EMAIL,
+    description: 'Skrill (оплата по почте)',
+    descriptionEn: 'Skrill (email)',
+  },
+  {
+    nameEn: PaymentMethodEnum.QR,
+    description: 'Оплата по QR-коду',
+    descriptionEn: 'QR payment',
   },
 ];
+
+const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
+  [CurrencyEnum.UAH]: [PaymentMethodEnum.CARD, PaymentMethodEnum.IBAN],
+  [CurrencyEnum.USD]: [
+    PaymentMethodEnum.CARD,
+    PaymentMethodEnum.BANK_ACCOUNT,
+  ],
+  [CurrencyEnum.EUR]: [PaymentMethodEnum.CARD, PaymentMethodEnum.IBAN],
+  [CurrencyEnum.PLN]: [PaymentMethodEnum.IBAN],
+  [CurrencyEnum.THB]: [PaymentMethodEnum.BANK_ACCOUNT],
+  [CurrencyEnum.CZK]: [PaymentMethodEnum.BANK_ACCOUNT],
+  [CurrencyEnum.KZT]: [PaymentMethodEnum.CARD, PaymentMethodEnum.PHONE],
+  [CurrencyEnum.TRY]: [PaymentMethodEnum.IBAN],
+  [CurrencyEnum.AZN]: [PaymentMethodEnum.CARD],
+  [CurrencyEnum.CNY]: [PaymentMethodEnum.QR],
+  [CurrencyEnum.AED]: [PaymentMethodEnum.IBAN],
+};
 
 // Дані для заповнення моделі Role
 const roles = [
@@ -107,51 +198,266 @@ async function seedPaymentMethod() {
   }
 }
 
+async function seedCurrencyPaymentMethods() {
+  console.log('Початок привʼязки методів оплати до валют...');
+  try {
+    const paymentMethodsInDb = await prisma.paymentMethod.findMany({
+      where: {
+        nameEn: {
+          in: Object.values(PaymentMethodEnum),
+        },
+      },
+      select: { nameEn: true },
+    });
+    if (paymentMethodsInDb.length === 0) {
+      console.warn('Методи оплати відсутні. Пропускаємо крок привʼязки.');
+      return;
+    }
+
+    const availableMethods = new Set(
+      paymentMethodsInDb.map((method) => method.nameEn),
+    );
+
+    const currenciesInDb = await prisma.currency.findMany({
+      where: {
+        name: {
+          in: Object.values(CurrencyEnum),
+        },
+      },
+      select: { id: true, name: true },
+    });
+
+    for (const currency of currenciesInDb) {
+      const targetMethods =
+        currencyPaymentMethodConfig[currency.name as CurrencyEnum] || [];
+
+      const methodsToConnect = targetMethods
+        .filter((method) => availableMethods.has(method))
+        .map((method) => ({ nameEn: method }));
+
+      if (methodsToConnect.length === 0) {
+        continue;
+      }
+
+      await prisma.currency.update({
+        where: { id: currency.id },
+        data: {
+          paymentMethod: {
+            set: methodsToConnect,
+          },
+        },
+      });
+    }
+
+    console.log(
+      `Методи оплати привʼязані до ${currenciesInDb.length} валют(и).`,
+    );
+  } catch (e) {
+    console.error(
+      'Сталася помилка під час привʼязки методів оплати до валют:',
+      e,
+    );
+    process.exit(1);
+  }
+}
+
 /**
  * Заповнює базу даних даними для моделі Rates.
  */
 async function seedRates() {
   console.log('Початок заповнення моделі Rates...');
   try {
-    // Отримуємо ідентифікатори валют та методів оплати для створення зв'язків
-    const usdCurrency = await prisma.currency.findUnique({
-      where: { name: CurrencyEnum.USD },
+    const currenciesInDb = await prisma.currency.findMany({
+      where: {
+        name: {
+          in: Object.values(CurrencyEnum),
+        },
+      },
+      select: { id: true, name: true },
     });
-    const uahCurrency = await prisma.currency.findUnique({
-      where: { name: CurrencyEnum.UAH },
+    const paymentMethodsInDb = await prisma.paymentMethod.findMany({
+      where: {
+        nameEn: {
+          in: Object.values(PaymentMethodEnum),
+        },
+      },
+      select: { id: true, nameEn: true },
     });
-    const cardMethod = await prisma.paymentMethod.findUnique({
-      where: { nameEn: PaymentMethodEnum.CARD },
-    });
-    const ibanMethod = await prisma.paymentMethod.findUnique({
-      where: { nameEn: PaymentMethodEnum.IBAN },
-    });
-    if (!usdCurrency || !uahCurrency || !cardMethod || !ibanMethod) {
+
+    if (!currenciesInDb.length || !paymentMethodsInDb.length) {
       console.error(
-        'Відсутні необхідні дані для заповнення Rates. Переконайтеся, що Currency та PaymentMethod заповнені.',
+        'Відсутні дані для створення курсів. Переконайтеся, що Currency та PaymentMethod заповнені.',
       );
       return;
     }
 
-    const rates = [
+    const currencyMap = new Map(
+      currenciesInDb.map((currency) => [currency.name as CurrencyEnum, currency.id]),
+    );
+    const paymentMethodMap = new Map(
+      paymentMethodsInDb.map((method) => [method.nameEn as PaymentMethodEnum, method.id]),
+    );
+
+    const rateConfig: Record<
+      CurrencyEnum,
       {
-        currencyId: usdCurrency.id,
-        paymentMethodId: cardMethod.id,
-        minAmount: 10,
-        maxAmount: 1000,
-        rate: 37.5,
-      },
+        method: PaymentMethodEnum;
+        minAmount: number;
+        maxAmount: number;
+        rate: number;
+      }[]
+    > = {
+      [CurrencyEnum.UAH]: [
+        {
+          method: PaymentMethodEnum.CARD,
+          minAmount: 50,
+          maxAmount: 50000,
+          rate: 1,
+        },
+      ],
+      [CurrencyEnum.USD]: [
+        {
+          method: PaymentMethodEnum.CARD,
+          minAmount: 50,
+          maxAmount: 20000,
+          rate: 37.5,
+        },
+        {
+          method: PaymentMethodEnum.BANK_ACCOUNT,
+          minAmount: 500,
+          maxAmount: 100000,
+          rate: 37.2,
+        },
+      ],
+      [CurrencyEnum.EUR]: [
+        {
+          method: PaymentMethodEnum.CARD,
+          minAmount: 50,
+          maxAmount: 15000,
+          rate: 41.8,
+        },
+        {
+          method: PaymentMethodEnum.IBAN,
+          minAmount: 100,
+          maxAmount: 100000,
+          rate: 41.5,
+        },
+      ],
+      [CurrencyEnum.AED]: [
+        {
+          method: PaymentMethodEnum.IBAN,
+          minAmount: 100,
+          maxAmount: 120000,
+          rate: 10.2,
+        },
+      ],
+      [CurrencyEnum.PLN]: [
+        {
+          method: PaymentMethodEnum.IBAN,
+          minAmount: 200,
+          maxAmount: 90000,
+          rate: 9.5,
+        },
+      ],
+      [CurrencyEnum.THB]: [
+        {
+          method: PaymentMethodEnum.BANK_ACCOUNT,
+          minAmount: 500,
+          maxAmount: 120000,
+          rate: 1.05,
+        },
+      ],
+      [CurrencyEnum.CZK]: [
+        {
+          method: PaymentMethodEnum.BANK_ACCOUNT,
+          minAmount: 500,
+          maxAmount: 150000,
+          rate: 1.6,
+        },
+      ],
+      [CurrencyEnum.KZT]: [
+        {
+          method: PaymentMethodEnum.CARD,
+          minAmount: 5000,
+          maxAmount: 200000,
+          rate: 0.092,
+        },
+        {
+          method: PaymentMethodEnum.PHONE,
+          minAmount: 5000,
+          maxAmount: 200000,
+          rate: 0.091,
+        },
+      ],
+      [CurrencyEnum.TRY]: [
+        {
+          method: PaymentMethodEnum.IBAN,
+          minAmount: 500,
+          maxAmount: 80000,
+          rate: 1.25,
+        },
+      ],
+      [CurrencyEnum.AZN]: [
+        {
+          method: PaymentMethodEnum.CARD,
+          minAmount: 300,
+          maxAmount: 80000,
+          rate: 21.8,
+        },
+      ],
+      [CurrencyEnum.CNY]: [
+        {
+          method: PaymentMethodEnum.QR,
+          minAmount: 500,
+          maxAmount: 100000,
+          rate: 5.25,
+        },
+      ],
+    };
+
+    const ratesToInsert = [] as {
+      currencyId: string;
+      paymentMethodId: string;
+      minAmount: number;
+      maxAmount: number;
+      rate: number;
+    }[];
+
+    for (const [currency, configs] of Object.entries(rateConfig) as [
+      CurrencyEnum,
       {
-        currencyId: uahCurrency.id,
-        paymentMethodId: cardMethod.id,
-        minAmount: 50,
-        maxAmount: 5000,
-        rate: 1.0,
-      },
-    ];
+        method: PaymentMethodEnum;
+        minAmount: number;
+        maxAmount: number;
+        rate: number;
+      }[],
+    ][]) {
+      const currencyId = currencyMap.get(currency);
+      if (!currencyId) {
+        continue;
+      }
+      for (const config of configs) {
+        const methodId = paymentMethodMap.get(config.method);
+        if (!methodId) {
+          continue;
+        }
+        ratesToInsert.push({
+          currencyId,
+          paymentMethodId: methodId,
+          minAmount: config.minAmount,
+          maxAmount: config.maxAmount,
+          rate: config.rate,
+        });
+      }
+    }
+
+    if (!ratesToInsert.length) {
+      console.warn('Немає курсів для вставки. Пропускаємо seedRates.');
+      return;
+    }
 
     const result = await prisma.rates.createMany({
-      data: rates,
+      data: ratesToInsert,
       skipDuplicates: true,
     });
     console.log(
@@ -227,6 +533,7 @@ async function main() {
   await seedRole();
   await seedCurrency();
   await seedPaymentMethod();
+  await seedCurrencyPaymentMethods();
   await seedRates();
   await seedCardBank();
 

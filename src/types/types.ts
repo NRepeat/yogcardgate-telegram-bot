@@ -57,6 +57,13 @@ export interface CustomSession extends Scenes.WizardSessionData {
   customState?: string; // renamed from 'state' to avoid conflict
   requestType?: string; // card, iban, etc
   selectedCurrencyId?: string;
+  paymentMethodsMeta?: {
+    name: string;
+    buttonLabel: string;
+    instruction?: string | null;
+    rawDescription?: string | null;
+    rawDescriptionEn?: string | null;
+  }[];
 }
 export type CardRequestType = Omit<
   SerializedRequest,

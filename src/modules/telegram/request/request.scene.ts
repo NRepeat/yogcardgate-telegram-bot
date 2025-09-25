@@ -132,7 +132,7 @@ export class CreateRequestWizard {
         const fallbackLabels: Partial<Record<PaymentMethodEnum, string>> = {
           [PaymentMethodEnum.CARD]: BUTTON_TEXTS.CARD,
           [PaymentMethodEnum.IBAN]: BUTTON_TEXTS.IBAN,
-          [PaymentMethodEnum.BANK_ACCOUNT]: 'Bank transfer',
+          [PaymentMethodEnum.WIRE]: 'Bank transfer',
           [PaymentMethodEnum.PHONE]: 'Phone transfer',
           [PaymentMethodEnum.SKRILL_EMAIL]: 'Skrill / email',
           [PaymentMethodEnum.QR]: 'QR',
@@ -466,13 +466,13 @@ export class CreateRequestWizard {
           'Пользователь не найден в базе данных. Пожалуйста, свяжитесь с администратором.',
         );
         ctx.session.messagesToDelete?.push(msg.message_id);
-        ctx.wizard.selectStep(2);
+        // ctx.wizard.selectStep(2);
         return;
       }
       if (!foundRate) {
         const msg = await ctx.reply('Нед доступного курса для данной суммы.');
         ctx.session.messagesToDelete?.push(msg.message_id);
-        ctx.wizard.selectStep(2);
+        // ctx.wizard.selectStep(2);
         return;
       }
       const ibanRequest: IbanRequestType = {
@@ -649,7 +649,7 @@ export class CreateRequestWizard {
 
     ctx.session.customState =
       step === 'card' ? 'card_request' : 'iban_request';
-    ctx.wizard.selectStep(step === 'card' ? 1 : 2);
+    // ctx.wizard.selectStep(step === 'card' ? 1 : 2);
   }
 
   private getDefaultFormCaption(

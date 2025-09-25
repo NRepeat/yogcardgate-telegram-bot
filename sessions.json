@@ -3,38 +3,43 @@
     {
       "id": "-4868917152:375905624",
       "data": {
-        "__scenes": {},
+        "__scenes": {
+          "current": "create-request",
+          "state": {},
+          "cursor": 2
+        },
         "messagesToDelete": [],
-        "customState": "",
-        "requestType": "QR",
-        "selectedCurrencyId": "cmfz5uom0000cd3npj52lh19d",
+        "customState": "select_method",
+        "requestType": "SKRILL_EMAIL",
+        "selectedCurrencyId": "cmfz5uom00006d3npzbmzbx6w",
         "paymentMethodsMeta": [
           {
-            "name": "QR",
-            "buttonLabel": "CNY • QR",
+            "name": "IBAN",
+            "buttonLabel": "PLN • IBAN",
             "instruction": "отправьте, пожалуйста, данные строками в указанном порядке:",
-            "rawDescription": "Оплата по QR-коду",
-            "rawDescriptionEn": "QR payment",
+            "rawDescription": "IBAN",
+            "rawDescriptionEn": "IBAN",
             "form": {
-              "title": "QR",
+              "title": "IBAN",
               "intro": "отправьте, пожалуйста, данные строками в указанном порядке:",
               "fields": [
                 {
-                  "label": "Сумма и валюта",
-                  "description": "например 2812 CNY"
+                  "label": "ФИО латиницей"
                 },
                 {
-                  "label": "Идентификатор/название получателя",
-                  "description": "например Lub*************"
+                  "label": "IBAN / номер счёта"
                 },
                 {
-                  "label": "ФИО латиницей",
-                  "description": "например LIUBCHANKA ILYA"
+                  "label": "Комментарий",
+                  "optional": true
                 }
               ],
-              "sample": "2812 CNY\nLub*****************\nLIUBCHANKA ILYA"
+              "sample": "JAN KOWALSKI\nPL27114020040000300201355387"
             }
           }
+        ],
+        "requestMenuMessageId": [
+          4925
         ]
       }
     },
@@ -78,6 +83,83 @@
         "__scenes": {},
         "customState": "",
         "messagesToDelete": []
+      }
+    },
+    {
+      "id": "-4868917152:8045572818",
+      "data": {
+        "__scenes": {
+          "current": "create-request",
+          "state": {},
+          "cursor": 0
+        },
+        "messagesToDelete": [],
+        "customState": "select_method",
+        "selectedCurrencyId": "cmfz5uom00008d3npexk5acav",
+        "paymentMethodsMeta": [
+          {
+            "name": "WIRE",
+            "buttonLabel": "CZK • účet",
+            "instruction": "отправьте, пожалуйста, данные строками в указанном порядке:",
+            "rawDescription": "Оплата по номеру счета / ваер",
+            "rawDescriptionEn": "Wire transfer (bank account)",
+            "form": {
+              "title": "účet",
+              "intro": "отправьте, пожалуйста, данные строками в указанном порядке:",
+              "fields": [
+                {
+                  "label": "Účet (номер счёта)",
+                  "description": "например 96092666/5500"
+                },
+                {
+                  "label": "ФИО латиницей"
+                },
+                {
+                  "label": "Сумма и валюта",
+                  "description": "например 10000 CZK"
+                }
+              ],
+              "sample": "00000000/0000\nNAME SURNAME\n10000 CZK"
+            }
+          }
+        ],
+        "requestType": "WIRE",
+        "requestMenuMessageId": [
+          4953
+        ]
+      }
+    },
+    {
+      "id": "-4868917152:6219189757",
+      "data": {
+        "__scenes": {},
+        "messagesToDelete": [],
+        "customState": "",
+        "selectedCurrencyId": "cmfz5uom0000bd3npkp5xu9q5",
+        "paymentMethodsMeta": [
+          {
+            "name": "CARD",
+            "buttonLabel": "AZN • CARD",
+            "instruction": "отправьте, пожалуйста, данные строками в указанном порядке:",
+            "rawDescription": "Visa/MasterCard",
+            "rawDescriptionEn": "Visa/MasterCard",
+            "form": {
+              "title": "CARD",
+              "intro": "отправьте, пожалуйста, данные строками в указанном порядке:",
+              "fields": [
+                {
+                  "label": "Номер карты - Сумма"
+                },
+                {
+                  "label": "ФИО латиницей",
+                  "description": "точно как на карте"
+                }
+              ],
+              "sample": "4000000012345678 1111 JOHN DOE"
+            }
+          }
+        ],
+        "requestType": "CARD"
       }
     }
   ]

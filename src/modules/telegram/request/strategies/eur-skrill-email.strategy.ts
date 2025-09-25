@@ -3,23 +3,28 @@ import { FullRequestType } from 'src/types/types';
 import {
   CreateRequestParams,
   ParsedStrategyInput,
-  UsdBaseStrategy,
-} from './usd-base.strategy';
+  EurBaseStrategy,
+  EurStrategyDependencies,
+} from './eur-base.strategy';
 
-interface UsdSkrillParsedInput extends ParsedStrategyInput {
+interface EurSkrillParsedInput extends ParsedStrategyInput {
   email: string;
   rawAmountToken: string;
   comment?: string;
 }
 
-export class UsdSkrillEmailStrategy extends UsdBaseStrategy {
+export class EurSkrillEmailStrategy extends EurBaseStrategy {
+  constructor(deps: EurStrategyDependencies) {
+    super(deps);
+  }
+
   protected supportsMethod(method: PaymentMethodEnum): boolean {
     return method === PaymentMethodEnum.SKRILL_EMAIL;
   }
 
   protected parseInput(message: string) {
     const lines = message
-      .split('\n')
+      .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean);
 
@@ -66,7 +71,7 @@ export class UsdSkrillEmailStrategy extends UsdBaseStrategy {
     vendorId,
     rate,
     parsed,
-  }: CreateRequestParams & { parsed: UsdSkrillParsedInput }): Promise<FullRequestType> {
+  }: CreateRequestParams & { parsed: EurSkrillParsedInput }): Promise<FullRequestType> {
     const request = await this.deps.requestService.createGeneralRequest({
       amount: parsed.amount,
       vendorId,
@@ -85,12 +90,12 @@ export class UsdSkrillEmailStrategy extends UsdBaseStrategy {
     return request as unknown as FullRequestType;
   }
 
-  protected buildDetails(data: UsdSkrillParsedInput): string {
+  protected buildDetails(data: EurSkrillParsedInput): string {
     const lines = [
-      'Тип: USD SKRILL_EMAIL',
+      'Тип: EUR SKRILL_EMAIL',
       `Email: ${data.email}`,
       `Сумма (ввод): ${data.rawAmountToken}`,
-      `Сумма (число): ${data.amount} USD`,
+      `Сумма (число): ${data.amount} EUR`,
     ];
     if (data.comment) {
       lines.push(`Комментарий: ${data.comment}`);

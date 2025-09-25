@@ -3,7 +3,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
 import { Markup } from 'telegraf';
 import { BUTTON_CALLBACKS, BUTTON_TEXTS } from '../telegram/telegram-keyboards';
-import { CurrencyEnum, PaymentMethodEnum } from '@prisma/client';
+import {
+  CurrencyEnum,
+  PaymentMethod,
+  PaymentMethodEnum,
+} from '@prisma/client';
 
 const POPULAR_CURRENCY_ORDER: CurrencyEnum[] = [
   CurrencyEnum.USD,
@@ -36,15 +40,24 @@ export class CurrencyService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getAll() {
-    return this.prisma.currency.findMany({
+    const currencies = await this.prisma.currency.findMany({
       include: { Rates: true, paymentMethod: true },
     });
+
+    return Promise.all(
+      currencies.map((currency) => this.attachMissingPaymentMethods(currency)),
+    );
   }
   async findById(id: string) {
-    return this.prisma.currency.findUnique({
+    const currency = await this.prisma.currency.findUnique({
       where: { id },
       include: { paymentMethod: true, Rates: true },
     });
+    if (!currency) {
+      return null;
+    }
+
+    return this.attachMissingPaymentMethods(currency);
   }
   async getCurrencyKeyboard() {
     const currencies = await this.getAll();
@@ -95,9 +108,33 @@ export class CurrencyService {
     }
     rows.push([cancelRequest]);
     const markup: InlineKeyboardMarkup = Markup.inlineKeyboard(rows).reply_markup;
-      return {
+    return {
       caption,
       markup,
     };
+  }
+
+  private async attachMissingPaymentMethods<T extends {
+    paymentMethod: PaymentMethod[];
+    Rates: { paymentMethodId: string | null }[];
+  }>(currency: T): Promise<T> {
+    const rateMethodIds = new Set(
+      currency.Rates.map((rate) => rate.paymentMethodId).filter(
+        (id): id is string => Boolean(id),
+      ),
+    );
+    const existingMethodIds = new Set(currency.paymentMethod.map((method) => method.id));
+    const missingIds = [...rateMethodIds].filter((id) => !existingMethodIds.has(id));
+
+    if (missingIds.length > 0) {
+      const missingMethods = await this.prisma.paymentMethod.findMany({
+        where: { id: { in: missingIds } },
+      });
+      if (missingMethods.length > 0) {
+        currency.paymentMethod = [...currency.paymentMethod, ...missingMethods];
+      }
+    }
+
+    return currency;
   }
 }

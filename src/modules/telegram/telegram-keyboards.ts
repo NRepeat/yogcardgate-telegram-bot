@@ -156,8 +156,8 @@ abstract class BaseRequestMenu {
     const maskSensitive = this.shouldMask(currentAccessType);
     const payload = method
       ? RequestMessageFactory.create(currentAccessType, this.request, method, {
-          maskSensitive,
-        })
+        maskSensitive,
+      })
       : null;
 
     if (payload) {
@@ -498,7 +498,19 @@ abstract class BaseRequestMenu {
   }
 
   private shouldMask(accessType: AccessType): boolean {
-    return accessType === 'WORKER' && this.isHubGroup && !this.isWorkGroup;
+    if (accessType === 'WORKER') {
+      if (
+        !this.isWorkGroup
+      ) {
+        return true
+      } else if (this.isHubGroup) {
+        return false
+      }else {
+        return false
+      }
+    } else {
+      return false
+    }
   }
 
   private maskDigits(value: string, shouldMask: boolean, visibleDigits = 4): string {

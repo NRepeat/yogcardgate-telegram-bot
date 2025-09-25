@@ -251,13 +251,9 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       intro: DEFAULT_INTRO,
       fields: [
         {
-          label: 'Номер карты - Сумма',
+          label: 'Номер карты Сумма ФИО',
+          description: 'ФИО латиницей точно как на карте',
         },
-        {
-          label: 'ФИО латиницей',
-          description: 'точно как на карте',
-        },
-
       ],
       sample: '0000000000000000 100000 NAME SURNAME',
     },
@@ -266,11 +262,9 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       intro: DEFAULT_INTRO,
       fields: [
         {
-          label: 'ФИО латиницей',
+          label: 'ФИО латиницей Номер телефона Сумма',
         },
-        {
-          label: 'Номер телефона',
-        },
+     
       ],
       sample: 'NAME SURNAME 77000000000',
     },

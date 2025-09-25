@@ -9,16 +9,16 @@ import {
   StrategyResult,
 } from './payment-request.strategy';
 
-export interface UsdStrategyDependencies {
+export interface PlnStrategyDependencies {
   ratesService: RatesService;
   requestService: RequestService;
   vendorService: VendorService;
 }
 
-export abstract class UsdBaseStrategy implements PaymentRequestStrategy {
-  protected readonly targetCurrency = CurrencyEnum.USD;
+export abstract class PlnBaseStrategy implements PaymentRequestStrategy {
+  protected readonly targetCurrency = CurrencyEnum.PLN;
 
-  constructor(protected readonly deps: UsdStrategyDependencies) {}
+  constructor(protected readonly deps: PlnStrategyDependencies) {}
 
   supports(currency: CurrencyEnum, method: PaymentMethodEnum): boolean {
     return currency === this.targetCurrency && this.supportsMethod(method);
@@ -46,12 +46,12 @@ export abstract class UsdBaseStrategy implements PaymentRequestStrategy {
         };
       }
 
-      const availableRates = (await this.deps.ratesService.getAllRates()) as RateWithRelations[];
+      const rates = (await this.deps.ratesService.getAllRates()) as RateWithRelations[];
       const requests: FullRequestType[] = [];
       const details: string[] = [];
 
       for (const parsedItem of parsed.data) {
-        const rate = this.findRate(availableRates, parsedItem.amount, method);
+        const rate = this.findRate(rates, parsedItem.amount, method);
         if (!rate) {
           return {
             status: 'error',
@@ -78,7 +78,7 @@ export abstract class UsdBaseStrategy implements PaymentRequestStrategy {
         details,
       };
     } catch (error) {
-      console.error('[USD Strategy] Unexpected error:', error);
+      console.error('[PLN Strategy] Unexpected error:', error);
       return {
         status: 'error',
         error: 'Не удалось создать заявку. Попробуйте ещё раз позже.',
@@ -125,11 +125,6 @@ export abstract class UsdBaseStrategy implements PaymentRequestStrategy {
   protected abstract buildDetails(data: ParsedStrategyInput): string;
 }
 
-type RateWithRelations = Rates & {
-  paymentMethod: { nameEn: PaymentMethodEnum };
-  currency: { name: CurrencyEnum };
-};
-
 export interface ParsedStrategyInput {
   amount: number;
   [key: string]: any;
@@ -140,6 +135,11 @@ export interface CreateRequestParams {
   method: PaymentMethodEnum;
   currencyId: string;
   vendorId: string;
-  rate: Rates & { paymentMethod: { nameEn: PaymentMethodEnum }; currency: { name: CurrencyEnum } };
+  rate: RateWithRelations;
   parsed: ParsedStrategyInput;
 }
+
+type RateWithRelations = Rates & {
+  paymentMethod: { nameEn: PaymentMethodEnum };
+  currency: { name: CurrencyEnum };
+};

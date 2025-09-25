@@ -1,8 +1,18 @@
-import { createReadStream, ReadStream } from 'fs';
+import { createReadStream } from 'fs';
 import { AccessType, PaymentMethodEnum } from '@prisma/client';
-import { FullRequestType } from 'src/types/types';
 import { Markup } from 'telegraf';
 import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
+import { FullRequestType, ReplyPhotoMessage } from 'src/types/types';
+import { RequestMessageFactory } from './request/request-message.factory';
+import {
+  BUTTON_CALLBACKS,
+  BUTTON_TEXTS,
+  MESSAGES,
+  createButton,
+  createSingleButtonMarkup,
+} from './telegram.constants';
+
+type RequestMethodWithDetails = NonNullable<FullRequestType['methods']>[number];
 
 interface IMenu {
   caption: string;
@@ -13,7 +23,7 @@ interface IMenu {
 
 interface IMenuWithMedia extends IMenu {
   url: string;
-  source?: Buffer<ArrayBufferLike> | ReadStream;
+  source: Buffer<ArrayBufferLike>;
 }
 
 class Menu implements IMenu {
@@ -21,6 +31,7 @@ class Menu implements IMenu {
   markup: InlineKeyboardMarkup;
   username?: string;
   request?: FullRequestType;
+
   constructor(
     caption: string,
     markup: InlineKeyboardMarkup,
@@ -31,9 +42,11 @@ class Menu implements IMenu {
     this.request = request;
   }
 }
+
 class MenuWithMedia extends Menu implements IMenuWithMedia {
   url: string;
   source: Buffer<ArrayBufferLike>;
+
   constructor(
     caption: string,
     markup: InlineKeyboardMarkup,
@@ -43,9 +56,7 @@ class MenuWithMedia extends Menu implements IMenuWithMedia {
   ) {
     super(caption, markup, request);
     this.url = url;
-    this.source = source
-      ? source
-      : (createReadStream(url) as any as Buffer<ArrayBufferLike>);
+    this.source = (source ?? (createReadStream(url) as any)) as Buffer<ArrayBufferLike>;
   }
 }
 
@@ -71,6 +82,7 @@ class SelectPaymentMethodMenu extends Menu {
     super(caption, markup);
   }
 }
+
 abstract class PaymentMenu extends Menu {
   constructor(caption: string, username?: string) {
     const markup = createSingleButtonMarkup(
@@ -97,264 +109,355 @@ class IbanPaymentMenu extends PaymentMenu {
 }
 
 abstract class BaseRequestMenu {
-  request: FullRequestType;
-  url: string;
-  source: Buffer<ArrayBufferLike>;
-  isWorkGroup?: boolean;
-  isHubGroup?: boolean;
-  constructor(
+  protected readonly request: FullRequestType;
+  protected readonly url: string;
+  protected readonly source?: Buffer<ArrayBufferLike>;
+  protected readonly isWorkGroup: boolean;
+  protected readonly isHubGroup: boolean;
+  private readonly defaultPhotoUrl = './src/assets/0056.jpg';
+
+  protected constructor(
     url: string,
     request: FullRequestType,
     source?: Buffer<ArrayBufferLike>,
-    isWorkGroup?: boolean,
-    isHubGroup?: boolean,
+    isWorkGroup = false,
+    isHubGroup = false,
   ) {
-    const photoUrl = './src/assets/0056.jpg';
     this.request = request;
-    this.url = url ? url : photoUrl;
-    this.source = source || Buffer.from([]);
-    this.isWorkGroup = isWorkGroup || false;
-    this.isHubGroup = isHubGroup || false;
+    this.url = url || this.defaultPhotoUrl;
+    this.source = source;
+    this.isWorkGroup = isWorkGroup;
+    this.isHubGroup = isHubGroup;
   }
 
   protected abstract getAccessType(): AccessType;
 
-  messageFromRequest(accessType?: AccessType): string {
-    if (!this.request) {
-      return MESSAGES.NO_DATA;
+  private resolveMethod(): RequestMethodWithDetails | null {
+    if (!this.request.methods || this.request.methods.length === 0) {
+      return null;
     }
-    console.log(
-      'Generating message for request:',
-      this.isWorkGroup,
-      this.isHubGroup,
+
+    const preferredName = this.request.paymentMethod?.nameEn ?? null;
+    if (preferredName) {
+      const matched = this.request.methods.find(
+        (method) => method.method === preferredName,
+      );
+      if (matched) {
+        return matched;
+      }
+    }
+
+    return this.request.methods[0] ?? null;
+  }
+
+  protected buildBasePayload(accessType?: AccessType): ReplyPhotoMessage {
+    const currentAccessType = accessType ?? this.getAccessType();
+    const method = this.resolveMethod();
+    const maskSensitive = this.shouldMask(currentAccessType);
+    const payload = method
+      ? RequestMessageFactory.create(currentAccessType, this.request, method, {
+          maskSensitive,
+        })
+      : null;
+
+    if (payload) {
+      return payload;
+    }
+
+    return {
+      text: this.buildFallbackCaption(currentAccessType, method),
+    };
+  }
+
+  private buildFallbackCaption(
+    accessType: AccessType,
+    method: RequestMethodWithDetails | null,
+  ): string {
+    const amount = this.request.amount ?? null;
+    const currencyLabel =
+      this.request.currency?.nameEn ?? this.request.currency?.name ?? '';
+    const rateValue =
+      typeof this.request.rates?.rate === 'number'
+        ? this.request.rates.rate
+        : this.request.rate
+          ? Number(this.request.rate)
+          : null;
+
+    const lines: Array<string | null> = [
+      `✉️<b>Заявка номер:</b> <code>${this.request.id}</code>`,
+      this.buildMethodLabel(method, currencyLabel),
+      typeof amount === 'number'
+        ? `💵<b>Сумма:</b> <code>${amount}</code>${currencyLabel ? ` ${currencyLabel}` : ''}`
+        : null,
+      rateValue ? `💱<b>Курс:</b> <code>${rateValue.toFixed(2)}</code>` : null,
+    ];
+
+    lines.push(
+      ...this.buildMethodSpecificLines(accessType, method, currencyLabel),
     );
-    const currentAccessType = accessType || this.getAccessType();
-    const paymentMethod = this.request.paymentMethod?.nameEn;
 
-    if (paymentMethod === 'CARD') {
-      return this.buildCardRequestMessage(currentAccessType);
+    if (this.request.activeUser?.username) {
+      lines.push(`👤<b>Принята:</b> @${this.request.activeUser.username}`);
     }
 
-    if (paymentMethod === 'IBAN') {
-      return this.buildIbanRequestMessage(currentAccessType);
+    if (this.request.vendor?.title) {
+      lines.push(`🤝<b>Партнер:</b> <i>${this.request.vendor.title}</i>`);
     }
 
-    return this.buildUnknownPaymentMessage();
+    if (this.request.payedByUser?.username && accessType === 'ADMIN') {
+      lines.push(`💸<b>Оплачено:</b> @${this.request.payedByUser.username}`);
+    }
+
+    return lines.filter(Boolean).join('\n');
   }
 
-  private buildCardRequestMessage(accessType: AccessType): string {
-    const cardMethod = this.request.methods?.find(
-      (method) => method.method === PaymentMethodEnum.CARD,
-    )?.cardDetails;
-    const amount = this.request.amount ?? 0;
-    const rateValue = this.request.rates?.rate;
-    const rateLines = this.buildRateLines(rateValue, amount);
-    const cardLine = this.buildCardNumberLine(cardMethod?.card, accessType);
-    const lines: Array<string | null> = [
-      this.buildHeaderLine(),
-      `🏦<b>Банк:</b> <i>${cardMethod?.bank?.bankName ?? '-'}</i>`,
-      `💵<b>Сумма:</b> <code>${amount}</code>`,
-      ...rateLines,
-      cardLine,
-    ];
-
-    if ((accessType === 'ADMIN' || accessType === 'WORKER') && this.request.activeUser?.username) {
-      lines.push(`<b>Пользователь:</b> @${this.request.activeUser.username}`);
+  private buildMethodLabel(
+    method: RequestMethodWithDetails | null,
+    currencyLabel: string,
+  ): string | null {
+    const methodName = method?.method ?? this.request.paymentMethod?.nameEn;
+    if (!methodName && !currencyLabel) {
+      return null;
     }
 
-    if (accessType === 'ADMIN') {
-      if (this.request.payedByUser?.username) {
-        lines.push(`<b>Оплачено:</b> @${this.request.payedByUser.username}`);
-      }
-      lines.push(`<b>Партнер:</b> <i>${this.request.vendor?.title ?? '-'}</i>`);
-    }
+    const label = [currencyLabel, methodName]
+      .filter((part): part is string => Boolean(part && part.length > 0))
+      .join(' • ');
 
-    if (
-      (accessType === 'ADMIN' || accessType === 'WORKER') &&
-      cardMethod?.blackList?.length
-    ) {
-      lines.push('🚫Карта в чёрном списке');
-    }
-
-    return this.joinMessageLines(lines);
+    return label ? `🔖<b>Тип:</b> ${label}` : null;
   }
 
-  private buildIbanRequestMessage(accessType: AccessType): string {
-    const ibanMethod = this.request.methods?.find(
-      (method) => method.method === PaymentMethodEnum.IBAN,
-    )?.ibanDetails;
-    const amount = this.request.amount ?? 0;
-    const rateValue = this.request.rates?.rate;
-    const rateLines = this.buildRateLines(rateValue, amount);
-    const ibanLine = this.buildIbanLine(ibanMethod?.iban, accessType);
-    const lines: Array<string | null> = [
-      this.buildHeaderLine(),
-      `💵<b>Сумма:</b> <code>${amount}</code>`,
-      ...rateLines,
-      ibanMethod?.name ? `👤<b>Имя:</b> <code>${ibanMethod.name}</code>` : null,
-      ibanLine,
-      ibanMethod?.inn ? `📋<b>ИНН:</b> <code>${ibanMethod.inn}</code>` : null,
-      ibanMethod?.comment ? `💬<b>Комментарий:</b> <code>${ibanMethod.comment}</code>` : null,
-    ];
-
-    if ((accessType === 'ADMIN' || accessType === 'WORKER') && this.request.activeUser?.username) {
-      lines.push(`<b>Принята:</b> @${this.request.activeUser.username}`);
-    }
-
-    if (accessType === 'ADMIN') {
-      if (this.request.payedByUser?.username) {
-        lines.push(`<b>Оплачено:</b> @${this.request.payedByUser.username}`);
-      }
-      lines.push(`<b>Партнер:</b> <code>${this.request.vendor?.title ?? '-'}</code>`);
-    }
-
-    return this.joinMessageLines(lines);
-  }
-
-  private buildUnknownPaymentMessage(): string {
-    return this.joinMessageLines([
-      this.buildHeaderLine(),
-      'Неизвестный тип платежа',
-    ]);
-  }
-
-  private buildHeaderLine(): string {
-    return `✉️<b>Заявка номер:</b> <code>${this.request.id ?? '-'}</code>`;
-  }
-
-  private buildRateLines(rateValue: number | null | undefined, amount: number): string[] {
-    if (!rateValue) {
+  private buildMethodSpecificLines(
+    accessType: AccessType,
+    method: RequestMethodWithDetails | null,
+    currencyLabel: string,
+  ): Array<string | null> {
+    if (!method) {
       return [];
     }
-    const lines = [`💱<b>Курс:</b> <code>${rateValue}</code>`];
-    if (rateValue) {
-      lines.push(`💎<b>USDT:</b> <code>${(amount / rateValue).toFixed(2)}</code>`);
+
+    switch (method.method) {
+      case PaymentMethodEnum.CARD:
+        return this.buildCardLines(accessType, method);
+      case PaymentMethodEnum.WIRE:
+        return this.buildWireLines(accessType, method);
+      case PaymentMethodEnum.IBAN:
+        return this.buildIbanLines(accessType, method);
+      case PaymentMethodEnum.PHONE:
+        return this.buildPhoneLines(accessType, method);
+      case PaymentMethodEnum.SKRILL_EMAIL:
+        return this.buildSkrillLines(accessType, method, currencyLabel);
+      case PaymentMethodEnum.QR:
+        return this.buildQrLines(method);
+      default:
+        return [];
     }
+  }
+
+  private buildCardLines(
+    accessType: AccessType,
+    method: RequestMethodWithDetails,
+  ): Array<string | null> {
+    const details = method.cardDetails;
+    if (!details) {
+      return [];
+    }
+
+    const cardNumber = details.card
+      ? this.maskDigits(details.card, this.shouldMask(accessType))
+      : null;
+
+    const lines: Array<string | null> = [
+      cardNumber ? `💳<b>Номер карты:</b> <code>${cardNumber}</code>` : null,
+      `🏦<b>Банк:</b> <i>${details.bank?.bankName ?? '-'}</i>`,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+    ];
+
+    if (details.blackList?.length) {
+      const reason = details.blackList[0]?.reason;
+      lines.push(
+        reason
+          ? `🚫Карта в чёрном списке: ${reason}`
+          : '🚫Карта в чёрном списке',
+      );
+    }
+
     return lines;
   }
 
-  private buildCardNumberLine(cardNumber: string | undefined, accessType: AccessType): string | null {
-    if (!cardNumber) {
-      return null;
+  private buildWireLines(
+    accessType: AccessType,
+    method: RequestMethodWithDetails,
+  ): Array<string | null> {
+    const details = method.wireDetails;
+    if (!details) {
+      return [];
     }
-    const masked = this.maskValue(cardNumber);
-    const visibleNumber =
-      accessType === 'PUBLIC' || this.isWorkGroup
-        ? cardNumber
-        : this.isHubGroup && !this.isWorkGroup
-          ? masked
-          : cardNumber;
-    return `💳<b>Номер карты:</b> <code>${visibleNumber}</code>`;
+
+    const account = details.account
+      ? this.maskDigits(details.account, this.shouldMask(accessType))
+      : null;
+
+    return [
+      account ? `🏦<b>Счёт:</b> <code>${account}</code>` : null,
+      details.recipient
+        ? `👤<b>Получатель:</b> <code>${details.recipient}</code>`
+        : null,
+      details.bankName ? `🏦<b>Банк:</b> <i>${details.bankName}</i>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+    ];
   }
 
-  private buildIbanLine(iban: string | undefined, accessType: AccessType): string | null {
-    if (!iban) {
-      return null;
+  private buildIbanLines(
+    accessType: AccessType,
+    method: RequestMethodWithDetails,
+  ): Array<string | null> {
+    const details = method.ibanDetails;
+    if (!details) {
+      return [];
     }
-    const masked = iban.replace(/.(?=.{4})/g, '*');
-    const value =
-      accessType === 'PUBLIC' || this.isWorkGroup
-        ? iban
-        : this.isHubGroup && !this.isWorkGroup
-          ? masked
-          : iban;
-    return `🏦<b>IBAN:</b> <code>${value}</code>`;
+
+    const iban = details.iban
+      ? this.maskAlphaNumeric(details.iban, this.shouldMask(accessType))
+      : null;
+
+    return [
+      details.name ? `👤<b>Имя:</b> <code>${details.name}</code>` : null,
+      iban ? `🏦<b>IBAN:</b> <code>${iban}</code>` : null,
+      details.inn ? `📋<b>ИНН:</b> <code>${details.inn}</code>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+    ];
   }
 
-  private maskValue(value: string): string {
-    return Array.from(value, () => '*').join('');
+  private buildPhoneLines(
+    accessType: AccessType,
+    method: RequestMethodWithDetails,
+  ): Array<string | null> {
+    const details = method.phoneDetails;
+    if (!details) {
+      return [];
+    }
+
+    const phone = details.phoneNumber
+      ? this.maskDigits(details.phoneNumber, this.shouldMask(accessType))
+      : null;
+
+    return [
+      phone ? `📱<b>Телефон:</b> <code>${phone}</code>` : null,
+      details.holderName
+        ? `👤<b>Получатель:</b> <code>${details.holderName}</code>`
+        : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+    ];
   }
 
-  private joinMessageLines(lines: Array<string | null | undefined>): string {
-    return lines
-      .filter((line): line is string => Boolean(line && line.length > 0))
-      .join('\n');
+  private buildSkrillLines(
+    accessType: AccessType,
+    method: RequestMethodWithDetails,
+    currencyLabel: string,
+  ): Array<string | null> {
+    const details = method.skrillDetails;
+    if (!details) {
+      return [];
+    }
+
+    const email = details.email
+      ? this.maskEmail(details.email, this.shouldMask(accessType))
+      : null;
+
+    return [
+      email ? `📧<b>Email:</b> <code>${email}</code>` : null,
+      currencyLabel ? `💱<b>Валюта:</b> <code>${currencyLabel}</code>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+    ];
   }
 
-  inWork(url?: string, requestId?: string): MenuWithMedia {
+  private buildQrLines(method: RequestMethodWithDetails): Array<string | null> {
+    const details = method.qrDetails;
+    if (!details) {
+      return [];
+    }
+
+    return [
+      details.identifier
+        ? `💼<b>Идентификатор:</b> <code>${details.identifier}</code>`
+        : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+    ];
+  }
+
+  protected createInWorkMarkup(requestId?: string): InlineKeyboardMarkup {
     const accessType = this.getAccessType();
-    let markup: InlineKeyboardMarkup;
     switch (accessType) {
       case 'ADMIN':
-        markup = Markup.inlineKeyboard([
+        return Markup.inlineKeyboard([
           [
             createButton(BUTTON_TEXTS.ADMIN_IN_WORK, BUTTON_CALLBACKS.DUMMY),
             createButton(
               BUTTON_TEXTS.ADMIN_CANCEL_REQUEST,
-              BUTTON_CALLBACKS.ADMIN_CANCEL_REQUEST + requestId,
+              BUTTON_CALLBACKS.ADMIN_CANCEL_REQUEST + (requestId ?? ''),
             ),
           ],
         ]).reply_markup;
-        break;
       case 'WORKER':
-        markup = requestId
-          ? Markup.inlineKeyboard([
-              [
-                createButton(
-                  BUTTON_TEXTS.TAKE_REQUEST,
-                  BUTTON_CALLBACKS.TAKE_REQUEST + requestId,
-                ),
-              ],
-            ]).reply_markup
-          : createSingleButtonMarkup(
-              BUTTON_TEXTS.IN_WORK,
-              BUTTON_CALLBACKS.IN_WORK,
-            );
-        break;
-      case 'PUBLIC':
-      default:
-        markup = createSingleButtonMarkup(
+        if (requestId) {
+          return Markup.inlineKeyboard([
+            [
+              createButton(
+                BUTTON_TEXTS.TAKE_REQUEST,
+                BUTTON_CALLBACKS.TAKE_REQUEST + requestId,
+              ),
+            ],
+          ]).reply_markup;
+        }
+        return createSingleButtonMarkup(
           BUTTON_TEXTS.IN_WORK,
           BUTTON_CALLBACKS.IN_WORK,
         );
-        break;
+      case 'PUBLIC':
+      default:
+        return createSingleButtonMarkup(
+          BUTTON_TEXTS.IN_WORK,
+          BUTTON_CALLBACKS.IN_WORK,
+        );
     }
-    return new MenuWithMedia(
-      this.messageFromRequest(),
-      markup,
-      url || this.url,
-    );
   }
-  inProcess(url?: string, requestId?: string): Menu {
-    const markup = createSingleButtonMarkup(
+
+  protected createInProcessMarkup(requestId?: string): InlineKeyboardMarkup {
+    const baseMarkup = createSingleButtonMarkup(
       BUTTON_TEXTS.IN_WORK,
       BUTTON_CALLBACKS.IN_WORK,
     );
-    const newCancelButton = Markup.button.callback(
+
+    if (!requestId) {
+      return baseMarkup;
+    }
+
+    const cancelButton = Markup.button.callback(
       'Отмена',
       'cancel_payment_' + requestId,
     );
-    const inline_keyboard = requestId
-      ? Markup.inlineKeyboard([
-          [
-            createButton(
-              BUTTON_TEXTS.REQUEST_COMPLIED,
-              BUTTON_CALLBACKS.REQUEST_COMPLIED + requestId,
-            ),
-            newCancelButton,
-          ],
-        ]).reply_markup
-      : markup;
-    return new Menu(this.messageFromRequest(), inline_keyboard);
+
+    return Markup.inlineKeyboard([
+      [
+        createButton(
+          BUTTON_TEXTS.REQUEST_COMPLIED,
+          BUTTON_CALLBACKS.REQUEST_COMPLIED + requestId,
+        ),
+        cancelButton,
+      ],
+    ]).reply_markup;
   }
 
-  done(url?: string): MenuWithMedia {
-    const markup = createSingleButtonMarkup(
-      BUTTON_TEXTS.DONE,
-      BUTTON_CALLBACKS.DONE,
-    );
-    return new MenuWithMedia(
-      this.messageFromRequest(),
-      markup,
-      url || this.url,
-      undefined,
-      this.source,
-    );
+  protected createDoneMarkup(): InlineKeyboardMarkup {
+    return createSingleButtonMarkup(BUTTON_TEXTS.DONE, BUTTON_CALLBACKS.DONE);
   }
-  canceled(url?: string, requestId?: string) {
+
+  protected createCanceledMarkup(requestId?: string): InlineKeyboardMarkup {
     const accessType = this.getAccessType();
+
     if (accessType === 'WORKER' && requestId) {
-      const markup = Markup.inlineKeyboard([
+      return Markup.inlineKeyboard([
         [
           createButton(
             BUTTON_TEXTS.VALUT_CARD,
@@ -368,13 +471,10 @@ abstract class BaseRequestMenu {
           ),
         ],
       ]).reply_markup;
-      return new MenuWithMedia(
-        this.messageFromRequest(),
-        markup,
-        url || this.url,
-      );
-    } else if (accessType === 'ADMIN' && requestId) {
-      const markup = Markup.inlineKeyboard([
+    }
+
+    if (accessType === 'ADMIN' && requestId) {
+      return Markup.inlineKeyboard([
         [
           createButton(
             BUTTON_TEXTS.REJECTED_BY_ADMIN,
@@ -382,57 +482,220 @@ abstract class BaseRequestMenu {
           ),
         ],
       ]).reply_markup;
-      return new MenuWithMedia(
-        this.messageFromRequest(),
-        markup,
-        url || this.url,
-      );
-    } else {
-      return new MenuWithMedia(
-        this.messageFromRequest(),
-        createSingleButtonMarkup(
-          BUTTON_TEXTS.BACK,
-          BUTTON_CALLBACKS.RETURN_TO_REQUEST_MENU,
-        ),
-        url || this.url,
-      );
     }
+
+    return createSingleButtonMarkup(
+      BUTTON_TEXTS.BACK,
+      BUTTON_CALLBACKS.RETURN_TO_REQUEST_MENU,
+    );
   }
-  rejected(url?: string): MenuWithMedia {
-    const markup = createSingleButtonMarkup(
+
+  protected createRejectedMarkup(): InlineKeyboardMarkup {
+    return createSingleButtonMarkup(
       BUTTON_TEXTS.REJECTED,
       BUTTON_CALLBACKS.REJECTED,
     );
+  }
+
+  private shouldMask(accessType: AccessType): boolean {
+    return accessType === 'WORKER' && this.isHubGroup && !this.isWorkGroup;
+  }
+
+  private maskDigits(value: string, shouldMask: boolean, visibleDigits = 4): string {
+    if (!shouldMask) {
+      return value;
+    }
+
+    const digits = value.replace(/\D/g, '');
+    if (digits.length === 0) {
+      return value;
+    }
+
+    const safeVisible = Math.max(0, Math.min(visibleDigits, digits.length));
+    const maskedDigits =
+      '*'.repeat(Math.max(0, digits.length - safeVisible)) + digits.slice(-safeVisible);
+
+    let maskedValue = '';
+    let index = 0;
+    for (const char of value) {
+      if (/\d/.test(char)) {
+        maskedValue += maskedDigits[index] ?? '*';
+        index += 1;
+      } else {
+        maskedValue += char;
+      }
+    }
+
+    return maskedValue;
+  }
+
+  private maskAlphaNumeric(value: string, shouldMask: boolean): string {
+    if (!shouldMask) {
+      return value;
+    }
+
+    const alphanumeric = value.replace(/[^0-9a-zA-Z]/g, '');
+    if (alphanumeric.length === 0) {
+      return value;
+    }
+
+    const visible = alphanumeric.slice(-4);
+    const maskedSequence = '*'.repeat(Math.max(0, alphanumeric.length - 4)) + visible;
+
+    let masked = '';
+    let idx = 0;
+    for (const char of value) {
+      if (/[0-9a-zA-Z]/.test(char)) {
+        masked += maskedSequence[idx] ?? '*';
+        idx += 1;
+      } else {
+        masked += char;
+      }
+    }
+
+    return masked;
+  }
+
+  private maskEmail(value: string, shouldMask: boolean): string {
+    if (!shouldMask) {
+      return value;
+    }
+
+    const [local, domain] = value.split('@');
+    if (!domain) {
+      return this.maskAlphaNumeric(value, true);
+    }
+
+    const maskedLocal = local.length <= 2
+      ? '*'.repeat(local.length)
+      : `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}`;
+
+    return `${maskedLocal}@${domain}`;
+  }
+
+  protected messageFromRequest(accessType?: AccessType): ReplyPhotoMessage {
+    return this.buildBasePayload(accessType);
+  }
+
+  inWork(url?: string, requestId?: string): MenuWithMedia {
+    const accessType = this.getAccessType();
+    const baseMessage = this.messageFromRequest(accessType);
+
+    const markup =
+      baseMessage.inline_keyboard ?? this.createInWorkMarkup(requestId);
+    const photoUrl = baseMessage.photoUrl ?? url ?? this.url;
+    const source = baseMessage.source ?? this.source;
 
     return new MenuWithMedia(
-      this.messageFromRequest(),
+      baseMessage.text ?? MESSAGES.NO_DATA,
       markup,
-      url || this.url,
+      photoUrl,
+      this.request,
+      source,
+    );
+  }
+
+  inProcess(url?: string, requestId?: string): Menu {
+    const baseMessage = this.messageFromRequest(this.getAccessType());
+    const markup = this.createInProcessMarkup(requestId);
+    return new Menu(baseMessage.text ?? MESSAGES.NO_DATA, markup, this.request);
+  }
+
+  done(url?: string): MenuWithMedia {
+    const baseMessage = this.messageFromRequest(this.getAccessType());
+    const markup = this.createDoneMarkup();
+    const photoUrl = baseMessage.photoUrl ?? url ?? this.url;
+    const source = baseMessage.source ?? this.source;
+
+    return new MenuWithMedia(
+      baseMessage.text ?? MESSAGES.NO_DATA,
+      markup,
+      photoUrl,
+      this.request,
+      source,
+    );
+  }
+
+  canceled(url?: string, requestId?: string): MenuWithMedia {
+    const baseMessage = this.messageFromRequest(this.getAccessType());
+    const markup = this.createCanceledMarkup(requestId);
+    const photoUrl = baseMessage.photoUrl ?? url ?? this.url;
+    const source = baseMessage.source ?? this.source;
+
+    return new MenuWithMedia(
+      baseMessage.text ?? MESSAGES.NO_DATA,
+      markup,
+      photoUrl,
+      this.request,
+      source,
+    );
+  }
+
+  rejected(url?: string): MenuWithMedia {
+    const baseMessage = this.messageFromRequest(this.getAccessType());
+    const markup = this.createRejectedMarkup();
+    const photoUrl = baseMessage.photoUrl ?? url ?? this.url;
+    const source = baseMessage.source ?? this.source;
+
+    return new MenuWithMedia(
+      baseMessage.text ?? MESSAGES.NO_DATA,
+      markup,
+      photoUrl,
+      this.request,
+      source,
     );
   }
 }
 
 class PublicMenu extends BaseRequestMenu {
+  constructor(
+    url: string,
+    request: FullRequestType,
+    source?: Buffer<ArrayBufferLike>,
+  ) {
+    super(url, request, source);
+  }
+
   protected getAccessType(): AccessType {
     return 'PUBLIC';
   }
 }
 
 class WorkMenu extends BaseRequestMenu {
+  constructor(
+    url: string,
+    request: FullRequestType,
+    source?: Buffer<ArrayBufferLike>,
+    isWorkGroup = false,
+    isHubGroup = false,
+  ) {
+    super(url, request, source, isWorkGroup, isHubGroup);
+  }
+
   protected getAccessType(): AccessType {
     return 'WORKER';
   }
 }
 
 class AdminMenu extends BaseRequestMenu {
+  constructor(
+    url: string,
+    request: FullRequestType,
+    source?: Buffer<ArrayBufferLike>,
+  ) {
+    super(url, request, source);
+  }
+
   protected getAccessType(): AccessType {
     return 'ADMIN';
   }
 }
+
 export class MenuFactory {
   static createMenu(caption: string, markup: InlineKeyboardMarkup): Menu {
     return new Menu(caption, markup);
   }
+
   static createWorkerMenu(
     request: FullRequestType,
     url: string,
@@ -442,6 +705,7 @@ export class MenuFactory {
   ): WorkMenu {
     return new WorkMenu(url, request, source, isWorkGroup, isHubGroup);
   }
+
   static createAdminMenu(
     request: FullRequestType,
     url: string,
@@ -449,6 +713,7 @@ export class MenuFactory {
   ): AdminMenu {
     return new AdminMenu(url, request, source);
   }
+
   static createPublicMenu(
     request: FullRequestType,
     url: string,
@@ -456,17 +721,21 @@ export class MenuFactory {
   ): PublicMenu {
     return new PublicMenu(url, request, source);
   }
+
   static createSelectPaymentMethodMenu(
     username: string,
   ): SelectPaymentMethodMenu {
     return new SelectPaymentMethodMenu(username);
   }
+
   static createCardPaymentMenu(username?: string): CardPaymentMenu {
     return new CardPaymentMenu(username);
   }
+
   static createIbanPaymentMenu(username?: string): IbanPaymentMenu {
     return new IbanPaymentMenu(username);
   }
+
   static createMenuWithMedia(
     caption: string,
     markup: InlineKeyboardMarkup,
@@ -476,59 +745,10 @@ export class MenuFactory {
   }
 }
 
-// Константы для кнопок и сообщений
-export const BUTTON_TEXTS = {
-  IN_WORK: 'В работе',
-  DONE: '✅Выполнено',
-  REJECTED: '🚫Отклонено',
-  BACK: 'Назад',
-  CARD: 'CARD',
-  IBAN: 'IBAN',
-  CANCEL: 'Отменить',
-  TAKE_REQUEST: 'Взять заявку',
-  WORKER_CANCEL_REQUEST: 'Отказаться',
-  ADMIN_CANCEL_REQUEST: 'Отменить заявку',
-  ADMIN_IN_WORK: 'В работе',
-  REQUEST_COMPLIED: 'Перевел',
-  GIVE_NEXT: 'Передать другому',
-  VALUT_CARD: 'Валютная карта',
-  BACK_TO_TAKE_REQUEST: 'Отказаться от заявки',
-  REJECTED_BY_ADMIN: 'Отклонено админом',
-} as const;
-
-export const BUTTON_CALLBACKS = {
-  REJECTED_BY_ADMIN: 'rejected_by_admin_',
-  GIVE_NEXT: 'give_next_',
-  VALUT_CARD: 'valut_card_',
-  BACK_TO_TAKE_REQUEST: 'back_to_take_request_',
-  WORKER_CANCEL_REQUEST: 'worker_cancel_request_',
-  REQUEST_COMPLIED: 'proceeded_payment_',
-  IN_WORK: 'in_work',
-  DONE: 'done',
-  REJECTED: 'rejected',
-  RETURN_TO_REQUEST_MENU: 'return_to_request_menu',
-  CARD_REQUEST: 'card_request',
-  IBAN_REQUEST: 'iban_request',
-  CANCEL_REQUEST: 'cancel_request',
-  TAKE_REQUEST: 'accept_request_',
-  CANCEL_WORKER_REQUEST: 'cancel_worker_request_',
-  DUMMY: 'dummy',
-  ADMIN_CANCEL_REQUEST: 'admin_cancel_request_',
-} as const;
-
-const MESSAGES = {
-  SELECT_PAYMENT_METHOD: (username: string) =>
-    `@${username} Выберите метод перевода`,
-  CARD_PAYMENT_FORM: (username: string) =>
-    `@${username} отправьте, пожалуйста, заявку в форме:\n\n Карта сумма (5168745632147896 1000)`,
-  IBAN_PAYMENT_FORM: (username: string) =>
-    `@${username} отправьте, пожалуйста, заявку в форме:\nИмя\nIBAN\nИНН\nСумма\nКомментарий (если нужно)`,
-  NO_DATA: 'Нет данных для отображения',
-} as const;
-
-// Вспомогательные функции для создания кнопок
-const createButton = (text: string, callback: string) =>
-  Markup.button.callback(text, callback);
-
-const createSingleButtonMarkup = (text: string, callback: string) =>
-  Markup.inlineKeyboard([[createButton(text, callback)]]).reply_markup;
+export {
+  BUTTON_CALLBACKS,
+  BUTTON_TEXTS,
+  MESSAGES,
+  createButton,
+  createSingleButtonMarkup,
+};

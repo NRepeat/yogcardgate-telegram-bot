@@ -1,0 +1,151 @@
+import { PaymentMethodEnum } from '@prisma/client';
+import { UtilsService } from 'src/modules/utils/utils.service';
+import { FullRequestType } from 'src/types/types';
+import {
+  CreateRequestParams,
+  ParsedStrategyInput,
+  UsdBaseStrategy,
+  UsdStrategyDependencies,
+} from './usd-base.strategy';
+
+interface UsdCardParsedInput extends ParsedStrategyInput {
+  cardNumber: string;
+  holderName?: string;
+}
+
+export class UsdCardStrategy extends UsdBaseStrategy {
+  private readonly cardRegex =
+    /^(?:4[0-9]{12}(?:[0-9]{3})?|[25][1-7][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})$/;
+
+  constructor(
+    deps: UsdStrategyDependencies & { utilsService: UtilsService },
+  ) {
+    super(deps);
+    this.utilsService = deps.utilsService;
+  }
+
+  private readonly utilsService: UtilsService;
+
+  protected supportsMethod(method: PaymentMethodEnum): boolean {
+    return method === PaymentMethodEnum.CARD;
+  }
+
+  protected parseInput(message: string) {
+    const tokens = message
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+
+    const cardIndex = tokens.findIndex((token) => /^(?:\d{12,19})$/.test(token));
+    if (cardIndex === -1) {
+      return {
+        success: false as const,
+        error: 'Не удалось найти номер карты. Убедитесь, что указали его полностью.',
+      };
+    }
+
+    const cardNumber = tokens[cardIndex].replace(/\s+/g, '');
+    if (!this.cardRegex.test(cardNumber)) {
+      return {
+        success: false as const,
+        error: 'Неверный формат номера карты.',
+      };
+    }
+
+    const remaining = [
+      ...tokens.slice(0, cardIndex),
+      ...tokens.slice(cardIndex + 1),
+    ];
+
+    const amountTokenIndex = remaining.findIndex((token) => {
+      const numeric = this.tryParseAmount(token);
+      return numeric !== null && numeric > 0;
+    });
+
+    if (amountTokenIndex === -1) {
+      return {
+        success: false as const,
+        error: 'Не удалось определить сумму перевода.',
+      };
+    }
+
+    const amount = this.tryParseAmount(remaining[amountTokenIndex]);
+    if (!amount || amount <= 0) {
+      return {
+        success: false as const,
+        error: 'Сумма перевода должна быть положительным числом.',
+      };
+    }
+
+    const holderTokens = remaining
+      .filter((_, index) => index !== amountTokenIndex)
+      .filter((token) => !/^USD$/i.test(token));
+    const holderName = holderTokens.join(' ').trim() || undefined;
+
+    return {
+      success: true as const,
+      data: {
+        amount,
+        cardNumber,
+        holderName,
+      },
+    };
+  }
+
+  protected async createRequest({
+    currencyId,
+    vendorId,
+    rate,
+    parsed,
+  }: CreateRequestParams & { parsed: UsdCardParsedInput }): Promise<FullRequestType> {
+    const bankName =
+      await this.utilsService.getBankNameByCardNumber(parsed.cardNumber);
+    const holderComment =
+      parsed.holderName && parsed.holderName.trim().length > 0
+        ? `Holder: ${parsed.holderName.trim()}`
+        : 'Card request created via bot';
+
+    const blackListEntry =
+      await this.deps.requestService.isInBlackList(parsed.cardNumber);
+
+    const request = await this.deps.requestService.createGeneralRequest({
+      amount: parsed.amount,
+      vendorId,
+      currencyId,
+      rateId: rate.id,
+      rate: String(rate.rate ?? ''),
+      paymentMethod: PaymentMethodEnum.CARD,
+      cardDetails: {
+        card: parsed.cardNumber,
+        comment: holderComment,
+        bankId: bankName?.id,
+        blackListId: blackListEntry?.id,
+      },
+    });
+
+    return request as unknown as FullRequestType;
+  }
+
+  protected buildDetails(data: UsdCardParsedInput): string {
+    const lines = [
+      'Тип: USD CARD',
+      `Карта: <code>${data.cardNumber}</code>`,
+      `Сумма: ${data.amount} USD`,
+    ];
+    if (data.holderName) {
+      lines.push(`Держатель: ${data.holderName}`);
+    }
+    return lines.join('\n');
+  }
+
+  private tryParseAmount(token: string): number | null {
+    const normalized = token
+      .replace(/[^0-9,\.]/g, '')
+      .replace(/,/g, '.');
+    if (!normalized) {
+      return null;
+    }
+    const value = Number(normalized);
+    return Number.isFinite(value) ? value : null;
+  }
+}

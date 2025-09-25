@@ -5,7 +5,22 @@ import {
   SerializedMessage,
 } from 'src/types/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { CardPaymentRequestsMethod, Status } from '@prisma/client';
+import { CardPaymentRequestsMethod, PaymentMethodEnum, Status } from '@prisma/client';
+
+export interface GeneralRequestCreateInput {
+  amount: number;
+  vendorId: string;
+  currencyId: string;
+  rateId: string;
+  rate: string;
+  paymentMethod: PaymentMethodEnum;
+  cardDetails?: {
+    card: string;
+    comment?: string;
+    bankId?: string;
+    blackListId?: string;
+  };
+}
 
 @Injectable()
 export class RequestRepository {
@@ -262,6 +277,60 @@ export class RequestRepository {
         ibanMethods: true,
         paymentMethod: true,
 
+        user: true,
+      },
+    });
+  }
+
+  createGeneralRequest({ data }: { data: GeneralRequestCreateInput }) {
+    const cardDetails = data.cardDetails;
+
+    return this.prisma.paymentRequests.create({
+      data: {
+        amount: data.amount,
+        vendor: { connect: { id: data.vendorId } },
+        currency: { connect: { id: data.currencyId } },
+        rates: {
+          connect: { id: data.rateId },
+        },
+        paymentMethod: {
+          connect: {
+            nameEn: data.paymentMethod,
+          },
+        },
+        rate: data.rate,
+        ...(cardDetails
+          ? {
+              cardMethods: {
+                create: {
+                  card: cardDetails.card,
+                  comment: cardDetails.comment,
+                  bankId: cardDetails.bankId || undefined,
+                  blackList: cardDetails.blackListId
+                    ? {
+                        connect: {
+                          id: cardDetails.blackListId,
+                        },
+                      }
+                    : undefined,
+                },
+              },
+            }
+          : {}),
+      },
+      include: {
+        cardMethods: {
+          include: {
+            blackList: true,
+            bank: true,
+          },
+        },
+        message: true,
+        vendor: true,
+        rates: true,
+        currency: true,
+        ibanMethods: true,
+        paymentMethod: true,
         user: true,
       },
     });

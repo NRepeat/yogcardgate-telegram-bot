@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { RequestRepository } from './request.repo';
+import {
+  GeneralRequestCreateInput,
+  RequestRepository,
+} from './request.repo';
 import {
   CardRequestType,
   IbanRequestType,
@@ -124,6 +127,10 @@ export class RequestService {
     }
 
     return this.requestRepo.createCardRequest({ data });
+  }
+
+  async createGeneralRequest(data: GeneralRequestCreateInput) {
+    return this.requestRepo.createGeneralRequest({ data });
   }
   async findAllCardRequestsByCard(cardNumber?: string) {
     return this.requestRepo.findAllCardRequestsByCard(cardNumber);

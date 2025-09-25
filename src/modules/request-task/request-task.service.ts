@@ -7,6 +7,7 @@ import { UserService } from '../user/user.service';
 import { InjectBot } from 'nestjs-telegraf';
 import { Context, Telegraf } from 'telegraf';
 import { MenuFactory } from '../telegram/telegram-keyboards';
+import { RequestMessageFactory } from '../telegram/request/request-message.factory';
 const photoUrl = './src/assets/0056.jpg';
 
 @Injectable()
@@ -24,19 +25,31 @@ export class RequestTaskService {
       if (requests.length === 0) return;
       for (let i = 0; i < requests.length; i++) {
         await this.telegramService.sendRequestToWorkGroup(requests[i]);
-        const adminMenu = MenuFactory.createAdminMenu(
-          requests[i] as unknown as FullRequestType,
-          photoUrl,
-        );
-        const adminRequestPhotoMessage: ReplyPhotoMessage = {
-          photoUrl: adminMenu.inWork().url,
-          text: adminMenu.inWork().caption,
-          inline_keyboard: adminMenu.inWork().markup,
-        };
-        await this.telegramService.sendPhotoMessageToAllAdmins(
-          adminRequestPhotoMessage,
-          requests[i].id,
-        );
+        const adminMessage =
+          requests[i].methods?.map((method) =>
+            RequestMessageFactory.create('ADMIN', requests[i], method),
+          ).find((message) => message !== null) ?? null;
+
+        if (adminMessage) {
+          await this.telegramService.sendPhotoMessageToAllAdmins(
+            adminMessage,
+            requests[i].id,
+          );
+        } else {
+          const adminMenu = MenuFactory.createAdminMenu(
+            requests[i] as unknown as FullRequestType,
+            photoUrl,
+          );
+          const fallbackMessage: ReplyPhotoMessage = {
+            photoUrl: adminMenu.inWork().url,
+            text: adminMenu.inWork().caption,
+            inline_keyboard: adminMenu.inWork().markup,
+          };
+          await this.telegramService.sendPhotoMessageToAllAdmins(
+            fallbackMessage,
+            requests[i].id,
+          );
+        }
         await this.requestService.updateRequestNotificationStatus(
           requests[i].id,
           true,

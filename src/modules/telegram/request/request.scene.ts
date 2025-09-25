@@ -24,7 +24,7 @@ import {
 } from '../telegram-keyboards';
 import { CurrencyService } from 'src/modules/currencie/currencie.service';
 import { Markup } from 'telegraf';
-import { CurrencyEnum, PaymentMethodEnum } from '@prisma/client';
+import { AccessType, CurrencyEnum, PaymentMethodEnum } from '@prisma/client';
 import { PaymentFormFactory } from './payment-form.factory';
 import {
   PaymentRequestStrategy,
@@ -634,27 +634,7 @@ export class CreateRequestWizard {
     }
 
     const request = payload.request;
-    const confirmationText = ['✅ Заявка создана.', payload.details]
-      .filter(Boolean)
-      .join('\n\n');
 
-    const confirmationMessage = await ctx.reply(confirmationText, {
-      parse_mode: 'HTML',
-    });
-
-    await this.persistMessageSafely(request.id, {
-      chatId,
-      messageId: confirmationMessage.message_id,
-      text: confirmationText,
-    });
-
-    if (payload.originalMessage?.message_id && payload.originalMessage?.text) {
-      await this.persistMessageSafely(request.id, {
-        chatId,
-        messageId: payload.originalMessage.message_id,
-        text: payload.originalMessage.text,
-      });
-    }
 
     const photoUrl = './src/assets/0056.jpg';
     const publicMenu = MenuFactory.createPublicMenu(
@@ -662,13 +642,14 @@ export class CreateRequestWizard {
       photoUrl,
     );
 
+    const publicPayload = publicMenu.inWork();
     const menuMessage = await ctx.replyWithPhoto(
       {
-        source: publicMenu.inWork().source,
+        source: publicPayload.source,
       },
       {
-        caption: publicMenu.inWork().caption,
-        reply_markup: publicMenu.inWork().markup,
+        caption: publicPayload.caption,
+        reply_markup: publicPayload.markup,
         parse_mode: 'HTML',
       },
     );
@@ -676,7 +657,7 @@ export class CreateRequestWizard {
     await this.persistMessageSafely(request.id, {
       chatId,
       messageId: menuMessage.message_id,
-      text: publicMenu.inWork().caption,
+      text: publicPayload.caption,
       photoUrl,
     });
 
@@ -702,7 +683,7 @@ export class CreateRequestWizard {
         text: payload.text,
         photoUrl: payload.photoUrl ?? '',
         requestId,
-        accessType: 'PUBLIC',
+        accessType: AccessType.PUBLIC,
       });
     } catch (error) {
       console.error('Failed to persist message for request', requestId, error);
@@ -715,33 +696,102 @@ export class CreateRequestWizard {
       .map((line) => line.trim())
       .filter(Boolean);
 
-    const name = lines[0] || '';
-    const iban = (lines[1] || '').replace(/\s+/g, '').toUpperCase();
-    const inn = (lines[2] || '').replace(/\D/g, '');
-    const amountStr = (lines[3] || '').replace(',', '.').replace(/[^\d.]/g, '');
-    const comment = lines.length > 4 ? lines.slice(4).join('\n').trim() : '';
-
-    const ibanPattern = /^UA\d{27}$/;
-    const innPattern = /^\d{8}$|^\d{10}$/;
-    const amountPattern = /^\d+([.,]\d{1,2})?$/;
-
-    if (!ibanPattern.test(iban)) {
-      throw new Error(
-        'Некорректный IBAN. Пример: UAxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-      );
+    if (lines.length < 3) {
+      throw new Error('Недостаточно данных для IBAN заявки.');
     }
-    if (!innPattern.test(inn)) {
-      throw new Error('ИНН должен содержать 8 или 10 цифр.');
+
+    const ibanRegex = /^[A-Z]{2}[0-9A-Z]{10,}$/i;
+    const amountRegex = /^\d+(?:[.,]\d{1,2})?$/;
+    const innRegex = /^\d{8}$|^\d{10}$/;
+
+    const ibanIndex = lines.findIndex((line) =>
+      ibanRegex.test(line.replace(/\s+/g, '').toUpperCase()),
+    );
+
+    if (ibanIndex === -1) {
+      throw new Error('Строка с IBAN не найдена.');
     }
-    if (!amountPattern.test(amountStr)) {
+
+    const iban = lines[ibanIndex].replace(/\s+/g, '').toUpperCase();
+
+    let amountIndex = -1;
+    for (let i = ibanIndex + 1; i < lines.length; i += 1) {
+      const cleaned = lines[i].replace(',', '.').replace(/[^\d.]/g, '');
+      if (cleaned && amountRegex.test(cleaned)) {
+        amountIndex = i;
+        break;
+      }
+    }
+    if (amountIndex === -1) {
+      for (let i = 0; i < lines.length; i += 1) {
+        if (i === ibanIndex) continue;
+        const cleaned = lines[i].replace(',', '.').replace(/[^\d.]/g, '');
+        if (cleaned && amountRegex.test(cleaned)) {
+          amountIndex = i;
+          break;
+        }
+      }
+    }
+    if (amountIndex === -1) {
       throw new Error('Сумма должна быть числом, например: 1000.00');
     }
+    const amountStr = lines[amountIndex]
+      .replace(',', '.')
+      .replace(/[^\d.]/g, '');
+    const amount = parseFloat(amountStr);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error('Сумма должна быть положительным числом.');
+    }
+
+    // Detect name: prefer line before IBAN, otherwise after
+    let name = '';
+    const candidateBefore = ibanIndex > 0 ? lines[ibanIndex - 1] : '';
+    const candidateAfter =
+      ibanIndex < lines.length - 1 ? lines[ibanIndex + 1] : '';
+    const isAmount = (value: string) =>
+      amountRegex.test(value.replace(',', '.').replace(/[^\d.]/g, ''));
+    const isInnValue = (value: string) => innRegex.test(value.replace(/\D/g, ''));
+
+    if (candidateBefore && !isAmount(candidateBefore) && !isInnValue(candidateBefore)) {
+      name = candidateBefore;
+    } else if (candidateAfter && !isAmount(candidateAfter) && !isInnValue(candidateAfter)) {
+      name = candidateAfter;
+    }
+
+    let inn = '';
+    let innIndex = lines.findIndex((line, idx) => {
+      if (idx === ibanIndex || idx === amountIndex) return false;
+      return innRegex.test(line.replace(/\D/g, ''));
+    });
+    if (innIndex !== -1) {
+      inn = lines[innIndex].replace(/\D/g, '');
+    }
+
+    if (iban.startsWith('UA') && !inn) {
+      throw new Error('ИНН обязателен для IBAN заявок UA.');
+    }
+
+    const usedIndexes = new Set([ibanIndex, amountIndex]);
+    if (name) {
+      const nameIdx = lines.indexOf(name);
+      if (nameIdx !== -1) {
+        usedIndexes.add(nameIdx);
+      }
+    }
+    if (innIndex !== -1) {
+      usedIndexes.add(innIndex);
+    }
+
+    const comment = lines
+      .filter((_, idx) => !usedIndexes.has(idx))
+      .join('\n')
+      .trim();
 
     return {
       name,
       iban,
       inn,
-      amount: parseFloat(amountStr),
+      amount,
       comment,
     };
   }

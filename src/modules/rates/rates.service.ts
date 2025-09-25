@@ -174,6 +174,25 @@ export class RatesService {
     }
     console.log('New rates', newRates);
 
+    const grouped = new Map<
+      string,
+      {
+        currencyKey: CurrencyEnum;
+        paymentMethodKey: PaymentMethodEnum;
+        rates: SerializedRate[];
+      }
+    >();
+
+    for (const rate of newRates) {
+      const currencyKey = rate.currencyId as CurrencyEnum;
+      const paymentMethodKey = rate.paymentMethodId as PaymentMethodEnum;
+      const key = `${currencyKey}:${paymentMethodKey}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, { currencyKey, paymentMethodKey, rates: [] });
+      }
+      grouped.get(key)!.rates.push(rate);
+    }
+
     try {
       const processedCount = await this.prisma.$transaction(async (client) => {
         const currencyCache = new Map<CurrencyEnum, { id: string }>();
@@ -181,12 +200,9 @@ export class RatesService {
           PaymentMethodEnum,
           { id: string }
         >();
-        let updatedRecords = 0;
+        let affected = 0;
 
-        for (const rate of newRates) {
-          const currencyKey = rate.currencyId as CurrencyEnum;
-          const paymentMethodKey = rate.paymentMethodId as PaymentMethodEnum;
-
+        for (const { currencyKey, paymentMethodKey, rates } of grouped.values()) {
           if (!currencyCache.has(currencyKey)) {
             const currency = await client.currency.findUnique({
               where: { name: currencyKey },
@@ -219,45 +235,30 @@ export class RatesService {
             continue;
           }
 
-          const maxAmountValue = rate.maxAmount;
-          const existingRates = await client.rates.findMany({
+          // Remove existing rates for this currency/method pair before inserting new ones
+          await client.rates.deleteMany({
             where: {
               currencyId: currency.id,
               paymentMethodId: paymentMethod.id,
-              minAmount: rate.minAmount,
-              maxAmount: maxAmountValue,
             },
-            orderBy: { createdAt: 'asc' },
           });
 
-          if (existingRates.length > 0) {
-            const targetRate = existingRates[existingRates.length - 1];
-            await client.rates.update({
-              where: { id: targetRate.id },
+          for (const rate of rates) {
+            await client.rates.create({
               data: {
                 rate: rate.rate,
                 minAmount: rate.minAmount,
-                maxAmount: maxAmountValue,
+                maxAmount: rate.maxAmount ?? 0,
+                currencyId: currency.id,
+                paymentMethodId: paymentMethod.id,
               },
             });
-            updatedRecords += 1;
-            continue;
+            affected += 1;
           }
-
-          await client.rates.create({
-            data: {
-              rate: rate.rate,
-              minAmount: rate.minAmount,
-              maxAmount: maxAmountValue,
-              currencyId: currency.id,
-              paymentMethodId: paymentMethod.id,
-            },
-          });
-          updatedRecords += 1;
         }
 
-        console.log(`Rates processed: ${updatedRecords}`);
-        return updatedRecords;
+        console.log(`Rates processed: ${affected}`);
+        return affected;
       });
 
       return processedCount > 0;

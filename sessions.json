@@ -3,44 +3,9 @@
     {
       "id": "-4868917152:375905624",
       "data": {
-        "__scenes": {
-          "current": "create-request",
-          "state": {},
-          "cursor": 2
-        },
+        "__scenes": {},
         "messagesToDelete": [],
-        "customState": "select_method",
-        "requestType": "SKRILL_EMAIL",
-        "selectedCurrencyId": "cmfz5uom00006d3npzbmzbx6w",
-        "paymentMethodsMeta": [
-          {
-            "name": "IBAN",
-            "buttonLabel": "PLN • IBAN",
-            "instruction": "отправьте, пожалуйста, данные строками в указанном порядке:",
-            "rawDescription": "IBAN",
-            "rawDescriptionEn": "IBAN",
-            "form": {
-              "title": "IBAN",
-              "intro": "отправьте, пожалуйста, данные строками в указанном порядке:",
-              "fields": [
-                {
-                  "label": "ФИО латиницей"
-                },
-                {
-                  "label": "IBAN / номер счёта"
-                },
-                {
-                  "label": "Комментарий",
-                  "optional": true
-                }
-              ],
-              "sample": "JAN KOWALSKI\nPL27114020040000300201355387"
-            }
-          }
-        ],
-        "requestMenuMessageId": [
-          4925
-        ]
+        "customState": ""
       }
     },
     {

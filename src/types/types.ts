@@ -10,6 +10,8 @@ import {
   PaymentRequests,
   Rates,
   RoleEnum,
+  CurrencyEnum as PrismaCurrencyEnum,
+  PaymentMethodEnum as PrismaPaymentMethodEnum,
   User,
   Vendors,
 } from '@prisma/client';
@@ -63,6 +65,7 @@ export interface CustomSession extends Scenes.WizardSessionData {
     instruction?: string | null;
     rawDescription?: string | null;
     rawDescriptionEn?: string | null;
+    form?: PaymentMethodFormDefinition | null;
   }[];
 }
 export type CardRequestType = Omit<
@@ -105,6 +108,33 @@ export type MessageAccessType = 'public' | 'admin' | 'worker';
 // Extend context for wizard scenes
 export type CustomSceneContext = Scenes.WizardContext & {
   session: CustomSession;
+};
+
+export interface PaymentFormFieldDefinition {
+  label: string;
+  description?: string;
+  example?: string;
+  optional?: boolean;
+}
+
+export interface PaymentMethodFormDefinition {
+  title: string;
+  intro?: string;
+  fields: PaymentFormFieldDefinition[];
+  sample?: string;
+  notes?: string[];
+}
+
+export type PaymentFormRegistry = Partial<
+  Record<
+    PrismaCurrencyEnum,
+    Partial<Record<PrismaPaymentMethodEnum, PaymentMethodFormDefinition>>
+  >
+>;
+
+export type PaymentFormConfig = {
+  currency: PrismaCurrencyEnum;
+  forms: Partial<Record<PrismaPaymentMethodEnum, PaymentMethodFormDefinition>>;
 };
 
 // export enum UserRole {

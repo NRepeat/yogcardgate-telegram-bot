@@ -9,16 +9,16 @@ import {
   StrategyResult,
 } from './payment-request.strategy';
 
-export interface UsdStrategyDependencies {
+export interface UahStrategyDependencies {
   ratesService: RatesService;
   requestService: RequestService;
   vendorService: VendorService;
 }
 
-export abstract class UsdBaseStrategy implements PaymentRequestStrategy {
-  protected readonly targetCurrency = CurrencyEnum.USD;
+export abstract class UahBaseStrategy implements PaymentRequestStrategy {
+  protected readonly targetCurrency = CurrencyEnum.UAH;
 
-  constructor(protected readonly deps: UsdStrategyDependencies) {}
+  constructor(protected readonly deps: UahStrategyDependencies) {}
 
   supports(currency: CurrencyEnum, method: PaymentMethodEnum): boolean {
     return currency === this.targetCurrency && this.supportsMethod(method);
@@ -78,7 +78,7 @@ export abstract class UsdBaseStrategy implements PaymentRequestStrategy {
         details,
       };
     } catch (error) {
-      console.error('[USD Strategy] Unexpected error:', error);
+      console.error('[UAH Strategy] Unexpected error:', error);
       return {
         status: 'error',
         error: 'Не удалось создать заявку. Попробуйте ещё раз позже.',
@@ -108,8 +108,8 @@ export abstract class UsdBaseStrategy implements PaymentRequestStrategy {
           return false;
         }
         const minCheck = amount >= rate.minAmount;
-        const maxLimit = rate.maxAmount === 0 || rate.maxAmount === null;
-        const maxCheck = maxLimit || amount <= rate.maxAmount;
+        const noMax = rate.maxAmount === 0 || rate.maxAmount === null;
+        const maxCheck = noMax || amount <= rate.maxAmount;
         return minCheck && maxCheck;
       }) ?? null
     );
@@ -140,6 +140,9 @@ export interface CreateRequestParams {
   method: PaymentMethodEnum;
   currencyId: string;
   vendorId: string;
-  rate: Rates & { paymentMethod: { nameEn: PaymentMethodEnum }; currency: { name: CurrencyEnum } };
+  rate: Rates & {
+    paymentMethod: { nameEn: PaymentMethodEnum };
+    currency: { name: CurrencyEnum };
+  };
   parsed: ParsedStrategyInput;
 }

@@ -33,6 +33,30 @@ import {
 import { UsdCardStrategy } from './strategies/usd-card.strategy';
 import { UsdSkrillEmailStrategy } from './strategies/usd-skrill-email.strategy';
 import { UsdWireStrategy } from './strategies/usd-wire.strategy';
+import { UahCardStrategy } from './strategies/uah-card.strategy';
+import { UahIbanStrategy } from './strategies/uah-iban.strategy';
+import { UahStrategyDependencies } from './strategies/uah-base.strategy';
+import { EurStrategyDependencies } from './strategies/eur-base.strategy';
+import { EurCardStrategy } from './strategies/eur-card.strategy';
+import { EurIbanStrategy } from './strategies/eur-iban.strategy';
+import { EurSkrillEmailStrategy } from './strategies/eur-skrill-email.strategy';
+import { AedStrategyDependencies } from './strategies/aed-base.strategy';
+import { AedIbanStrategy } from './strategies/aed-iban.strategy';
+import { PlnStrategyDependencies } from './strategies/pln-base.strategy';
+import { PlnIbanStrategy } from './strategies/pln-iban.strategy';
+import { ThbStrategyDependencies } from './strategies/thb-base.strategy';
+import { ThbWireStrategy } from './strategies/thb-wire.strategy';
+import { CzkStrategyDependencies } from './strategies/czk-base.strategy';
+import { CzkWireStrategy } from './strategies/czk-wire.strategy';
+import { KztStrategyDependencies } from './strategies/kzt-base.strategy';
+import { KztCardStrategy } from './strategies/kzt-card.strategy';
+import { KztPhoneStrategy } from './strategies/kzt-phone.strategy';
+import { TryStrategyDependencies } from './strategies/try-base.strategy';
+import { TryIbanStrategy } from './strategies/try-iban.strategy';
+import { AznStrategyDependencies } from './strategies/azn-base.strategy';
+import { AznCardStrategy } from './strategies/azn-card.strategy';
+import { CnyStrategyDependencies } from './strategies/cny-base.strategy';
+import { CnyQrStrategy } from './strategies/cny-qr.strategy';
 import { UsdStrategyDependencies } from './strategies/usd-base.strategy';
 
 const DEFAULT_FORM_INTRO =
@@ -139,12 +163,19 @@ export class CreateRequestWizard {
 
         ctx.session.selectedCurrencyId = currency.id;
         const currencyEnum = currency.name as CurrencyEnum;
+        console.log('currency.Rates ',currency.Rates )
         const availableMethodIds = new Set(
           (currency.Rates || []).map((rate) => rate.paymentMethodId),
         );
-        const paymentMethods = currency.paymentMethod.filter((method) =>
-          availableMethodIds.has(method.id),
+        console.log(currency,'availableMethodIds')
+        const paymentMethods = currency.paymentMethod.filter((method) => {
+          console.log(method,'method')
+          return availableMethodIds.has(method.id)
+         
+        }
+      
         );
+        console.log(paymentMethods,'paymentMethods')
         if (!paymentMethods || paymentMethods.length === 0) {
           await ctx.answerCbQuery(
             'No payment methods available for this currency',
@@ -352,7 +383,7 @@ export class CreateRequestWizard {
 
     const originalMessage = message as { message_id: number; text?: string };
     await this.handleStrategySuccess(ctx, {
-      request: result.request,
+      requests: result.requests,
       details: result.details,
       originalMessage,
     });
@@ -410,19 +441,67 @@ export class CreateRequestWizard {
   }
 
   private registerStrategies(): PaymentRequestStrategy[] {
-    const deps: UsdStrategyDependencies = {
+    const sharedDeps: UsdStrategyDependencies &
+      UahStrategyDependencies &
+      EurStrategyDependencies &
+      AedStrategyDependencies &
+      PlnStrategyDependencies &
+      ThbStrategyDependencies &
+      CzkStrategyDependencies &
+      KztStrategyDependencies &
+      TryStrategyDependencies &
+      AznStrategyDependencies &
+      CnyStrategyDependencies = {
       ratesService: this.ratesService,
       requestService: this.requestService,
       vendorService: this.vendorService,
     };
 
+    const usdDeps: UsdStrategyDependencies = sharedDeps;
+    const uahDeps: UahStrategyDependencies = sharedDeps;
+    const eurDeps: EurStrategyDependencies = sharedDeps;
+    const aedDeps: AedStrategyDependencies = sharedDeps;
+    const plnDeps: PlnStrategyDependencies = sharedDeps;
+    const thbDeps: ThbStrategyDependencies = sharedDeps;
+    const czkDeps: CzkStrategyDependencies = sharedDeps;
+    const kztDeps: KztStrategyDependencies = sharedDeps;
+    const tryDeps: TryStrategyDependencies = sharedDeps;
+    const aznDeps: AznStrategyDependencies = sharedDeps;
+    const cnyDeps: CnyStrategyDependencies = sharedDeps;
+
     return [
       new UsdCardStrategy({
-        ...deps,
+        ...usdDeps,
         utilsService: this.utilsService,
       }),
-      new UsdSkrillEmailStrategy(deps),
-      new UsdWireStrategy(deps),
+      new UsdSkrillEmailStrategy(usdDeps),
+      new UsdWireStrategy(usdDeps),
+      new UahCardStrategy({
+        ...uahDeps,
+        utilsService: this.utilsService,
+      }),
+      new UahIbanStrategy(uahDeps),
+      new EurCardStrategy({
+        ...eurDeps,
+        utilsService: this.utilsService,
+      }),
+      new EurIbanStrategy(eurDeps),
+      new EurSkrillEmailStrategy(eurDeps),
+      new AedIbanStrategy(aedDeps),
+      new PlnIbanStrategy(plnDeps),
+      new ThbWireStrategy(thbDeps),
+      new CzkWireStrategy(czkDeps),
+      new KztCardStrategy({
+        ...kztDeps,
+        utilsService: this.utilsService,
+      }),
+      new KztPhoneStrategy(kztDeps),
+      new TryIbanStrategy(tryDeps),
+      new AznCardStrategy({
+        ...aznDeps,
+        utilsService: this.utilsService,
+      }),
+      new CnyQrStrategy(cnyDeps),
     ];
   }
   private async buildPaymentMethodKeyboard(
@@ -619,8 +698,8 @@ export class CreateRequestWizard {
   private async handleStrategySuccess(
     ctx: CustomSceneContext,
     payload: {
-      request: FullRequestType;
-      details: string;
+      requests: FullRequestType[];
+      details: string[];
       originalMessage: { message_id: number; text?: string };
     },
   ) {
@@ -628,38 +707,43 @@ export class CreateRequestWizard {
     if (!chatId) {
       await this.replyEphemeral(
         ctx,
-        'Не удалось определить чат. Заявка создана, но уведомления могут не сохраниться.',
+        'Не удалось определить чат. Заявки созданы, но уведомления могут не сохраниться.',
       );
       return;
     }
 
-    const request = payload.request;
-
-
     const photoUrl = './src/assets/0056.jpg';
-    const publicMenu = MenuFactory.createPublicMenu(
-      request as unknown as FullRequestType,
-      photoUrl,
-    );
 
-    const publicPayload = publicMenu.inWork();
-    const menuMessage = await ctx.replyWithPhoto(
-      {
-        source: publicPayload.source,
-      },
-      {
-        caption: publicPayload.caption,
-        reply_markup: publicPayload.markup,
-        parse_mode: 'HTML',
-      },
-    );
+    for (let index = 0; index < payload.requests.length; index++) {
+      const request = payload.requests[index];
+      const detail = payload.details[index] ?? '';
 
-    await this.persistMessageSafely(request.id, {
-      chatId,
-      messageId: menuMessage.message_id,
-      text: publicPayload.caption,
-      photoUrl,
-    });
+
+
+      const publicMenu = MenuFactory.createPublicMenu(
+        request as unknown as FullRequestType,
+        photoUrl,
+      );
+
+      const publicPayload = publicMenu.inWork();
+      const menuMessage = await ctx.replyWithPhoto(
+        {
+          source: publicPayload.source,
+        },
+        {
+          caption: publicPayload.caption,
+          reply_markup: publicPayload.markup,
+          parse_mode: 'HTML',
+        },
+      );
+
+      await this.persistMessageSafely(request.id, {
+        chatId,
+        messageId: menuMessage.message_id,
+        text: publicPayload.caption,
+        photoUrl,
+      });
+    }
 
     this.resetSession(ctx);
     await this.cancel(ctx);

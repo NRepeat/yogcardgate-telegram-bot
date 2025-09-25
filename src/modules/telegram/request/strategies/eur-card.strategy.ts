@@ -4,21 +4,21 @@ import { FullRequestType } from 'src/types/types';
 import {
   CreateRequestParams,
   ParsedStrategyInput,
-  UsdBaseStrategy,
-  UsdStrategyDependencies,
-} from './usd-base.strategy';
+  EurBaseStrategy,
+  EurStrategyDependencies,
+} from './eur-base.strategy';
 
-interface UsdCardParsedInput extends ParsedStrategyInput {
+interface EurCardParsedInput extends ParsedStrategyInput {
   cardNumber: string;
   holderName?: string;
 }
 
-export class UsdCardStrategy extends UsdBaseStrategy {
+export class EurCardStrategy extends EurBaseStrategy {
   private readonly cardRegex =
     /^(?:4[0-9]{12}(?:[0-9]{3})?|[25][1-7][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})$/;
 
   constructor(
-    deps: UsdStrategyDependencies & { utilsService: UtilsService },
+    deps: EurStrategyDependencies & { utilsService: UtilsService },
   ) {
     super(deps);
     this.utilsService = deps.utilsService;
@@ -31,23 +31,23 @@ export class UsdCardStrategy extends UsdBaseStrategy {
   }
 
   protected parseInput(message: string) {
-    const lines = message
+    const segments = message
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean);
 
-    const segments = lines.length > 0 ? lines : [message.trim()];
-    const parsedItems: UsdCardParsedInput[] = [];
+    const rows = segments.length ? segments : [message.trim()];
+    const parsed: EurCardParsedInput[] = [];
 
-    for (const line of segments) {
-      const parsed = this.parseLine(line);
-      if (!parsed.success) {
-        return parsed;
+    for (const line of rows) {
+      const result = this.parseLine(line);
+      if (!result.success) {
+        return result;
       }
-      parsedItems.push(parsed.data);
+      parsed.push(result.data);
     }
 
-    if (parsedItems.length === 0) {
+    if (parsed.length === 0) {
       return {
         success: false as const,
         error: 'Укажите номер карты и сумму через пробел.',
@@ -56,7 +56,7 @@ export class UsdCardStrategy extends UsdBaseStrategy {
 
     return {
       success: true as const,
-      data: parsedItems,
+      data: parsed,
     };
   }
 
@@ -65,13 +65,13 @@ export class UsdCardStrategy extends UsdBaseStrategy {
     vendorId,
     rate,
     parsed,
-  }: CreateRequestParams & { parsed: UsdCardParsedInput }): Promise<FullRequestType> {
+  }: CreateRequestParams & { parsed: EurCardParsedInput }): Promise<FullRequestType> {
     const bankName =
       await this.utilsService.getBankNameByCardNumber(parsed.cardNumber);
     const holderComment =
       parsed.holderName && parsed.holderName.trim().length > 0
         ? `Holder: ${parsed.holderName.trim()}`
-        : 'Card request created via bot';
+        : 'EUR card request created via bot';
 
     const blackListEntry =
       await this.deps.requestService.isInBlackList(parsed.cardNumber);
@@ -96,11 +96,11 @@ export class UsdCardStrategy extends UsdBaseStrategy {
     return request as unknown as FullRequestType;
   }
 
-  protected buildDetails(data: UsdCardParsedInput): string {
+  protected buildDetails(data: EurCardParsedInput): string {
     const lines = [
-      'Тип: USD CARD',
+      'Тип: EUR CARD',
       `Карта: <code>${data.cardNumber}</code>`,
-      `Сумма: ${data.amount} USD`,
+      `Сумма: ${data.amount} EUR`,
     ];
     if (data.holderName) {
       lines.push(`Держатель: ${data.holderName}`);
@@ -108,28 +108,17 @@ export class UsdCardStrategy extends UsdBaseStrategy {
     return lines.join('\n');
   }
 
-  private tryParseAmount(token: string): number | null {
-    const normalized = token
-      .replace(/[^0-9,\.]/g, '')
-      .replace(/,/g, '.');
-    if (!normalized) {
-      return null;
-    }
-    const value = Number(normalized);
-    return Number.isFinite(value) ? value : null;
-  }
-
   private parseLine(
     line: string,
   ):
-    | { success: true; data: UsdCardParsedInput }
+    | { success: true; data: EurCardParsedInput }
     | { success: false; error: string } {
     const tokens = line
       .split(/\s+/)
       .map((token) => token.trim())
       .filter(Boolean);
 
-    if (tokens.length === 0) {
+    if (!tokens.length) {
       return {
         success: false,
         error: 'Укажите номер карты и сумму через пробел.',
@@ -160,29 +149,29 @@ export class UsdCardStrategy extends UsdBaseStrategy {
       ...tokens.slice(cardIndex + 1),
     ];
 
-    const amountTokenIndex = remaining.findIndex((token) => {
+    const amountIndex = remaining.findIndex((token) => {
       const numeric = this.tryParseAmount(token);
       return numeric !== null && numeric > 0;
     });
 
-    if (amountTokenIndex === -1) {
+    if (amountIndex === -1) {
       return {
         success: false,
-        error: 'Не удалось определить сумму перевода.',
+        error: 'Не удалось определить сумму.',
       };
     }
 
-    const amount = this.tryParseAmount(remaining[amountTokenIndex]);
+    const amount = this.tryParseAmount(remaining[amountIndex]);
     if (!amount || amount <= 0) {
       return {
         success: false,
-        error: 'Сумма перевода должна быть положительным числом.',
+        error: 'Сумма должна быть положительным числом.',
       };
     }
 
     const holderTokens = remaining
-      .filter((_, index) => index !== amountTokenIndex)
-      .filter((token) => !/^USD$/i.test(token));
+      .filter((_, index) => index !== amountIndex)
+      .filter((token) => !/^EUR$/i.test(token));
     const holderName = holderTokens.join(' ').trim() || undefined;
 
     return {
@@ -193,5 +182,16 @@ export class UsdCardStrategy extends UsdBaseStrategy {
         holderName,
       },
     };
+  }
+
+  private tryParseAmount(token: string): number | null {
+    const normalized = token
+      .replace(/[^0-9,\.]/g, '')
+      .replace(/,/g, '.');
+    if (!normalized) {
+      return null;
+    }
+    const value = Number(normalized);
+    return Number.isFinite(value) ? value : null;
   }
 }

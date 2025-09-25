@@ -66,14 +66,16 @@ export class UsdWireStrategy extends UsdBaseStrategy {
 
     return {
       success: true as const,
-      data: {
-        amount,
-        account,
-        recipient,
-        bank: bank || undefined,
-        comment: comment || undefined,
-        rawAmountToken,
-      },
+      data: [
+        {
+          amount,
+          account,
+          recipient,
+          bank: bank || undefined,
+          comment: comment || undefined,
+          rawAmountToken,
+        },
+      ],
     };
   }
 

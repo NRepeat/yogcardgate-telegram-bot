@@ -13,8 +13,8 @@ export interface StrategyExecuteContext {
 
 export interface StrategySuccessResult {
   status: 'success';
-  request: FullRequestType;
-  details: string;
+  requests: FullRequestType[];
+  details: string[];
 }
 
 export interface StrategyErrorResult {

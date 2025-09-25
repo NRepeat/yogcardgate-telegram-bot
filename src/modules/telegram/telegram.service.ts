@@ -270,11 +270,26 @@ export class TelegramService {
         this.logger.warn('No public messages found for the given request ID');
         return;
       }
+      console.log('messages',messages)
       for (const message of messages) {
         const chatId = Number(message.chatId);
         const messageId = Number(message.messageId);
         const newCaption = newMessage.text ? newMessage.text : message.text;
         if (chatId && messageId) {
+          if (!message.photoUrl || message.photoUrl.length === 0) {
+            await this.bot.telegram.editMessageText(
+              chatId,
+              messageId,
+              undefined,
+              newCaption || '',
+              {
+                parse_mode: 'HTML',
+                reply_markup: newMessage.inline_keyboard,
+              },
+            );
+            continue;
+          }
+
           if (newMessage.source) {
             if (!message.paymentRequests?.vendor.showReceipt) {
               await this.bot.telegram.editMessageMedia(

@@ -4,21 +4,19 @@ import { FullRequestType } from 'src/types/types';
 import {
   CreateRequestParams,
   ParsedStrategyInput,
-  UsdBaseStrategy,
-  UsdStrategyDependencies,
-} from './usd-base.strategy';
+  UahBaseStrategy,
+  UahStrategyDependencies,
+} from './uah-base.strategy';
 
-interface UsdCardParsedInput extends ParsedStrategyInput {
+interface UahCardParsedInput extends ParsedStrategyInput {
   cardNumber: string;
-  holderName?: string;
 }
 
-export class UsdCardStrategy extends UsdBaseStrategy {
-  private readonly cardRegex =
-    /^(?:4[0-9]{12}(?:[0-9]{3})?|[25][1-7][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})$/;
+export class UahCardStrategy extends UahBaseStrategy {
+  private readonly cardRegex = /^(?:\d{12,19})$/;
 
   constructor(
-    deps: UsdStrategyDependencies & { utilsService: UtilsService },
+    deps: UahStrategyDependencies & { utilsService: UtilsService },
   ) {
     super(deps);
     this.utilsService = deps.utilsService;
@@ -37,7 +35,7 @@ export class UsdCardStrategy extends UsdBaseStrategy {
       .filter(Boolean);
 
     const segments = lines.length > 0 ? lines : [message.trim()];
-    const parsedItems: UsdCardParsedInput[] = [];
+    const parsedItems: UahCardParsedInput[] = [];
 
     for (const line of segments) {
       const parsed = this.parseLine(line);
@@ -65,13 +63,9 @@ export class UsdCardStrategy extends UsdBaseStrategy {
     vendorId,
     rate,
     parsed,
-  }: CreateRequestParams & { parsed: UsdCardParsedInput }): Promise<FullRequestType> {
+  }: CreateRequestParams & { parsed: UahCardParsedInput }): Promise<FullRequestType> {
     const bankName =
       await this.utilsService.getBankNameByCardNumber(parsed.cardNumber);
-    const holderComment =
-      parsed.holderName && parsed.holderName.trim().length > 0
-        ? `Holder: ${parsed.holderName.trim()}`
-        : 'Card request created via bot';
 
     const blackListEntry =
       await this.deps.requestService.isInBlackList(parsed.cardNumber);
@@ -86,7 +80,7 @@ export class UsdCardStrategy extends UsdBaseStrategy {
         method: PaymentMethodEnum.CARD,
         card: {
           card: parsed.cardNumber,
-          comment: holderComment,
+          comment: 'UAH card request created via bot',
           bankId: bankName?.id ?? null,
           blackListId: blackListEntry?.id ?? null,
         },
@@ -96,16 +90,12 @@ export class UsdCardStrategy extends UsdBaseStrategy {
     return request as unknown as FullRequestType;
   }
 
-  protected buildDetails(data: UsdCardParsedInput): string {
-    const lines = [
-      'Тип: USD CARD',
+  protected buildDetails(data: UahCardParsedInput): string {
+    return [
+      'Тип: UAH CARD',
       `Карта: <code>${data.cardNumber}</code>`,
-      `Сумма: ${data.amount} USD`,
-    ];
-    if (data.holderName) {
-      lines.push(`Держатель: ${data.holderName}`);
-    }
-    return lines.join('\n');
+      `Сумма: ${data.amount} UAH`,
+    ].join('\n');
   }
 
   private tryParseAmount(token: string): number | null {
@@ -122,7 +112,7 @@ export class UsdCardStrategy extends UsdBaseStrategy {
   private parseLine(
     line: string,
   ):
-    | { success: true; data: UsdCardParsedInput }
+    | { success: true; data: UahCardParsedInput }
     | { success: false; error: string } {
     const tokens = line
       .split(/\s+/)
@@ -136,31 +126,29 @@ export class UsdCardStrategy extends UsdBaseStrategy {
       };
     }
 
-    const cardIndex = tokens.findIndex((token) =>
-      /^(?:\d{12,19})$/.test(token.replace(/\s+/g, '')),
+    const cardTokenIndex = tokens.findIndex((token) =>
+      this.cardRegex.test(token.replace(/\D/g, '')),
     );
 
-    if (cardIndex === -1) {
+    if (cardTokenIndex === -1) {
       return {
         success: false,
-        error: 'Не удалось найти номер карты. Убедитесь, что указали его полностью.',
+        error: 'Не удалось найти номер карты. Проверьте формат 16 цифр без разделителей.',
       };
     }
 
-    const cardNumber = tokens[cardIndex].replace(/\s+/g, '');
-    if (!this.cardRegex.test(cardNumber)) {
+    const cardCandidate = tokens[cardTokenIndex].replace(/\D/g, '');
+    if (!this.cardRegex.test(cardCandidate)) {
       return {
         success: false,
         error: 'Неверный формат номера карты.',
       };
     }
 
-    const remaining = [
-      ...tokens.slice(0, cardIndex),
-      ...tokens.slice(cardIndex + 1),
-    ];
-
-    const amountTokenIndex = remaining.findIndex((token) => {
+    const amountTokenIndex = tokens.findIndex((token, index) => {
+      if (index === cardTokenIndex) {
+        return false;
+      }
       const numeric = this.tryParseAmount(token);
       return numeric !== null && numeric > 0;
     });
@@ -172,25 +160,19 @@ export class UsdCardStrategy extends UsdBaseStrategy {
       };
     }
 
-    const amount = this.tryParseAmount(remaining[amountTokenIndex]);
+    const amount = this.tryParseAmount(tokens[amountTokenIndex]);
     if (!amount || amount <= 0) {
       return {
         success: false,
-        error: 'Сумма перевода должна быть положительным числом.',
+        error: 'Сумма должна быть положительным числом.',
       };
     }
-
-    const holderTokens = remaining
-      .filter((_, index) => index !== amountTokenIndex)
-      .filter((token) => !/^USD$/i.test(token));
-    const holderName = holderTokens.join(' ').trim() || undefined;
 
     return {
       success: true,
       data: {
         amount,
-        cardNumber,
-        holderName,
+        cardNumber: cardCandidate,
       },
     };
   }

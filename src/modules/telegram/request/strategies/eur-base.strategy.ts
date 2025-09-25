@@ -9,16 +9,16 @@ import {
   StrategyResult,
 } from './payment-request.strategy';
 
-export interface UsdStrategyDependencies {
+export interface EurStrategyDependencies {
   ratesService: RatesService;
   requestService: RequestService;
   vendorService: VendorService;
 }
 
-export abstract class UsdBaseStrategy implements PaymentRequestStrategy {
-  protected readonly targetCurrency = CurrencyEnum.USD;
+export abstract class EurBaseStrategy implements PaymentRequestStrategy {
+  protected readonly targetCurrency = CurrencyEnum.EUR;
 
-  constructor(protected readonly deps: UsdStrategyDependencies) {}
+  constructor(protected readonly deps: EurStrategyDependencies) {}
 
   supports(currency: CurrencyEnum, method: PaymentMethodEnum): boolean {
     return currency === this.targetCurrency && this.supportsMethod(method);
@@ -46,7 +46,9 @@ export abstract class UsdBaseStrategy implements PaymentRequestStrategy {
         };
       }
 
-      const availableRates = (await this.deps.ratesService.getAllRates()) as RateWithRelations[];
+      const availableRates =
+        (await this.deps.ratesService.getAllRates()) as RateWithRelations[];
+
       const requests: FullRequestType[] = [];
       const details: string[] = [];
 
@@ -78,7 +80,7 @@ export abstract class UsdBaseStrategy implements PaymentRequestStrategy {
         details,
       };
     } catch (error) {
-      console.error('[USD Strategy] Unexpected error:', error);
+      console.error('[EUR Strategy] Unexpected error:', error);
       return {
         status: 'error',
         error: 'Не удалось создать заявку. Попробуйте ещё раз позже.',
@@ -125,11 +127,6 @@ export abstract class UsdBaseStrategy implements PaymentRequestStrategy {
   protected abstract buildDetails(data: ParsedStrategyInput): string;
 }
 
-type RateWithRelations = Rates & {
-  paymentMethod: { nameEn: PaymentMethodEnum };
-  currency: { name: CurrencyEnum };
-};
-
 export interface ParsedStrategyInput {
   amount: number;
   [key: string]: any;
@@ -140,6 +137,11 @@ export interface CreateRequestParams {
   method: PaymentMethodEnum;
   currencyId: string;
   vendorId: string;
-  rate: Rates & { paymentMethod: { nameEn: PaymentMethodEnum }; currency: { name: CurrencyEnum } };
+  rate: RateWithRelations;
   parsed: ParsedStrategyInput;
 }
+
+type RateWithRelations = Rates & {
+  paymentMethod: { nameEn: PaymentMethodEnum };
+  currency: { name: CurrencyEnum };
+};

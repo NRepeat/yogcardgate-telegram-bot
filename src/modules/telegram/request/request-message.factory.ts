@@ -1,5 +1,5 @@
 import { Markup } from 'telegraf';
-import { AccessType, CurrencyEnum, PaymentMethodEnum } from '@prisma/client';
+import { AccessType, PaymentMethodEnum } from '@prisma/client';
 import { FullRequestType, ReplyPhotoMessage } from 'src/types/types';
 import { BUTTON_CALLBACKS, BUTTON_TEXTS } from '../telegram.constants';
 
@@ -16,74 +16,50 @@ export class RequestMessageFactory {
     method: RequestMethodWithDetails,
     options: RequestMessageFactoryOptions = {},
   ): ReplyPhotoMessage | null {
-    if (request.currency?.name !== CurrencyEnum.USD) {
-      return null;
-    }
-
     switch (method.method) {
       case PaymentMethodEnum.CARD:
-        return this.createUsdCardMessage(accessType, request, method, options);
+        return this.buildCardMessage(accessType, request, method, options);
       case PaymentMethodEnum.WIRE:
-        return this.createUsdWireMessage(accessType, request, method, options);
+        return this.buildWireMessage(accessType, request, method, options);
+      case PaymentMethodEnum.IBAN:
+        return this.buildIbanMessage(accessType, request, method, options);
+      case PaymentMethodEnum.SKRILL_EMAIL:
+        return this.buildSkrillMessage(accessType, request, method, options);
+      case PaymentMethodEnum.PHONE:
+        return this.buildPhoneMessage(accessType, request, method, options);
+      case PaymentMethodEnum.QR:
+        return this.buildQrMessage(accessType, request, method);
       default:
-        return null;
+        return this.buildGenericMessage(accessType, request, method);
     }
   }
 
-  private static createUsdCardMessage(
+  private static buildCardMessage(
     accessType: AccessType,
     request: FullRequestType,
     method: RequestMethodWithDetails,
     options: RequestMessageFactoryOptions,
   ): ReplyPhotoMessage | null {
-    switch (accessType) {
-      case 'WORKER':
-        return this.createUsdCardWorkerMessage(request, method, options);
-      case 'ADMIN':
-        return this.createUsdCardAdminMessage(request, method);
-      case 'PUBLIC':
-        return this.createUsdCardPublicMessage(request, method);
-      default:
-        return null;
-    }
-  }
-
-  private static createUsdCardWorkerMessage(
-    request: FullRequestType,
-    method: RequestMethodWithDetails,
-    options: RequestMessageFactoryOptions,
-  ): ReplyPhotoMessage | null {
-    const cardDetails = method.cardDetails;
-    if (!cardDetails) {
+    const details = method.cardDetails;
+    if (!details) {
       return null;
     }
 
-    const amount = request.amount ?? 0;
-    const rateValue =
-      typeof request.rates?.rate === 'number'
-        ? request.rates.rate
-        : request.rate
-          ? Number(request.rate)
-          : null;
-    const maskedCard = cardDetails.card
+    const cardNumber = details.card
       ? options.maskSensitive
-        ? this.maskDigits(cardDetails.card)
-        : cardDetails.card
+        ? this.maskDigits(details.card)
+        : details.card
       : null;
-    const lines: Array<string | null> = [
-      `✉️<b>Заявка номер:</b> <code>${request.id}</code>`,
-      `🔖<b>Тип:</b> USD CARD`,
-      `💵<b>Сумма:</b> <code>${amount}</code> ${request.currency?.nameEn ?? ''}`,
-      rateValue ? `💱<b>Курс:</b> <code>${rateValue.toFixed(2)}</code>` : null,
-      maskedCard ? `💳<b>Номер карты:</b> <code>${maskedCard}</code>` : null,
-      `🏦<b>Банк:</b> <i>${cardDetails.bank?.bankName ?? '-'}</i>`,
-      request.vendor?.title
-        ? `🤝<b>Партнер:</b> <i>${request.vendor.title}</i>`
-        : null,
-    ];
 
-    if (cardDetails.blackList?.length) {
-      const reason = cardDetails.blackList[0]?.reason;
+    const lines = this.composeBaseLines(request, method.method, [
+      cardNumber ? `💳<b>Номер карты:</b> <code>${cardNumber}</code>` : null,
+      `🏦<b>Банк:</b> <i>${details.bank?.bankName ?? '-'}</i>`,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      this.partnerLine(request),
+    ]);
+
+    if (details.blackList?.length) {
+      const reason = details.blackList[0]?.reason;
       lines.push(
         reason
           ? `🚫Карта в чёрном списке: ${reason}`
@@ -91,196 +67,210 @@ export class RequestMessageFactory {
       );
     }
 
-    const caption = lines.filter(Boolean).join('\n');
-
-    const inline_keyboard = Markup.inlineKeyboard([
-      [
-        Markup.button.callback(
-          BUTTON_TEXTS.TAKE_REQUEST,
-          BUTTON_CALLBACKS.TAKE_REQUEST + request.id,
-        ),
-      ],
-    ]).reply_markup;
-
-    return {
-      text: caption,
-      inline_keyboard,
-    };
+    return this.wrapWithButtons(accessType, request.id, lines);
   }
 
-  private static createUsdCardAdminMessage(
-    request: FullRequestType,
-    method: RequestMethodWithDetails,
-  ): ReplyPhotoMessage | null {
-    const cardDetails = method.cardDetails;
-    if (!cardDetails) {
-      return null;
-    }
-
-    const amount = request.amount ?? 0;
-    const rateValue =
-      typeof request.rates?.rate === 'number'
-        ? request.rates.rate
-        : request.rate
-          ? Number(request.rate)
-          : null;
-    const lines: Array<string | null> = [
-      `✉️<b>Заявка номер:</b> <code>${request.id}</code>`,
-      `🔖<b>Тип:</b> USD CARD`,
-      `💵<b>Сумма:</b> <code>${amount}</code> ${request.currency?.nameEn ?? ''}`,
-      rateValue ? `💱<b>Курс:</b> <code>${rateValue.toFixed(2)}</code>` : null,
-      `💳<b>Номер карты:</b> <code>${cardDetails.card}</code>`,
-      `🏦<b>Банк:</b> <i>${cardDetails.bank?.bankName ?? '-'}</i>`,
-      request.activeUser?.username
-        ? `👤<b>Принята:</b> @${request.activeUser.username}`
-        : null,
-      request.vendor?.title
-        ? `🤝<b>Партнер:</b> <i>${request.vendor.title}</i>`
-        : null,
-    ];
-
-    if (cardDetails.blackList?.length) {
-      const reason = cardDetails.blackList[0]?.reason;
-      lines.push(
-        reason
-          ? `🚫Карта в чёрном списке: ${reason}`
-          : '🚫Карта в чёрном списке',
-      );
-    }
-
-    const caption = lines.filter(Boolean).join('\n');
-
-    const inline_keyboard = Markup.inlineKeyboard([
-      [
-        Markup.button.callback(
-          BUTTON_TEXTS.ADMIN_IN_WORK,
-          BUTTON_CALLBACKS.DUMMY,
-        ),
-        Markup.button.callback(
-          BUTTON_TEXTS.ADMIN_CANCEL_REQUEST,
-          BUTTON_CALLBACKS.ADMIN_CANCEL_REQUEST + request.id,
-        ),
-      ],
-    ]).reply_markup;
-
-    return {
-      text: caption,
-      inline_keyboard,
-    };
-  }
-
-  private static createUsdCardPublicMessage(
-    request: FullRequestType,
-    method: RequestMethodWithDetails,
-  ): ReplyPhotoMessage | null {
-    const cardDetails = method.cardDetails;
-    if (!cardDetails) {
-      return null;
-    }
-
-    const amount = request.amount ?? 0;
-    const rateValue =
-      typeof request.rates?.rate === 'number'
-        ? request.rates.rate
-        : request.rate
-          ? Number(request.rate)
-          : null;
-    const lines: Array<string | null> = [
-      `✉️<b>Заявка номер:</b> <code>${request.id}</code>`,
-      `🔖<b>Тип:</b> USD CARD`,
-      `💵<b>Сумма:</b> <code>${amount}</code> ${request.currency?.nameEn ?? ''}`,
-      rateValue ? `💱<b>Курс:</b> <code>${rateValue.toFixed(2)}</code>` : null,
-      `💳<b>Номер карты:</b> <code>${cardDetails.card}</code>`,
-      `🏦<b>Банк:</b> <i>${cardDetails.bank?.bankName ?? '-'}</i>`,
-      request.vendor?.title
-        ? `🤝<b>Партнер:</b> <i>${request.vendor.title}</i>`
-        : null,
-    ];
-
-    const caption = lines.filter(Boolean).join('\n');
-
-    const inline_keyboard = Markup.inlineKeyboard([
-      [
-        Markup.button.callback(
-          BUTTON_TEXTS.IN_WORK,
-          BUTTON_CALLBACKS.IN_WORK,
-        ),
-      ],
-    ]).reply_markup;
-
-    return {
-      text: caption,
-      inline_keyboard,
-    };
-  }
-
-  private static createUsdWireMessage(
+  private static buildWireMessage(
     accessType: AccessType,
     request: FullRequestType,
     method: RequestMethodWithDetails,
     options: RequestMessageFactoryOptions,
   ): ReplyPhotoMessage | null {
-    switch (accessType) {
-      case 'WORKER':
-        return this.createUsdWireWorkerMessage(request, method, options);
-      case 'ADMIN':
-        return this.createUsdWireAdminMessage(request, method);
-      case 'PUBLIC':
-        return this.createUsdWirePublicMessage(request, method);
-      default:
-        return null;
+    const details = method.wireDetails;
+    if (!details) {
+      return null;
     }
+
+    const account = details.account
+      ? options.maskSensitive
+        ? this.maskDigits(details.account)
+        : details.account
+      : null;
+
+    const lines = this.composeBaseLines(request, method.method, [
+      account ? `🏦<b>Счёт:</b> <code>${account}</code>` : null,
+      details.recipient
+        ? `👤<b>Получатель:</b> <code>${details.recipient}</code>`
+        : null,
+      details.bankName ? `🏦<b>Банк:</b> <i>${details.bankName}</i>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      this.partnerLine(request),
+    ]);
+
+    return this.wrapWithButtons(accessType, request.id, lines);
   }
 
-  private static createUsdWireWorkerMessage(
+  private static buildIbanMessage(
+    accessType: AccessType,
     request: FullRequestType,
     method: RequestMethodWithDetails,
     options: RequestMessageFactoryOptions,
   ): ReplyPhotoMessage | null {
-    const wireDetails = method.wireDetails;
-    if (!wireDetails) {
+    const details = method.ibanDetails;
+    if (!details) {
       return null;
     }
 
-    const amount = request.amount ?? 0;
-    const rateValue =
-      typeof request.rates?.rate === 'number'
-        ? request.rates.rate
-        : request.rate
-          ? Number(request.rate)
-          : null;
-    const usdt = rateValue && rateValue !== 0 ? (amount / rateValue).toFixed(2) : null;
-    const maskedAccount = wireDetails.account
+    const iban = details.iban
       ? options.maskSensitive
-        ? this.maskDigits(wireDetails.account)
-        : wireDetails.account
+        ? this.maskAlphaNumeric(details.iban)
+        : details.iban
       : null;
 
+    const lines = this.composeBaseLines(request, method.method, [
+      details.name ? `👤<b>Получатель:</b> <code>${details.name}</code>` : null,
+      iban ? `🏦<b>IBAN:</b> <code>${iban}</code>` : null,
+      details.inn ? `📋<b>ИНН:</b> <code>${details.inn}</code>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      this.partnerLine(request),
+    ]);
+
+    return this.wrapWithButtons(accessType, request.id, lines);
+  }
+
+  private static buildSkrillMessage(
+    accessType: AccessType,
+    request: FullRequestType,
+    method: RequestMethodWithDetails,
+    options: RequestMessageFactoryOptions,
+  ): ReplyPhotoMessage | null {
+    const details = method.skrillDetails;
+    if (!details) {
+      return null;
+    }
+
+    const email = details.email
+      ? options.maskSensitive
+        ? this.maskEmail(details.email, true)
+        : details.email
+      : null;
+
+    const lines = this.composeBaseLines(request, method.method, [
+      email ? `📧<b>Email:</b> <code>${email}</code>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      this.partnerLine(request),
+    ]);
+
+    return this.wrapWithButtons(accessType, request.id, lines);
+  }
+
+  private static buildPhoneMessage(
+    accessType: AccessType,
+    request: FullRequestType,
+    method: RequestMethodWithDetails,
+    options: RequestMessageFactoryOptions,
+  ): ReplyPhotoMessage | null {
+    const details = method.phoneDetails;
+    if (!details) {
+      return null;
+    }
+
+    const phone = details.phoneNumber
+      ? options.maskSensitive
+        ? this.maskDigits(details.phoneNumber)
+        : details.phoneNumber
+      : null;
+
+    const lines = this.composeBaseLines(request, method.method, [
+      phone ? `📱<b>Телефон:</b> <code>${phone}</code>` : null,
+      details.holderName
+        ? `👤<b>Получатель:</b> <code>${details.holderName}</code>`
+        : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      this.partnerLine(request),
+    ]);
+
+    return this.wrapWithButtons(accessType, request.id, lines);
+  }
+
+  private static buildQrMessage(
+    accessType: AccessType,
+    request: FullRequestType,
+    method: RequestMethodWithDetails,
+  ): ReplyPhotoMessage | null {
+    const details = method.qrDetails;
+    if (!details) {
+      return null;
+    }
+
+    const lines = this.composeBaseLines(request, method.method, [
+      details.identifier
+        ? `💼<b>Идентификатор:</b> <code>${details.identifier}</code>`
+        : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      this.partnerLine(request),
+    ]);
+
+    return this.wrapWithButtons(accessType, request.id, lines);
+  }
+
+  private static buildGenericMessage(
+    accessType: AccessType,
+    request: FullRequestType,
+    method: RequestMethodWithDetails,
+  ): ReplyPhotoMessage {
+    const lines = this.composeBaseLines(request, method.method, [
+      this.partnerLine(request),
+    ]);
+
+    return this.wrapWithButtons(accessType, request.id, lines);
+  }
+
+  private static composeBaseLines(
+    request: FullRequestType,
+    method: PaymentMethodEnum,
+    extraLines: Array<string | null>,
+  ): string[] {
+    const rateLine = this.formatRateLine(request);
+    const amountLine = this.formatAmountLine(request);
+    const methodLabel = `${request.currency?.nameEn ?? request.currency?.name ?? ''} ${method}`.trim();
+
     const lines: Array<string | null> = [
       `✉️<b>Заявка номер:</b> <code>${request.id}</code>`,
-      `🔖<b>Тип:</b> USD WIRE`,
-      `💵<b>Сумма:</b> <code>${amount}</code> ${request.currency?.nameEn ?? ''}`,
-      rateValue ? `💱<b>Курс:</b> <code>${rateValue.toFixed(2)}</code>` : null,
-      usdt ? `💎<b>USDT:</b> <code>${usdt}</code>` : null,
-      maskedAccount ? `🏦<b>Счёт:</b> <code>${maskedAccount}</code>` : null,
-      `👤<b>Получатель:</b> <code>${wireDetails.recipient}</code>`,
-      wireDetails.bankName ? `🏦<b>Банк:</b> <i>${wireDetails.bankName}</i>` : null,
-      request.vendor?.title
-        ? `🤝<b>Партнер:</b> <i>${request.vendor.title}</i>`
-        : null,
-      wireDetails.comment ? `💬<b>Комментарий:</b> ${wireDetails.comment}` : null,
+      `🔖<b>Тип:</b> ${methodLabel}`,
+      amountLine,
+      rateLine,
+      ...extraLines,
     ];
 
-    const caption = lines.filter(Boolean).join('\n');
+    if (request.activeUser?.username) {
+      lines.push(`👤<b>Принята:</b> @${request.activeUser.username}`);
+    }
 
-    const inline_keyboard = Markup.inlineKeyboard([
-      [
-        Markup.button.callback(
-          BUTTON_TEXTS.TAKE_REQUEST,
-          BUTTON_CALLBACKS.TAKE_REQUEST + request.id,
-        ),
-      ],
+    return lines.filter((line): line is string => Boolean(line));
+  }
+
+  private static wrapWithButtons(
+    accessType: AccessType,
+    requestId: string,
+    lines: string[],
+  ): ReplyPhotoMessage {
+    const caption = lines.join('\n');
+
+    let inline_keyboard = Markup.inlineKeyboard([
+      [Markup.button.callback(BUTTON_TEXTS.IN_WORK, BUTTON_CALLBACKS.IN_WORK)],
     ]).reply_markup;
+
+    if (accessType === 'WORKER') {
+      inline_keyboard = Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            BUTTON_TEXTS.TAKE_REQUEST,
+            BUTTON_CALLBACKS.TAKE_REQUEST + requestId,
+          ),
+        ],
+      ]).reply_markup;
+    } else if (accessType === 'ADMIN') {
+      inline_keyboard = Markup.inlineKeyboard([
+        [
+          Markup.button.callback(BUTTON_TEXTS.ADMIN_IN_WORK, BUTTON_CALLBACKS.DUMMY),
+          Markup.button.callback(
+            BUTTON_TEXTS.ADMIN_CANCEL_REQUEST,
+            BUTTON_CALLBACKS.ADMIN_CANCEL_REQUEST + requestId,
+          ),
+        ],
+      ]).reply_markup;
+    }
 
     return {
       text: caption,
@@ -288,108 +278,36 @@ export class RequestMessageFactory {
     };
   }
 
-  private static createUsdWireAdminMessage(
-    request: FullRequestType,
-    method: RequestMethodWithDetails,
-  ): ReplyPhotoMessage | null {
-    const wireDetails = method.wireDetails;
-    if (!wireDetails) {
+  private static formatAmountLine(request: FullRequestType): string | null {
+    if (typeof request.amount !== 'number') {
       return null;
     }
 
-    const amount = request.amount ?? 0;
-    const rateValue =
-      typeof request.rates?.rate === 'number'
-        ? request.rates.rate
-        : request.rate
-          ? Number(request.rate)
-          : null;
-    const usdt = rateValue && rateValue !== 0 ? (amount / rateValue).toFixed(2) : null;
-
-    const lines: Array<string | null> = [
-      `✉️<b>Заявка номер:</b> <code>${request.id}</code>`,
-      `🔖<b>Тип:</b> USD WIRE`,
-      `💵<b>Сумма:</b> <code>${amount}</code> ${request.currency?.nameEn ?? ''}`,
-      rateValue ? `💱<b>Курс:</b> <code>${rateValue.toFixed(2)}</code>` : null,
-      usdt ? `💎<b>USDT:</b> <code>${usdt}</code>` : null,
-      `🏦<b>Счёт:</b> <code>${wireDetails.account}</code>`,
-      `👤<b>Получатель:</b> <code>${wireDetails.recipient}</code>`,
-      wireDetails.bankName ? `🏦<b>Банк:</b> <i>${wireDetails.bankName}</i>` : null,
-      wireDetails.comment ? `💬<b>Комментарий:</b> ${wireDetails.comment}` : null,
-      request.vendor?.title
-        ? `🤝<b>Партнер:</b> <i>${request.vendor.title}</i>`
-        : null,
-    ];
-
-    const caption = lines.filter(Boolean).join('\n');
-
-    const inline_keyboard = Markup.inlineKeyboard([
-      [
-        Markup.button.callback(
-          BUTTON_TEXTS.ADMIN_IN_WORK,
-          BUTTON_CALLBACKS.DUMMY,
-        ),
-        Markup.button.callback(
-          BUTTON_TEXTS.ADMIN_CANCEL_REQUEST,
-          BUTTON_CALLBACKS.ADMIN_CANCEL_REQUEST + request.id,
-        ),
-      ],
-    ]).reply_markup;
-
-    return {
-      text: caption,
-      inline_keyboard,
-    };
+    const currency = request.currency?.nameEn ?? request.currency?.name ?? '';
+    return `💵<b>Сумма:</b> <code>${request.amount}</code>${
+      currency ? ` ${currency}` : ''
+    }`;
   }
 
-  private static createUsdWirePublicMessage(
-    request: FullRequestType,
-    method: RequestMethodWithDetails,
-  ): ReplyPhotoMessage | null {
-    const wireDetails = method.wireDetails;
-    if (!wireDetails) {
-      return null;
-    }
-
-    const amount = request.amount ?? 0;
+  private static formatRateLine(request: FullRequestType): string | null {
     const rateValue =
       typeof request.rates?.rate === 'number'
         ? request.rates.rate
         : request.rate
           ? Number(request.rate)
           : null;
-    const usdt = rateValue && rateValue !== 0 ? (amount / rateValue).toFixed(2) : null;
 
-    const lines: Array<string | null> = [
-      `✉️<b>Заявка номер:</b> <code>${request.id}</code>`,
-      `🔖<b>Тип:</b> USD WIRE`,
-      `💵<b>Сумма:</b> <code>${amount}</code> ${request.currency?.nameEn ?? ''}`,
-      rateValue ? `💱<b>Курс:</b> <code>${rateValue.toFixed(2)}</code>` : null,
-      usdt ? `💎<b>USDT:</b> <code>${usdt}</code>` : null,
-      `🏦<b>Счёт:</b> <code>${wireDetails.account}</code>`,
-      `👤<b>Получатель:</b> <code>${wireDetails.recipient}</code>`,
-      wireDetails.bankName ? `🏦<b>Банк:</b> <i>${wireDetails.bankName}</i>` : null,
-      wireDetails.comment ? `💬<b>Комментарий:</b> ${wireDetails.comment}` : null,
-      request.vendor?.title
-        ? `🤝<b>Партнер:</b> <i>${request.vendor.title}</i>`
-        : null,
-    ];
+    if (!rateValue || Number.isNaN(rateValue)) {
+      return null;
+    }
 
-    const caption = lines.filter(Boolean).join('\n');
+    return `💱<b>Курс:</b> <code>${rateValue.toFixed(2)}</code>`;
+  }
 
-    const inline_keyboard = Markup.inlineKeyboard([
-      [
-        Markup.button.callback(
-          BUTTON_TEXTS.IN_WORK,
-          BUTTON_CALLBACKS.IN_WORK,
-        ),
-      ],
-    ]).reply_markup;
-
-    return {
-      text: caption,
-      inline_keyboard,
-    };
+  private static partnerLine(request: FullRequestType): string | null {
+    return request.vendor?.title
+      ? `🤝<b>Партнер:</b> <i>${request.vendor.title}</i>`
+      : null;
   }
 
   private static maskDigits(value: string, visibleDigits = 4): string {
@@ -397,6 +315,7 @@ export class RequestMessageFactory {
     if (digits.length === 0) {
       return value;
     }
+
     const safeVisible = Math.max(0, Math.min(visibleDigits, digits.length));
     const maskedDigits =
       '*'.repeat(Math.max(0, digits.length - safeVisible)) + digits.slice(-safeVisible);
@@ -413,5 +332,45 @@ export class RequestMessageFactory {
     }
 
     return maskedValue;
+  }
+
+  private static maskAlphaNumeric(value: string): string {
+    const alphanumeric = value.replace(/[^0-9a-zA-Z]/g, '');
+    if (alphanumeric.length === 0) {
+      return value;
+    }
+
+    const visible = alphanumeric.slice(-4);
+    const maskedSequence = '*'.repeat(Math.max(0, alphanumeric.length - 4)) + visible;
+
+    let masked = '';
+    let idx = 0;
+    for (const char of value) {
+      if (/[0-9a-zA-Z]/.test(char)) {
+        masked += maskedSequence[idx] ?? '*';
+        idx += 1;
+      } else {
+        masked += char;
+      }
+    }
+
+    return masked;
+  }
+
+  private static maskEmail(value: string, shouldMask: boolean): string {
+    if (!shouldMask) {
+      return value;
+    }
+
+    const [local, domain] = value.split('@');
+    if (!domain) {
+      return this.maskAlphaNumeric(value);
+    }
+
+    if (local.length <= 2) {
+      return `${'*'.repeat(local.length)}@${domain}`;
+    }
+
+    return `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
   }
 }

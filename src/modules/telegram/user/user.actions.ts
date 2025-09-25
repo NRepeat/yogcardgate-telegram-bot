@@ -3,9 +3,11 @@ import { Context, Markup } from 'telegraf';
 import { UserService } from 'src/modules/user/user.service';
 import { RequestService } from 'src/modules/request/request.service';
 import { TelegramService } from '../telegram.service';
-import { CustomSceneContext, FullRequestType } from 'src/types/types';
+import { CustomSceneContext, FullRequestType, ReplyPhotoMessage } from 'src/types/types';
 import { SceneContext } from 'telegraf/typings/scenes';
 import { MenuFactory } from '../telegram-keyboards';
+import { RequestMessageFactory } from '../request/request-message.factory';
+import { BUTTON_CALLBACKS, BUTTON_TEXTS } from '../telegram.constants';
 import { User } from '@prisma/client';
 import { AccessControlService } from '../access-control/access-control.service';
 import { VendorCallbackService } from '../callback/vendors';
@@ -39,9 +41,16 @@ export class UserActions {
       return;
     } else if ('data' in callbackQuery) {
       const currentUserId = callbackQuery.from.id;
-      if (callbackQuery.data.includes('admin_cancel_request')) {
-        const requestId = callbackQuery.data.split('_')[3];
+      if (callbackQuery.data.startsWith('admin_cancel_request_')) {
+        const requestId = callbackQuery.data.substring(
+          'admin_cancel_request_'.length,
+        );
 
+        if (!requestId) {
+          console.warn('admin_cancel_request callback without requestId');
+          await ctx.answerCbQuery('Не удалось определить заявку.');
+          return;
+        }
         const adminCheck =
           await this.accessControlService.canCancelRequestAsAdmin(
             requestId,
@@ -84,16 +93,23 @@ export class UserActions {
           },
           requestId,
         );
+        const publicPayload = this.buildPublicCancelPayload(
+          request as unknown as FullRequestType,
+        );
+        console.log(publicPayload,'publicPayload')
         await this.telegramService.updateAllPublicMessagesWithRequestsId(
-          {
-            text: workerMenu.canceled().caption + '\n' + 'Заявка отменена',
-            inline_keyboard: adminMenu.canceled(undefined, requestId).markup,
-          },
+          publicPayload,
           requestId,
         );
       }
-      if (callbackQuery.data.includes('cancel_payment_')) {
-        const requestId = callbackQuery.data.split('_')[2];
+      if (callbackQuery.data.startsWith('cancel_payment_')) {
+        const requestId = callbackQuery.data.substring('cancel_payment_'.length);
+
+        if (!requestId) {
+          console.warn('cancel_payment callback without requestId');
+          await ctx.answerCbQuery('Не удалось определить заявку.');
+          return;
+        }
 
         // Проверка прав на управление заявкой
         const accessCheck = await this.accessControlService.canManageRequest(
@@ -121,8 +137,14 @@ export class UserActions {
           },
         );
       }
-      if (callbackQuery.data.includes('accept_request_')) {
-        const requestId = callbackQuery.data.split('_')[2];
+      if (callbackQuery.data.startsWith('accept_request_')) {
+        const requestId = callbackQuery.data.substring('accept_request_'.length);
+
+        if (!requestId) {
+          console.warn('accept_request callback without requestId');
+          await ctx.answerCbQuery('Не удалось определить заявку.');
+          return;
+        }
         const acceptCheck = await this.accessControlService.canAcceptRequest(
           requestId,
           currentUserId,
@@ -139,8 +161,16 @@ export class UserActions {
           return;
         }
       }
-      if (callbackQuery.data.includes('cancel_worker_request_')) {
-        const requestId = callbackQuery.data.split('_')[3];
+      if (callbackQuery.data.startsWith('cancel_worker_request_')) {
+        const requestId = callbackQuery.data.substring(
+          'cancel_worker_request_'.length,
+        );
+
+        if (!requestId) {
+          console.warn('cancel_worker_request callback without requestId');
+          await ctx.answerCbQuery('Не удалось определить заявку.');
+          return;
+        }
 
         const accessCheck = await this.accessControlService.canManageRequest(
           requestId,
@@ -169,8 +199,14 @@ export class UserActions {
           },
           requestId,
         );
-      } else if (callbackQuery.data.includes('give_next_')) {
-        const requestId = callbackQuery.data.split('_')[2];
+      } else if (callbackQuery.data.startsWith('give_next_')) {
+        const requestId = callbackQuery.data.substring('give_next_'.length);
+
+        if (!requestId) {
+          console.warn('give_next callback without requestId');
+          await ctx.answerCbQuery('Не удалось определить заявку.');
+          return;
+        }
 
         // Проверка прав на управление заявкой
         const accessCheck = await this.accessControlService.canManageRequest(
@@ -386,5 +422,29 @@ export class UserActions {
       console.error('Unknown callback query data:', callbackQuery);
       await ctx.answerCbQuery('Unknown action');
     }
+  }
+
+  private buildPublicCancelPayload(request: FullRequestType): ReplyPhotoMessage {
+    const methodPayload =
+      request.methods
+        ?.map((method) =>
+          RequestMessageFactory.create('PUBLIC', request, method, {
+            maskSensitive: false,
+          }),
+        )
+        .find((payload) => payload !== null) ?? null;
+
+    const baseText = methodPayload?.text
+      ? `${methodPayload.text}\n\n❌ Заявка отменена`
+      : `✉️<b>Заявка номер:</b> <code>${request.id}</code>\n❌ Заявка отменена`;
+
+    return {
+      text: baseText,
+      inline_keyboard: Markup.inlineKeyboard([
+          [Markup.button.callback(BUTTON_TEXTS.IN_WORK, BUTTON_CALLBACKS.DUMMY)],
+        ]).reply_markup,
+      photoUrl: methodPayload?.photoUrl,
+      source: methodPayload?.source,
+    };
   }
 }

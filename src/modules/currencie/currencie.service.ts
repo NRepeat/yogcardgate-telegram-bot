@@ -24,6 +24,7 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethodEnum, string> = {
   [PaymentMethodEnum.IBAN]: 'IBAN',
   [PaymentMethodEnum.WIRE]: 'ваер',
   [PaymentMethodEnum.PHONE]: 'телефон',
+  [PaymentMethodEnum.WIZE]: 'Wise',
   [PaymentMethodEnum.SKRILL_EMAIL]: 'Skrill',
   [PaymentMethodEnum.QR]: 'QR-код',
 };

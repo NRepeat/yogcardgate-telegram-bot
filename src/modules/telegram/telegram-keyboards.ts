@@ -1,5 +1,5 @@
 import { createReadStream, ReadStream } from 'fs';
-import { AccessType } from '@prisma/client';
+import { AccessType, PaymentMethodEnum } from '@prisma/client';
 import { FullRequestType } from 'src/types/types';
 import { Markup } from 'telegraf';
 import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
@@ -143,7 +143,9 @@ abstract class BaseRequestMenu {
   }
 
   private buildCardRequestMessage(accessType: AccessType): string {
-    const cardMethod = this.request.cardMethods?.[0];
+    const cardMethod = this.request.methods?.find(
+      (method) => method.method === PaymentMethodEnum.CARD,
+    )?.cardDetails;
     const amount = this.request.amount ?? 0;
     const rateValue = this.request.rates?.rate;
     const rateLines = this.buildRateLines(rateValue, amount);
@@ -167,7 +169,10 @@ abstract class BaseRequestMenu {
       lines.push(`<b>Партнер:</b> <i>${this.request.vendor?.title ?? '-'}</i>`);
     }
 
-    if ((accessType === 'ADMIN' || accessType === 'WORKER') && cardMethod?.blackList?.length) {
+    if (
+      (accessType === 'ADMIN' || accessType === 'WORKER') &&
+      cardMethod?.blackList?.length
+    ) {
       lines.push('🚫Карта в чёрном списке');
     }
 
@@ -175,7 +180,9 @@ abstract class BaseRequestMenu {
   }
 
   private buildIbanRequestMessage(accessType: AccessType): string {
-    const ibanMethod = this.request.ibanMethods?.[0];
+    const ibanMethod = this.request.methods?.find(
+      (method) => method.method === PaymentMethodEnum.IBAN,
+    )?.ibanDetails;
     const amount = this.request.amount ?? 0;
     const rateValue = this.request.rates?.rate;
     const rateLines = this.buildRateLines(rateValue, amount);

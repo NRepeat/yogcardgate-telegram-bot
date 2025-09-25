@@ -7,20 +7,177 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CardPaymentRequestsMethod, PaymentMethodEnum, Status } from '@prisma/client';
 
+export interface PaymentMethodDetailsInput {
+  method: PaymentMethodEnum;
+  card?: {
+    card: string;
+    comment?: string | null;
+    bankId?: string | null;
+    blackListId?: string | null;
+  };
+  iban?: {
+    iban: string;
+    inn: string;
+    name?: string | null;
+    comment?: string | null;
+  };
+  wire?: {
+    account: string;
+    recipient: string;
+    bankName?: string | null;
+    comment?: string | null;
+  };
+  phone?: {
+    phoneNumber: string;
+    holderName?: string | null;
+    comment?: string | null;
+  };
+  skrill?: {
+    email: string;
+    comment?: string | null;
+  };
+  qr?: {
+    identifier: string;
+    comment?: string | null;
+  };
+}
+
 export interface GeneralRequestCreateInput {
   amount: number;
   vendorId: string;
   currencyId: string;
   rateId: string;
   rate: string;
-  paymentMethod: PaymentMethodEnum;
-  cardDetails?: {
-    card: string;
-    comment?: string;
-    bankId?: string;
-    blackListId?: string;
-  };
+  method: PaymentMethodDetailsInput;
 }
+
+const PAYMENT_REQUEST_DEFAULT_INCLUDE = {
+  paymentMethod: true,
+  message: true,
+  vendor: true,
+  rates: true,
+  currency: true,
+  user: true,
+  adminRequestPhotoMessage: true,
+  activeUser: true,
+  payedByUser: true,
+  methods: {
+    include: {
+      cardDetails: {
+        include: {
+          blackList: true,
+          bank: true,
+        },
+      },
+      ibanDetails: true,
+      wireDetails: true,
+      phoneDetails: true,
+      skrillDetails: true,
+      qrDetails: true,
+    },
+  },
+} as const;
+
+const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
+  switch (details.method) {
+    case PaymentMethodEnum.CARD:
+      if (!details.card) {
+        throw new Error('Card details are required for CARD method');
+      }
+      return {
+        method: details.method,
+        cardDetails: {
+          create: {
+            card: details.card.card,
+            comment: details.card.comment ?? null,
+            bankId: details.card.bankId ?? null,
+            blackList: details.card.blackListId
+              ? {
+                  connect: {
+                    id: details.card.blackListId,
+                  },
+                }
+              : undefined,
+          },
+        },
+      };
+    case PaymentMethodEnum.IBAN:
+      if (!details.iban) {
+        throw new Error('IBAN details are required for IBAN method');
+      }
+      return {
+        method: details.method,
+        ibanDetails: {
+          create: {
+            iban: details.iban.iban,
+            inn: details.iban.inn,
+            name: details.iban.name ?? null,
+            comment: details.iban.comment ?? null,
+          },
+        },
+      };
+    case PaymentMethodEnum.WIRE:
+    case PaymentMethodEnum.WIZE:
+      if (!details.wire) {
+        throw new Error('Wire details are required for wire method');
+      }
+      return {
+        method: details.method,
+        wireDetails: {
+          create: {
+            account: details.wire.account,
+            recipient: details.wire.recipient,
+            bankName: details.wire.bankName ?? null,
+            comment: details.wire.comment ?? null,
+          },
+        },
+      };
+    case PaymentMethodEnum.PHONE:
+      if (!details.phone) {
+        throw new Error('Phone details are required for phone method');
+      }
+      return {
+        method: details.method,
+        phoneDetails: {
+          create: {
+            phoneNumber: details.phone.phoneNumber,
+            holderName: details.phone.holderName ?? null,
+            comment: details.phone.comment ?? null,
+          },
+        },
+      };
+    case PaymentMethodEnum.SKRILL_EMAIL:
+      if (!details.skrill) {
+        throw new Error('Skrill details are required for Skrill method');
+      }
+      return {
+        method: details.method,
+        skrillDetails: {
+          create: {
+            email: details.skrill.email,
+            comment: details.skrill.comment ?? null,
+          },
+        },
+      };
+    case PaymentMethodEnum.QR:
+      if (!details.qr) {
+        throw new Error('QR details are required for QR method');
+      }
+      return {
+        method: details.method,
+        qrDetails: {
+          create: {
+            identifier: details.qr.identifier,
+            comment: details.qr.comment ?? null,
+          },
+        },
+      };
+    default:
+      return {
+        method: details.method,
+      };
+  }
+};
 
 @Injectable()
 export class RequestRepository {
@@ -44,7 +201,21 @@ export class RequestRepository {
   }
   async findBlackListByCardNumber(cardNumber: string) {
     return this.prisma.blackList.findFirst({
-      where: { card: { some: { card: cardNumber } } },
+      where: {
+        OR: [
+          { cardNumber: cardNumber },
+          {
+            card: {
+              some: {
+                card: cardNumber,
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        card: true,
+      },
     });
   }
   async getBlackList() {
@@ -57,40 +228,38 @@ export class RequestRepository {
   async findCardPaymentByCardNumber(cardNumber: string) {
     return this.prisma.paymentRequests.findFirst({
       where: {
-        cardMethods: {
-          some: { card: cardNumber },
-        },
-      },
-      include: {
-        cardMethods: {
-          include: {
-            blackList: true,
-            bank: true, // Include bank details if needed
+        methods: {
+          some: {
+            method: PaymentMethodEnum.CARD,
+            cardDetails: {
+              is: {
+                card: cardNumber,
+              },
+            },
           },
         },
-        message: true,
-        vendor: true,
-        rates: true,
-        currency: true,
-        ibanMethods: true,
-        user: true,
       },
+      include: PAYMENT_REQUEST_DEFAULT_INCLUDE,
     });
   }
-  async addToBlackList(
-    card: Omit<
-      CardPaymentRequestsMethod,
-      'id' | 'requestId' | 'createdAt' | 'updatedAt' | 'bankId'
-    > & { chatId: bigint | number },
-  ) {
+  async addToBlackList(data: {
+    cardNumber: string;
+    comment?: string;
+    methodId?: string;
+  }) {
     return this.prisma.blackList.create({
       data: {
-        card: {
-          create: {
-            card: card.card,
-            comment: card.comment,
-          },
-        },
+        cardNumber: data.cardNumber,
+        reason: data.comment,
+        ...(data.methodId
+          ? {
+              card: {
+                connect: {
+                  id: data.methodId,
+                },
+              },
+            }
+          : {}),
       },
     });
   }
@@ -151,45 +320,23 @@ export class RequestRepository {
             nameEn: 'IBAN',
           },
         },
-        ibanMethods: {
+        methods: {
           create: {
-            ...data.iban,
+            method: PaymentMethodEnum.IBAN,
+            ibanDetails: {
+              create: {
+                ...data.iban,
+              },
+            },
           },
         },
       },
-      include: {
-        cardMethods: {
-          include: {
-            blackList: true,
-            bank: true, // Include bank details if needed
-          },
-        },
-        message: true,
-        vendor: true,
-        rates: true,
-        currency: true,
-        ibanMethods: true,
-        user: true,
-        paymentMethod: true,
-      },
+      include: PAYMENT_REQUEST_DEFAULT_INCLUDE,
     });
   }
   async getAllRequests() {
     return this.prisma.paymentRequests.findMany({
-      include: {
-        cardMethods: {
-          include: {
-            blackList: true,
-            bank: true, // Include bank details if needed
-          },
-        },
-        message: true,
-        vendor: true,
-        rates: true,
-        currency: true,
-        ibanMethods: true,
-        user: true,
-      },
+      include: PAYMENT_REQUEST_DEFAULT_INCLUDE,
     });
   }
 
@@ -215,76 +362,29 @@ export class RequestRepository {
         userId: null,
         notificationSent: false,
       },
-      include: {
-        cardMethods: {
-          include: {
-            blackList: true,
-            bank: true,
-          },
-        },
-        paymentMethod: true,
-        message: true,
-        vendor: true,
-        rates: true,
-        currency: true,
-        user: true,
-        adminRequestPhotoMessage: true,
-        ibanMethods: true,
-        activeUser: true,
-        payedByUser: true,
-      },
+      include: PAYMENT_REQUEST_DEFAULT_INCLUDE,
     });
   }
   createCardRequest({ data }: { data: CardRequestType }) {
-    return this.prisma.paymentRequests.create({
-      data: {
-        amount: data.amount || 0,
-        vendor: { connect: { id: data.vendorId } },
-        currency: { connect: { id: data.currencyId } },
-        rates: {
-          connect: { id: data.rateId },
+    return this.createGeneralRequest({
+      amount: data.amount,
+      vendorId: data.vendorId,
+      currencyId: data.currencyId,
+      rateId: data.rateId,
+      rate: data.rate ?? '',
+      method: {
+        method: PaymentMethodEnum.CARD,
+        card: {
+          card: data.card.card,
+          comment: data.card.comment ?? null,
+          bankId: data.card.bankId ?? null,
+          blackListId: data.blackList?.id ?? null,
         },
-        paymentMethod: {
-          connect: {
-            nameEn: 'CARD',
-          },
-        },
-        cardMethods: {
-          create: {
-            ...data.card,
-            blackList: data.blackList
-              ? {
-                  connect: {
-                    id: data.blackList.id,
-                  },
-                }
-              : undefined,
-            bankId: data.card.bankId ? data.card.bankId : undefined,
-          },
-        },
-      },
-      include: {
-        cardMethods: {
-          include: {
-            blackList: true,
-            bank: true, // Include bank details if needed
-          },
-        },
-        message: true,
-        vendor: true,
-        rates: true,
-        currency: true,
-        ibanMethods: true,
-        paymentMethod: true,
-
-        user: true,
       },
     });
   }
 
-  createGeneralRequest({ data }: { data: GeneralRequestCreateInput }) {
-    const cardDetails = data.cardDetails;
-
+  createGeneralRequest(data: GeneralRequestCreateInput) {
     return this.prisma.paymentRequests.create({
       data: {
         amount: data.amount,
@@ -295,44 +395,15 @@ export class RequestRepository {
         },
         paymentMethod: {
           connect: {
-            nameEn: data.paymentMethod,
+            nameEn: data.method.method,
           },
         },
         rate: data.rate,
-        ...(cardDetails
-          ? {
-              cardMethods: {
-                create: {
-                  card: cardDetails.card,
-                  comment: cardDetails.comment,
-                  bankId: cardDetails.bankId || undefined,
-                  blackList: cardDetails.blackListId
-                    ? {
-                        connect: {
-                          id: cardDetails.blackListId,
-                        },
-                      }
-                    : undefined,
-                },
-              },
-            }
-          : {}),
-      },
-      include: {
-        cardMethods: {
-          include: {
-            blackList: true,
-            bank: true,
-          },
+        methods: {
+          create: buildMethodCreateInput(data.method),
         },
-        message: true,
-        vendor: true,
-        rates: true,
-        currency: true,
-        ibanMethods: true,
-        paymentMethod: true,
-        user: true,
       },
+      include: PAYMENT_REQUEST_DEFAULT_INCLUDE,
     });
   }
 
@@ -343,48 +414,27 @@ export class RequestRepository {
   async findOne(id: string) {
     return this.prisma.paymentRequests.findUnique({
       where: { id },
-      include: {
-        user: true,
-        paymentMethod: true,
-        cardMethods: {
-          include: {
-            blackList: true,
-            bank: true,
-          },
-        },
-        ibanMethods: true,
-        rates: true,
-        vendor: true,
-        message: true,
-        currency: true,
-        adminRequestPhotoMessage: true,
-        activeUser: true,
-        payedByUser: true,
-      },
+      include: PAYMENT_REQUEST_DEFAULT_INCLUDE,
     });
   }
 
   async findAllCardRequestsByCard(cardNumber?: string) {
     return this.prisma.paymentRequests.findMany({
-      where: {
-        cardMethods: {
-          some: { card: cardNumber || undefined },
-        },
-      },
-      include: {
-        cardMethods: {
-          include: {
-            blackList: true,
-            bank: true, // Include bank details if needed
-          },
-        },
-        message: true,
-        vendor: true,
-        currency: true,
-        ibanMethods: true,
-        user: true,
-        rates: true,
-      },
+      where: cardNumber
+        ? {
+            methods: {
+              some: {
+                method: PaymentMethodEnum.CARD,
+                cardDetails: {
+                  is: {
+                    card: cardNumber,
+                  },
+                },
+              },
+            },
+          }
+        : undefined,
+      include: PAYMENT_REQUEST_DEFAULT_INCLUDE,
     });
   }
   async insertCardRequestMessage(
@@ -417,15 +467,7 @@ export class RequestRepository {
         },
       },
       include: {
-        cardMethods: { include: { blackList: true, bank: true } },
-        message: true,
-        vendor: true,
-        rates: true,
-        currency: true,
-        payedByUser: true,
-
-        ibanMethods: true,
-        user: true,
+        ...PAYMENT_REQUEST_DEFAULT_INCLUDE,
       },
     });
   }

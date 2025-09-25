@@ -33,7 +33,13 @@ export class UsdWireStrategy extends UsdBaseStrategy {
       };
     }
 
-    const amount = this.tryParseAmount(lines[0]);
+    const recipient = lines[0];
+    const account = lines[1].replace(/\s+/g, '');
+    const remainder = lines.slice(2);
+
+    const rawAmountToken = remainder[0];
+    const amount = rawAmountToken ? this.tryParseAmount(rawAmountToken) : null;
+
     if (!amount || amount <= 0) {
       return {
         success: false as const,
@@ -41,7 +47,6 @@ export class UsdWireStrategy extends UsdBaseStrategy {
       };
     }
 
-    const account = lines[1].replace(/\s+/g, '');
     if (account.length < 6) {
       return {
         success: false as const,
@@ -49,7 +54,6 @@ export class UsdWireStrategy extends UsdBaseStrategy {
       };
     }
 
-    const recipient = lines[2];
     if (!recipient || recipient.length < 3) {
       return {
         success: false as const,
@@ -57,8 +61,8 @@ export class UsdWireStrategy extends UsdBaseStrategy {
       };
     }
 
-    const bank = lines[3]?.trim();
-    const comment = lines.slice(4).join('\n').trim();
+    const bank = remainder[1]?.trim();
+    const comment = remainder.slice(bank ? 2 : 1).join('\n').trim();
 
     return {
       success: true as const,
@@ -68,7 +72,7 @@ export class UsdWireStrategy extends UsdBaseStrategy {
         recipient,
         bank: bank || undefined,
         comment: comment || undefined,
-        rawAmountToken: lines[0],
+        rawAmountToken,
       },
     };
   }
@@ -85,7 +89,15 @@ export class UsdWireStrategy extends UsdBaseStrategy {
       currencyId,
       rateId: rate.id,
       rate: String(rate.rate ?? ''),
-      paymentMethod: PaymentMethodEnum.WIRE,
+      method: {
+        method: PaymentMethodEnum.WIRE,
+        wire: {
+          account: parsed.account,
+          recipient: parsed.recipient,
+          bankName: parsed.bank ?? null,
+          comment: parsed.comment ?? null,
+        },
+      },
     });
 
     return request as unknown as FullRequestType;

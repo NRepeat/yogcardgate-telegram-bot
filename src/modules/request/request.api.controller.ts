@@ -13,6 +13,7 @@ import { RatesService } from '../rates/rates.service';
 import { CardRequestType, IbanRequestType } from 'src/types/types';
 import { VendorService } from '../vendor/vendor.service';
 import { ApiToken } from './api-token.decorator';
+import { PaymentMethodEnum } from '@prisma/client';
 
 // Utility to convert BigInt to string in all responses
 function replacerBigInt(key: string, value: any) {
@@ -41,10 +42,10 @@ export class RequestApiController {
     for (const req of requests) {
       const result: Record<string, any> = {
         amount: req.amount,
-        cardNumber: req.card?.card,
+        cardNumber: req.card.card,
       };
       // Card number validation (16 digits, Luhn)
-      const cardNumber = req.card?.card?.replace(/\s/g, '');
+      const cardNumber = req.card.card.replace(/\s/g, '');
       // console.log(`Validating card number: ${cardNumber}`);
       // Check if card number is valid: 16 digits and Luhn algorithm
       if (
@@ -276,18 +277,27 @@ export class RequestApiController {
       return created >= from && created <= to;
     });
     return toJSONSafe(
-      filtered.map((request) => ({
-        hexRequestNumber: request.id,
-        amount: request.amount,
-        cardNumber: request.cardMethods?.[0]?.card,
-        iban: request.ibanMethods?.[0]?.iban,
-        clientName: request.ibanMethods?.[0]?.name,
-        inn: request.ibanMethods?.[0]?.inn,
-        comment: request.ibanMethods?.[0]?.comment,
-        rate: request.rates?.rate,
-        datetime: request.updatedAt || null,
-        status: request.status,
-      })),
+      filtered.map((request) => {
+        const cardMethod = request.methods?.find(
+          (method) => method.method === PaymentMethodEnum.CARD,
+        );
+        const ibanMethod = request.methods?.find(
+          (method) => method.method === PaymentMethodEnum.IBAN,
+        );
+
+        return {
+          hexRequestNumber: request.id,
+          amount: request.amount,
+          cardNumber: cardMethod?.cardDetails?.card ?? null,
+          iban: ibanMethod?.ibanDetails?.iban ?? null,
+          clientName: ibanMethod?.ibanDetails?.name ?? null,
+          inn: ibanMethod?.ibanDetails?.inn ?? null,
+          comment: ibanMethod?.ibanDetails?.comment ?? null,
+          rate: request.rates?.rate,
+          datetime: request.updatedAt || null,
+          status: request.status,
+        };
+      }),
     );
   }
 

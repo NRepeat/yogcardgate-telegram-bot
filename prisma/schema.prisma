@@ -98,8 +98,6 @@ model PaymentRequests {
   vendor                    Vendors                     @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   userId                    String?
   user                      User?                       @relation(fields: [userId], references: [id])
-  cardMethods               CardPaymentRequestsMethod[]
-  ibanMethods               IbanPaymentRequestsMethod[]
   paymentMethod             PaymentMethod?              @relation(fields: [paymentMethodId], references: [id])
   payedByUser               User?                       @relation("payedByUser", fields: [payedByUserId], references: [id])
   payedByUserId             String?
@@ -121,6 +119,7 @@ model PaymentRequests {
   adminRequestPhotoMessage  AdminRequestPhotoMessage[]
   workerRequestPhotoMessage WorkerRequestPhotoMessage[]
   paymentMethodId           String?
+  methods                   PaymentRequestMethod[]
 }
 
 enum AccessType {
@@ -142,29 +141,87 @@ model Message {
   paymentRequests PaymentRequests @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }
 
+model PaymentRequestMethod {
+  id          String            @id @default(cuid())
+  requestId   String
+  request     PaymentRequests   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  method      PaymentMethodEnum
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  cardDetails CardPaymentRequestsMethod?
+  ibanDetails IbanPaymentRequestsMethod?
+  wireDetails WirePaymentRequestsMethod?
+  phoneDetails PhonePaymentRequestsMethod?
+  skrillDetails SkrillEmailPaymentRequestsMethod?
+  qrDetails   QrPaymentRequestsMethod?
+}
+
 model CardPaymentRequestsMethod {
-  id              String           @id @default(cuid())
-  requestId       String?
-  paymentRequests PaymentRequests? @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  card            String
-  blackList       BlackList[]
-  bank            CardBank?        @relation(fields: [bankId], references: [id], onDelete: Cascade)
-  bankId          String?
-  comment         String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id        String                  @id @default(cuid())
+  methodId  String                  @unique
+  method    PaymentRequestMethod    @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  card      String
+  blackList BlackList[]
+  bank      CardBank?               @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  bankId    String?
+  comment   String?
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
 }
 
 model IbanPaymentRequestsMethod {
-  id              String           @id @default(cuid())
-  requestId       String?
-  paymentRequests PaymentRequests? @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  iban            String
-  inn             String
-  comment         String?
-  name            String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id        String               @id @default(cuid())
+  methodId  String               @unique
+  method    PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  iban      String
+  inn       String
+  comment   String?
+  name      String?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+}
+
+model WirePaymentRequestsMethod {
+  id          String               @id @default(cuid())
+  methodId    String               @unique
+  method      PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  account     String
+  recipient   String
+  bankName    String?
+  comment     String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model PhonePaymentRequestsMethod {
+  id          String               @id @default(cuid())
+  methodId    String               @unique
+  method      PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  phoneNumber String
+  holderName  String?
+  comment     String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model SkrillEmailPaymentRequestsMethod {
+  id        String               @id @default(cuid())
+  methodId  String               @unique
+  method    PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  email     String
+  comment   String?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+}
+
+model QrPaymentRequestsMethod {
+  id          String               @id @default(cuid())
+  methodId    String               @unique
+  method      PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  identifier  String
+  comment     String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
 }
 
 model Rates {
@@ -207,6 +264,7 @@ model BlackList {
   id        String                      @id @default(cuid())
   requestId String?                     @unique
   card      CardPaymentRequestsMethod[]
+  cardNumber String?
   reason    String?
   createdAt DateTime                    @default(now())
   updatedAt DateTime                    @updatedAt

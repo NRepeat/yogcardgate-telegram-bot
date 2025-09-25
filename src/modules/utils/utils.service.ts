@@ -7,6 +7,7 @@ import {
   MessageAccessType,
   ReplyMessage,
 } from 'src/types/types';
+import { PaymentMethodEnum } from '@prisma/client';
 import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
 import * as sharp from 'sharp';
 import { RatesService } from '../rates/rates.service';
@@ -106,23 +107,24 @@ export class UtilsService {
     request: FullRequestType,
     accessType: MessageAccessType,
   ) {
-    if (request && request.ibanMethods) {
-      if (request.ibanMethods.length === 0) {
-        return {
-          text: 'Нет доступных IBAN методов для этой заявки.',
-          inline_keyboard: [],
-        };
-      }
+    const ibanMethod = request.methods?.find(
+      (method) => method.method === PaymentMethodEnum.IBAN,
+    )?.ibanDetails;
+
+    if (!ibanMethod) {
+      return {
+        text: 'Нет доступных IBAN методов для этой заявки.',
+        inline_keyboard: [],
+      };
     }
-    const iban = request.ibanMethods![0];
     // Формируем текст сообщения
     let text =
       `Заявка на перевод по IBAN\n` +
-      `Имя: ${iban.name || '-'}\n` +
-      `IBAN: ${iban.iban || '-'}\n` +
-      `ИНН: ${iban.inn || '-'}\n` +
+      `Имя: ${ibanMethod.name || '-'}\n` +
+      `IBAN: ${ibanMethod.iban || '-'}\n` +
+      `ИНН: ${ibanMethod.inn || '-'}\n` +
       `Сумма: ${request.amount} ${request.currency?.nameEn}\n` +
-      (iban.comment ? `Комментарий: ${iban.comment}\n` : '');
+      (ibanMethod.comment ? `Комментарий: ${ibanMethod.comment}\n` : '');
 
     let inline_keyboard;
     if (accessType === 'admin') {
@@ -152,16 +154,18 @@ export class UtilsService {
     request: FullRequestType,
     accessType: MessageAccessType,
   ) {
-    const cardMethods = request?.cardMethods || [];
-    const card = cardMethods.length > 0 ? cardMethods[0]?.card : '-';
-    const bank = '-';
+    const cardMethod = request.methods?.find(
+      (method) => method.method === PaymentMethodEnum.CARD,
+    )?.cardDetails;
+    const card = cardMethod?.card ?? '-';
+    const bank = cardMethod?.bank?.bankName ?? '-';
     const amount = request.amount || 0;
     const rate = request.rates?.rate || 0;
     const usdt = (amount / rate).toFixed(2);
-    const isBlacklisted = (cardMethods[0]?.blackList || []).length > 0;
+    const isBlacklisted = Boolean(cardMethod?.blackList?.length);
     const blacklist =
-      isBlacklisted && cardMethods[0]?.blackList?.[0]
-        ? '🚫Карта в чёрном списке: ' + cardMethods[0].blackList[0].reason
+      isBlacklisted && cardMethod?.blackList?.[0]
+        ? '🚫Карта в чёрном списке: ' + cardMethod.blackList[0].reason
         : '';
     const acceptedBy = request?.activeUser
       ? 'Принята:@' + request.activeUser.username

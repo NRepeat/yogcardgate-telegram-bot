@@ -9,7 +9,7 @@ import {
   SerializedMessage,
 } from 'src/types/types';
 import { UserService } from '../user/user.service';
-import { Status } from '@prisma/client';
+import { PaymentMethodEnum, Status } from '@prisma/client';
 
 @Injectable()
 export class RequestService {
@@ -29,7 +29,7 @@ export class RequestService {
       return [];
     }
     return blackList.map((card) => ({
-      card: card.card[0].card,
+      card: card.cardNumber || card.card[0]?.card || '',
       comment: card.reason,
       createdAt: card.createdAt,
     }));
@@ -102,15 +102,19 @@ export class RequestService {
     const cardPayment =
       await this.requestRepo.findCardPaymentByCardNumber(cardNumber);
     if (cardPayment) {
+      const cardMethod = cardPayment.methods?.find(
+        (method) =>
+          method.method === PaymentMethodEnum.CARD && method.cardDetails,
+      );
+      const cardValue = cardMethod?.cardDetails?.card ?? cardNumber;
       return this.requestRepo.addToBlackList({
-        card: cardPayment.cardMethods[0].card,
-        chatId: 0,
+        cardNumber: cardValue,
         comment: reason || 'Card added to blacklist',
+        methodId: cardMethod?.cardDetails?.id,
       });
     } else {
       return this.requestRepo.addToBlackList({
-        card: cardNumber,
-        chatId: 0,
+        cardNumber,
         comment: reason || 'Card added to blacklist',
       });
     }
@@ -119,7 +123,7 @@ export class RequestService {
     return this.requestRepo.findOne(id);
   }
   async createCardRequest(data: CardRequestType) {
-    const cardNumber = data.card?.card;
+    const cardNumber = data.card.card;
     const isBlackListed = await this.isInBlackList(cardNumber);
     if (isBlackListed) {
       data.blackList = isBlackListed;
@@ -130,7 +134,7 @@ export class RequestService {
   }
 
   async createGeneralRequest(data: GeneralRequestCreateInput) {
-    return this.requestRepo.createGeneralRequest({ data });
+    return this.requestRepo.createGeneralRequest(data);
   }
   async findAllCardRequestsByCard(cardNumber?: string) {
     return this.requestRepo.findAllCardRequestsByCard(cardNumber);

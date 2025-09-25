@@ -114,12 +114,14 @@ export class UsdCardStrategy extends UsdBaseStrategy {
       currencyId,
       rateId: rate.id,
       rate: String(rate.rate ?? ''),
-      paymentMethod: PaymentMethodEnum.CARD,
-      cardDetails: {
-        card: parsed.cardNumber,
-        comment: holderComment,
-        bankId: bankName?.id,
-        blackListId: blackListEntry?.id,
+      method: {
+        method: PaymentMethodEnum.CARD,
+        card: {
+          card: parsed.cardNumber,
+          comment: holderComment,
+          bankId: bankName?.id ?? null,
+          blackListId: blackListEntry?.id ?? null,
+        },
       },
     });
 

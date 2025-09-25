@@ -5,13 +5,18 @@ import {
   CardPaymentRequestsMethod,
   Currency,
   IbanPaymentRequestsMethod,
+  PaymentRequestMethod,
+  PhonePaymentRequestsMethod,
+  QrPaymentRequestsMethod,
   Message,
   PaymentMethod,
   PaymentRequests,
   Rates,
+  SkrillEmailPaymentRequestsMethod,
   RoleEnum,
   CurrencyEnum as PrismaCurrencyEnum,
   PaymentMethodEnum as PrismaPaymentMethodEnum,
+  WirePaymentRequestsMethod,
   User,
   Vendors,
 } from '@prisma/client';
@@ -68,32 +73,31 @@ export interface CustomSession extends Scenes.WizardSessionData {
     form?: PaymentMethodFormDefinition | null;
   }[];
 }
-export type CardRequestType = Omit<
-  SerializedRequest,
-  | 'payedByUserId'
-  | 'completedAt'
-  | 'error'
-  | 'user'
-  | 'userId'
-  | 'ratesId'
-  | 'activeUserId'
-  | 'paymentMethodId'
-> & {
+export type CardRequestType = {
+  amount: number;
+  vendorId: string;
+  currencyId: string;
   rateId: string;
+  rate?: string;
   blackList?: BlackList;
-  card: Omit<
-    CardPaymentRequestsMethod,
-    'id' | 'createdAt' | 'updatedAt' | 'requestId' | 'bankId'
-  > & {
-    bankId: string;
+  card: {
+    card: string;
+    comment?: string;
+    bankId?: string;
   };
 };
 export type FullRequestType = PaymentRequests & {
-  cardMethods?: (CardPaymentRequestsMethod & {
-    blackList?: BlackList[];
-    bank?: CardBank;
+  methods?: (PaymentRequestMethod & {
+    cardDetails?: (CardPaymentRequestsMethod & {
+      blackList?: BlackList[];
+      bank?: CardBank;
+    }) | null;
+    ibanDetails?: IbanPaymentRequestsMethod | null;
+    wireDetails?: WirePaymentRequestsMethod | null;
+    phoneDetails?: PhonePaymentRequestsMethod | null;
+    skrillDetails?: SkrillEmailPaymentRequestsMethod | null;
+    qrDetails?: QrPaymentRequestsMethod | null;
   })[];
-  ibanMethods?: IbanPaymentRequestsMethod[];
   message?: Message[];
   vendor?: Vendors;
   user?: SerializedUser;

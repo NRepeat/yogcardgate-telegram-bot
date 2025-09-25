@@ -1,5 +1,6 @@
 import * as ExcelJS from 'exceljs';
 import { Injectable } from '@nestjs/common';
+import { PaymentMethodEnum } from '@prisma/client';
 import { FullRequestType } from 'src/types/types';
 
 export interface Request {
@@ -59,27 +60,21 @@ export default class ReportService {
     for (const request of requests) {
       const rate = request.rates?.rate ?? request.rate;
       const amount = request.amount ?? 0;
-      const cardNumber = request.cardMethods?.[0]?.card ?? '';
+      const cardMethod = request.methods?.find(
+        (method) => method.method === PaymentMethodEnum.CARD,
+      );
+      const cardNumber = cardMethod?.cardDetails?.card ?? '';
       const bank = this.getBankNameByCardNumber(cardNumber);
       const provider = request.vendor?.title ?? '';
       const worker = request.payedByUser?.username ?? '';
       console.log(request, 'workerworkerworker');
       const acceptedDateTime = request.completedAt ?? '';
-      const inn =
-        (request.ibanMethods &&
-          request.ibanMethods.length !== 0 &&
-          request.ibanMethods[0].inn) ||
-        '';
-      const clientName =
-        (request.ibanMethods &&
-          request.ibanMethods.length !== 0 &&
-          request.ibanMethods[0].name) ??
-        '';
-      const iban =
-        (request.ibanMethods &&
-          request.ibanMethods.length !== 0 &&
-          request.ibanMethods[0].iban) ||
-        '';
+      const ibanMethod = request.methods?.find(
+        (method) => method.method === PaymentMethodEnum.IBAN,
+      );
+      const inn = ibanMethod?.ibanDetails?.inn ?? '';
+      const clientName = ibanMethod?.ibanDetails?.name ?? '';
+      const iban = ibanMethod?.ibanDetails?.iban ?? '';
       const currency = request?.currency?.nameEn ?? '';
       let result = 0;
       if (rate && typeof rate === 'number' && rate !== 0) {

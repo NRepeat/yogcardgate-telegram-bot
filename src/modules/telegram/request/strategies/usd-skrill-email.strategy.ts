@@ -71,7 +71,13 @@ export class UsdSkrillEmailStrategy extends UsdBaseStrategy {
       currencyId,
       rateId: rate.id,
       rate: String(rate.rate ?? ''),
-      paymentMethod: PaymentMethodEnum.SKRILL_EMAIL,
+      method: {
+        method: PaymentMethodEnum.SKRILL_EMAIL,
+        skrill: {
+          email: parsed.email,
+          comment: parsed.comment ?? null,
+        },
+      },
     });
 
     return request as unknown as FullRequestType;

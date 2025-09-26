@@ -80,7 +80,6 @@ export class UahCardStrategy extends UahBaseStrategy {
         method: PaymentMethodEnum.CARD,
         card: {
           card: parsed.cardNumber,
-          comment: 'UAH card request created via bot',
           bankId: bankName?.id ?? null,
           blackListId: blackListEntry?.id ?? null,
         },

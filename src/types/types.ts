@@ -7,6 +7,7 @@ import {
   IbanPaymentRequestsMethod,
   PaymentRequestMethod,
   PhonePaymentRequestsMethod,
+  PayoneerPaymentRequestsMethod,
   QrPaymentRequestsMethod,
   Message,
   PaymentMethod,
@@ -96,6 +97,7 @@ export type FullRequestType = PaymentRequests & {
     wireDetails?: WirePaymentRequestsMethod | null;
     phoneDetails?: PhonePaymentRequestsMethod | null;
     skrillDetails?: SkrillEmailPaymentRequestsMethod | null;
+    payoneerDetails?: PayoneerPaymentRequestsMethod | null;
     qrDetails?: QrPaymentRequestsMethod | null;
   })[];
   message?: Message[];

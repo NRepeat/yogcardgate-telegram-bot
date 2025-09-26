@@ -58,6 +58,7 @@ import { AznCardStrategy } from './strategies/azn-card.strategy';
 import { CnyStrategyDependencies } from './strategies/cny-base.strategy';
 import { CnyQrStrategy } from './strategies/cny-qr.strategy';
 import { UsdStrategyDependencies } from './strategies/usd-base.strategy';
+import { UsdPayoneerStrategy } from './strategies/usd-payoneer.strategy';
 
 const DEFAULT_FORM_INTRO =
   'отправьте, пожалуйста, данные строками в указанном порядке:';
@@ -474,6 +475,7 @@ export class CreateRequestWizard {
         ...usdDeps,
         utilsService: this.utilsService,
       }),
+      new UsdPayoneerStrategy(usdDeps),
       new UsdSkrillEmailStrategy(usdDeps),
       new UsdWireStrategy(usdDeps),
       new UahCardStrategy({
@@ -712,41 +714,51 @@ export class CreateRequestWizard {
       return;
     }
 
+    if (!ctx.session.messagesToDelete) {
+      ctx.session.messagesToDelete = [];
+    }
+    ctx.session.messagesToDelete.push(payload.originalMessage.message_id);
+
     const photoUrl = './src/assets/0056.jpg';
 
-    for (let index = 0; index < payload.requests.length; index++) {
-      const request = payload.requests[index];
-      const detail = payload.details[index] ?? '';
+    try {
+      for (let index = 0; index < payload.requests.length; index++) {
+        const request = payload.requests[index];
 
+        const publicMenu = MenuFactory.createPublicMenu(
+          request as unknown as FullRequestType,
+          photoUrl,
+        );
 
+        const publicPayload = publicMenu.inWork();
+        const menuMessage = await ctx.replyWithPhoto(
+          {
+            source: publicPayload.source,
+          },
+          {
+            caption: publicPayload.caption,
+            reply_markup: publicPayload.markup,
+            parse_mode: 'HTML',
+          },
+        );
 
-      const publicMenu = MenuFactory.createPublicMenu(
-        request as unknown as FullRequestType,
-        photoUrl,
+        await this.persistMessageSafely(request.id, {
+          chatId,
+          messageId: menuMessage.message_id,
+          text: publicPayload.caption,
+          photoUrl,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to finalize request flow:', error);
+      await this.replyEphemeral(
+        ctx,
+        '⚠️ Заявка создана, но возникла ошибка при отправке уведомления.',
       );
-
-      const publicPayload = publicMenu.inWork();
-      const menuMessage = await ctx.replyWithPhoto(
-        {
-          source: publicPayload.source,
-        },
-        {
-          caption: publicPayload.caption,
-          reply_markup: publicPayload.markup,
-          parse_mode: 'HTML',
-        },
-      );
-
-      await this.persistMessageSafely(request.id, {
-        chatId,
-        messageId: menuMessage.message_id,
-        text: publicPayload.caption,
-        photoUrl,
-      });
+    } finally {
+      this.resetSession(ctx);
+      await this.cancel(ctx);
     }
-
-    this.resetSession(ctx);
-    await this.cancel(ctx);
   }
 
   private resetSession(ctx: CustomSceneContext) {

@@ -403,7 +403,42 @@ export class MenuActions {
       await ctx.reply('No rates available');
       return;
     }
-    await ctx.reply(allRates, { parse_mode: 'HTML' });
+    const lastAllRateMessageId = await this.prismaService.vendors.findUnique({
+      where: {
+        chatId: ctx.chat?.id,
+      },
+    });
+    console.log(lastAllRateMessageId, 'lastAllRateMessageId');
+    const msg = await ctx.reply(allRates, { parse_mode: 'HTML' });
+
+    if (lastAllRateMessageId && lastAllRateMessageId.lastAllRateMessageId !== undefined) {
+      try {
+        await ctx.telegram.deleteMessage(
+          ctx.chat?.id as number,
+          lastAllRateMessageId.lastAllRateMessageId as number
+        );
+      } catch (error) {
+        console.error('Error deleting message:', error);
+        await this.prismaService.vendors.update({
+          where: {
+            chatId: ctx.chat?.id,
+          },
+          data: {
+            lastAllRateMessageId: msg.message_id,
+          },
+        });
+      }
+    }
+
+    await this.prismaService.vendors.update({
+      where: {
+      chatId: ctx.chat?.id,
+    },
+    data: {
+      lastAllRateMessageId: msg.message_id,
+    },
+   });
+   
     const msId = ctx.message?.message_id;
     await ctx.deleteMessage(msId);
   }

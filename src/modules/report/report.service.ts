@@ -3,6 +3,15 @@ import { Injectable } from '@nestjs/common';
 import { PaymentMethodEnum } from '@prisma/client';
 import { FullRequestType } from 'src/types/types';
 
+type MethodReportData = {
+  type: string;
+  requisites: string;
+  bank: string;
+  comment: string;
+  inn: string;
+  clientName: string;
+};
+
 export interface Request {
   hexRequestNumber: string;
   amount: number;
@@ -30,18 +39,20 @@ export default class ReportService {
     const sheet = workbook.addWorksheet('Отчет');
     const headerRow = [
       'Номер заявки',
+      'Тип заявки',
       'Сумма',
-      'Номер карты',
+      'Курс',
+      'Сумма по курсу',
+      'Валюта',
+      'Реквизиты',
       'Банк',
       'Поставщик',
-      'Курс',
       'Время закрытия заявки',
       'ИНН',
       'Имя клиента',
-      'IBAN',
-      'Валюта',
+      'Комментарий',
     ];
-    isForProvider && headerRow.splice(6, 0, 'Пользователь');
+    isForProvider && headerRow.splice(9, 0, 'Пользователь');
 
     sheet.addRow(headerRow);
     // Style header
@@ -54,54 +65,45 @@ export default class ReportService {
       cell.font = { bold: true };
     });
     let totalAmount = 0;
-    let totalCurrency = 0;
+    let totalConverted = 0;
     let totalRate = 0;
     let rateCount = 0;
     for (const request of requests) {
-      const rate = request.rates?.rate ?? request.rate;
-      const amount = request.amount ?? 0;
-      const cardMethod = request.methods?.find(
-        (method) => method.method === PaymentMethodEnum.CARD,
-      );
-      const cardNumber = cardMethod?.cardDetails?.card ?? '';
-      const bank = this.getBankNameByCardNumber(cardNumber);
+      const amount = this.toNumber(request.amount) ?? 0;
+      const rateValue = this.toNumber(request.rates?.rate ?? request.rate);
+      const convertedAmount =
+        rateValue && rateValue !== 0 ? amount / rateValue : null;
       const provider = request.vendor?.title ?? '';
       const worker = request.payedByUser?.username ?? '';
-      console.log(request, 'workerworkerworker');
-      const acceptedDateTime = request.completedAt ?? '';
-      const ibanMethod = request.methods?.find(
-        (method) => method.method === PaymentMethodEnum.IBAN,
-      );
-      const inn = ibanMethod?.ibanDetails?.inn ?? '';
-      const clientName = ibanMethod?.ibanDetails?.name ?? '';
-      const iban = ibanMethod?.ibanDetails?.iban ?? '';
-      const currency = request?.currency?.nameEn ?? '';
-      let result = 0;
-      if (rate && typeof rate === 'number' && rate !== 0) {
-        result = amount / rate;
-      }
+      const currency =
+        request.currency?.code ?? request.currency?.nameEn ?? '';
+      const methodData = this.resolveMethodReportData(request);
       const row = [
         request.id ?? '',
-        amount,
-        cardNumber,
-        bank,
+        methodData.type,
+        this.roundNumber(amount),
+        rateValue !== null ? this.roundNumber(rateValue) : '',
+        convertedAmount !== null ? this.roundNumber(convertedAmount) : '',
+        currency,
+        methodData.requisites,
+        methodData.bank,
         provider,
-        rate !== '' ? Number(Number(rate).toFixed(2)) : '',
-        new Date(acceptedDateTime).toLocaleString('ru-RU', {
-          hour12: false,
-        }),
-        inn,
-        clientName ? clientName : '',
-        iban,
-        result.toFixed(2) || '',
+        this.formatDateTime(request.completedAt),
+        methodData.inn,
+        methodData.clientName,
+        methodData.comment,
       ];
-      isForProvider && row.splice(6, 0, worker);
+      if (isForProvider) {
+        row.splice(9, 0, worker);
+      }
 
       sheet.addRow(row);
       totalAmount += amount;
-      totalCurrency += result;
-      if (typeof rate === 'number') {
-        totalRate += rate;
+      if (convertedAmount !== null) {
+        totalConverted += convertedAmount;
+      }
+      if (rateValue !== null) {
+        totalRate += rateValue;
         rateCount++;
       }
     }
@@ -113,21 +115,25 @@ export default class ReportService {
       col.width = max + 2;
     });
     // Add totals row
-    const averageRate = rateCount ? totalRate / rateCount : 0;
+    const averageRate = rateCount ? totalRate / rateCount : null;
     const totalRow = [
       'Итого:',
-      totalAmount,
+      '',
+      this.roundNumber(totalAmount),
+      averageRate !== null ? this.roundNumber(averageRate) : '',
+      rateCount > 0 ? this.roundNumber(totalConverted) : '',
       '',
       '',
       '',
-      averageRate,
       '',
       '',
       '',
       '',
-      totalCurrency.toFixed(2),
+      '',
     ];
-    isForProvider && totalRow.splice(6, 0, '');
+    if (isForProvider) {
+      totalRow.splice(9, 0, '');
+    }
 
     const totalRowRef = sheet.addRow(totalRow);
     totalRowRef.eachCell((cell) => {
@@ -151,10 +157,160 @@ export default class ReportService {
     });
     // Caption
     const now = new Date();
-    const caption = `Количество заявок: ${requests.length}, \n Итого UAH : ${totalAmount.toFixed(2)}, \n Итого USD: ${totalCurrency.toFixed(2)}, \n Время: ${now.toLocaleString('sv-SE', { hour12: false })}`;
+    const captionParts = [
+      `Количество заявок: ${requests.length}`,
+      `Сумма: ${this.roundNumber(totalAmount)}`,
+    ];
+    if (totalConverted > 0) {
+      captionParts.push(`Сумма по курсу: ${this.roundNumber(totalConverted)}`);
+    }
+    captionParts.push(
+      `Время: ${now.toLocaleString('sv-SE', { hour12: false })}`,
+    );
+    const caption = captionParts.join(', \n ');
     // Buffer
     const buffer = await workbook.xlsx.writeBuffer();
     return { buffer: Buffer.from(buffer), caption };
+  }
+
+  private resolveMethodReportData(request: FullRequestType): MethodReportData {
+    const defaultData: MethodReportData = {
+      type: 'UNKNOWN',
+      requisites: '',
+      bank: '',
+      comment: '',
+      inn: '',
+      clientName: '',
+    };
+
+    const methods = request.methods ?? [];
+    if (!methods.length) {
+      return defaultData;
+    }
+
+    const preferred = request.paymentMethod?.nameEn;
+    const method =
+      (preferred && methods.find((item) => item.method === preferred)) ??
+      methods[0];
+
+    switch (method.method as PaymentMethodEnum) {
+      case PaymentMethodEnum.CARD: {
+        const details = method.cardDetails;
+        const cardNumber = details?.card ?? '';
+        return {
+          type: PaymentMethodEnum.CARD,
+          requisites: cardNumber,
+          bank:
+            details?.bank?.bankName ?? this.getBankNameByCardNumber(cardNumber),
+          comment: details?.comment ?? '',
+          inn: '',
+          clientName: '',
+        };
+      }
+      case PaymentMethodEnum.IBAN: {
+        const details = method.ibanDetails;
+        return {
+          type: PaymentMethodEnum.IBAN,
+          requisites: details?.iban ?? '',
+          bank: '',
+          comment: details?.comment ?? '',
+          inn: details?.inn ?? '',
+          clientName: details?.name ?? '',
+        };
+      }
+      case PaymentMethodEnum.WIRE: {
+        const details = method.wireDetails;
+        return {
+          type: PaymentMethodEnum.WIRE,
+          requisites: details?.account ?? '',
+          bank: details?.bankName ?? '',
+          comment: details?.comment ?? '',
+          inn: '',
+          clientName: details?.recipient ?? '',
+        };
+      }
+      case PaymentMethodEnum.PHONE: {
+        const details = method.phoneDetails;
+        return {
+          type: PaymentMethodEnum.PHONE,
+          requisites: details?.phoneNumber ?? '',
+          bank: '',
+          comment: details?.comment ?? '',
+          inn: '',
+          clientName: details?.holderName ?? '',
+        };
+      }
+      case PaymentMethodEnum.SKRILL_EMAIL: {
+        const details = method.skrillDetails;
+        return {
+          type: PaymentMethodEnum.SKRILL_EMAIL,
+          requisites: details?.email ?? '',
+          bank: '',
+          comment: details?.comment ?? '',
+          inn: '',
+          clientName: '',
+        };
+      }
+      case PaymentMethodEnum.PAYONEER: {
+        const details = method.payoneerDetails;
+        return {
+          type: PaymentMethodEnum.PAYONEER,
+          requisites: details?.email ?? '',
+          bank: '',
+          comment: details?.comment ?? '',
+          inn: '',
+          clientName: '',
+        };
+      }
+      case PaymentMethodEnum.QR: {
+        const details = method.qrDetails;
+        return {
+          type: PaymentMethodEnum.QR,
+          requisites: details?.identifier ?? '',
+          bank: '',
+          comment: details?.comment ?? '',
+          inn: '',
+          clientName: '',
+        };
+      }
+      default:
+        return {
+          ...defaultData,
+          type: method.method ?? defaultData.type,
+        };
+    }
+  }
+
+  private toNumber(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number(value.replace(',', '.'));
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  private roundNumber(value: number, fractionDigits = 2): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    const factor = 10 ** fractionDigits;
+    return Math.round(value * factor) / factor;
+  }
+
+  private formatDateTime(
+    date: Date | string | null | undefined,
+  ): string {
+    if (!date) {
+      return '';
+    }
+    const dateTime = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(dateTime.getTime())) {
+      return '';
+    }
+    return dateTime.toLocaleString('ru-RU', { hour12: false });
   }
 
   getBankNameByCardNumber(cardNumber: string): string {

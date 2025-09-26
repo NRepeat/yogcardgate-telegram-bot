@@ -196,7 +196,7 @@ abstract class BaseRequestMenu {
       ...this.buildMethodSpecificLines(accessType, method, currencyLabel),
     );
 
-    if (this.request.activeUser?.username) {
+    if (this.request.activeUser?.username && accessType !== 'PUBLIC') {
       lines.push(`👤<b>Принята:</b> @${this.request.activeUser.username}`);
     }
 

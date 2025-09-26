@@ -86,7 +86,7 @@ export class TryIbanStrategy extends TryBaseStrategy {
         method: PaymentMethodEnum.IBAN,
         iban: {
           iban: parsed.iban,
-          inn: 'N/A',
+          inn: null,
           name: parsed.name,
           comment: commentParts.length ? commentParts.join('\n') : null,
         },

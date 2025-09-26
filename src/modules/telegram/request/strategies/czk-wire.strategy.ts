@@ -61,7 +61,8 @@ export class CzkWireStrategy extends CzkBaseStrategy {
       const account = lines[0];
       const recipient = lines[1];
       const amountLine = lines[2];
-      const comment = lines.slice(3).join('\n').trim() || undefined;
+      const bank = lines[3]?.trim();
+      const comment = lines.slice(4).join('\n').trim() || undefined;
 
       const amount = this.tryParseAmount(amountLine);
       if (!amount || amount <= 0) {
@@ -85,7 +86,14 @@ export class CzkWireStrategy extends CzkBaseStrategy {
         };
       }
 
-      parsed.push({ amount, account, recipient, comment });
+      if (!bank || bank.length < 2) {
+        return {
+          success: false as const,
+          error: 'Укажите название банка (обязательно для CZK).',
+        };
+      }
+
+      parsed.push({ amount, account, recipient, bank, comment });
     }
 
     return {
@@ -111,7 +119,7 @@ export class CzkWireStrategy extends CzkBaseStrategy {
         wire: {
           account: parsed.account,
           recipient: parsed.recipient,
-          bankName: null,
+          bankName: parsed.bank ?? null,
           comment: parsed.comment ?? null,
         },
       },

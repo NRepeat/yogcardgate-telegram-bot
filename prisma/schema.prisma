@@ -178,7 +178,7 @@ model IbanPaymentRequestsMethod {
   methodId  String               @unique
   method    PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
   iban      String
-  inn       String
+  inn       String?
   comment   String?
   name      String?
   createdAt DateTime             @default(now())

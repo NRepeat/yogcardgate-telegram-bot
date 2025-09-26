@@ -57,8 +57,15 @@ export class ThbWireStrategy extends ThbBaseStrategy {
       const amountLine = lines[0];
       const account = lines[1];
       const recipient = lines[2];
-      const bank = lines[3] ?? undefined;
+      const bank = lines[3]?.trim();
       const comment = lines.slice(4).join('\n').trim() || undefined;
+      
+      if (!bank || bank.length < 2) {
+        return {
+          success: false as const,
+          error: 'Укажите название банка (обязательно для THB).',
+        };
+      }
 
       const amount = this.tryParseAmount(amountLine);
       if (!amount || amount <= 0) {

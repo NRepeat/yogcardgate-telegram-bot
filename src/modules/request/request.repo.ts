@@ -17,7 +17,7 @@ export interface PaymentMethodDetailsInput {
   };
   iban?: {
     iban: string;
-    inn: string;
+    inn: string | null;
     name?: string | null;
     comment?: string | null;
   };

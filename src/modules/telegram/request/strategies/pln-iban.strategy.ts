@@ -78,7 +78,7 @@ export class PlnIbanStrategy extends PlnBaseStrategy {
         method: PaymentMethodEnum.IBAN,
         iban: {
           iban: parsed.iban,
-          inn: 'N/A',
+          inn: null,
           name: parsed.name,
           comment: parsed.comment ?? null,
         },

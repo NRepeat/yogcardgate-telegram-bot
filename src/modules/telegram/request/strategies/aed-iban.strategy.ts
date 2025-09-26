@@ -86,7 +86,7 @@ export class AedIbanStrategy extends AedBaseStrategy {
         method: PaymentMethodEnum.IBAN,
         iban: {
           iban: parsed.iban,
-          inn: 'N/A',
+          inn: null,
           name: parsed.name,
           comment: commentParts.length ? commentParts.join('\n') : null,
         },
@@ -162,7 +162,14 @@ export class AedIbanStrategy extends AedBaseStrategy {
         error: 'Укажите банк и сумму (каждое с новой строки).',
       };
     }
-    const bank = rest[0]?.trim() || undefined;
+    const bank = rest[0]?.trim();
+    
+    if (!bank || bank.length < 2) {
+      return {
+        success: false,
+        error: 'Укажите название банка (обязательно для AED).',
+      };
+    }
 
     let amountLineIndex = 1;
     let amount: number | null = null;

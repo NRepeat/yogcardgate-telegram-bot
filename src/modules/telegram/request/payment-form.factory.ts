@@ -129,7 +129,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
         },
         {
           label: 'Название банка',
-     
+          description: 'Обязательно для AED',
         },
         {
           label: "Сумма",
@@ -264,7 +264,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           description:"0123456789"
         },
         {
-          label:"Название банка"
+          label:"Название банка",
         }
       ],
       sample: 'NAME SURNAME\n10000\n00000000\nBank Name',
@@ -307,7 +307,8 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           description:"12345678/2200"
         },
         {
-          label:"Название банка"
+          label:"Название банка",
+          description:"Обязательно для CZK"
         }
       ],
       sample: 'NAME SURNAME\n10000\n00000000/0000\nBank Name',

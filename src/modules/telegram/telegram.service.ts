@@ -192,15 +192,20 @@ export class TelegramService {
         if (messages) {
           for (const message of messages) {
             if (message.messageId) {
-              await this.bot.telegram.sendMessage(
-                chatId,
-                `Обратите внимание на заявку #${request.id}`,
-                {
-                  reply_parameters: {
-                    message_id: Number(message.messageId),
+              await this.sendMessageWithRetry(
+                () => this.bot.telegram.sendMessage(
+                  chatId,
+                  `Обратите внимание на заявку #${request.id}`,
+                  {
+                    reply_parameters: {
+                      message_id: Number(message.messageId),
+                    },
                   },
-                },
+                )
               );
+              
+              // Add small delay between messages to avoid rate limiting
+              await new Promise(resolve => setTimeout(resolve, 100));
             }
           }
         }
@@ -909,5 +914,39 @@ export class TelegramService {
       this.logger.error('Error in sendPhotoMessageToWorker', e);
       throw e;
     }
+  }
+
+  private async sendMessageWithRetry<T>(
+    sendFunction: () => Promise<T>,
+    maxRetries: number = 3,
+    baseDelay: number = 1000
+  ): Promise<T> {
+    let lastError: any;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await sendFunction();
+      } catch (error: any) {
+        lastError = error;
+        
+        // Check if it's a rate limit error (429)
+        if (error.response?.error_code === 429) {
+          const retryAfter = error.response.parameters?.retry_after || (attempt + 1) * 2;
+          const delay = retryAfter * 1000; // Convert to milliseconds
+          
+          console.log(`[TelegramService] Rate limited, retrying after ${retryAfter}s (attempt ${attempt + 1}/${maxRetries + 1})`);
+          
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+        }
+        
+        // For non-rate-limit errors or if we've exhausted retries, throw immediately
+        throw error;
+      }
+    }
+    
+    throw lastError;
   }
 }

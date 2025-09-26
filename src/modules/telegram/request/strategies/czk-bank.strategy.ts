@@ -47,6 +47,13 @@ export class CzkBankStrategy extends CzkBaseStrategy {
     const account = lines[2];          // Номер счета
     const bankName = lines[3]?.trim(); // Название банка
     const comment = lines.slice(4).join('\n').trim();
+    
+    if (!bankName || bankName.length < 2) {
+      return {
+        success: false as const,
+        error: 'Укажите название банка (обязательно для CZK).',
+      };
+    }
 
     const amount = this.tryParseAmount(amountLine);
     if (!amount || amount <= 0) {

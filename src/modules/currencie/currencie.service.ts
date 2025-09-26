@@ -10,9 +10,9 @@ import {
 } from '@prisma/client';
 
 const POPULAR_CURRENCY_ORDER: CurrencyEnum[] = [
+  CurrencyEnum.UAH,
   CurrencyEnum.USD,
   CurrencyEnum.EUR,
-  CurrencyEnum.UAH,
   CurrencyEnum.KZT,
   CurrencyEnum.AZN,
   CurrencyEnum.AED,
@@ -31,6 +31,8 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethodEnum, string> = {
   [PaymentMethodEnum.WIZE]: 'Wise',
   [PaymentMethodEnum.SKRILL_EMAIL]: 'Skrill',
   [PaymentMethodEnum.QR]: 'QR-код',
+  [PaymentMethodEnum.BANK]:"Банковская оплата",
+  [PaymentMethodEnum.PAYONEER]:"PAYONEER"
 };
 
 const CHUNK_SIZE = 2;
@@ -102,16 +104,24 @@ export class CurrencyService {
       BUTTON_TEXTS.CANCEL,
       BUTTON_CALLBACKS.CANCEL_REQUEST,
     );
-    const rows: typeof buttons[] = [];
-    for (let i = 0; i < buttons.length; i += CHUNK_SIZE) {
-      rows.push(buttons.slice(i, i + CHUNK_SIZE));
-    }
-    rows.push([cancelRequest]);
+    const rows = this.buildKeyboardRows(buttons, cancelRequest);
     const markup: InlineKeyboardMarkup = Markup.inlineKeyboard(rows).reply_markup;
     return {
       caption,
       markup,
     };
+  }
+
+  private buildKeyboardRows(
+    buttons: ReturnType<typeof Markup.button.callback>[],
+    cancelButton: ReturnType<typeof Markup.button.callback>,
+  ): ReturnType<typeof Markup.inlineKeyboard>['reply_markup']['inline_keyboard'] {
+    const rows: typeof buttons[] = [];
+    for (let i = 0; i < buttons.length; i += CHUNK_SIZE) {
+      rows.push(buttons.slice(i, i + CHUNK_SIZE));
+    }
+    rows.push([cancelButton]);
+    return rows;
   }
 
   private async attachMissingPaymentMethods<T extends {

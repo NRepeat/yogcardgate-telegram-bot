@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { VendorService } from '../vendor/vendor.service';
 import { Context, Markup } from 'telegraf';
@@ -12,11 +12,41 @@ import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
 import * as sharp from 'sharp';
 import { RatesService } from '../rates/rates.service';
 import { PrismaService } from '../prisma/prisma.service';
+
+const POPULAR_CURRENCY_ORDER = [
+  'UAH',
+  'USD',
+  'EUR',
+  'KZT',
+  'AZN',
+  'AED',
+  'CNY',
+  'PLN',
+  'TRY',
+  'CZK',
+  'THB',
+];
+
+
+const CURRENCY_TO_SKIP_RANGE = [
+  'USD',
+  'EUR',
+  'KZT',
+  'AZN',
+  'AED',
+  'CNY',
+  'PLN',
+  'TRY',
+  'CZK',
+  'THB',
+]
+
 @Injectable()
 export class UtilsService {
   constructor(
     private readonly userService: UserService,
     private readonly vendorService: VendorService,
+    @Inject(forwardRef(() => RatesService))
     private readonly ratesService: RatesService,
     private readonly prismaService: PrismaService, // Assuming you have a PrismaService to inject
   ) {}
@@ -50,6 +80,7 @@ export class UtilsService {
   }
 
   async getAllPublicRatesMarkupMessage() {
+    
     const allRates = await this.ratesService.getAllRates();
     if (!allRates.length) return 'Нет доступных курсов.';
     // Сортируем: сначала Card, затем остальные, внутри Card — сначала + (maxAmount === null/0), потом по minAmount по убыванию
@@ -68,25 +99,86 @@ export class UtilsService {
       .filter((r) => r.paymentMethod.nameEn.toLowerCase() !== 'card')
       .sort(plusFirstSort);
     const sortedRates = [...cardRates, ...otherRates];
-    // Группируем по валюте и методу оплаты
-    const grouped: Record<string, string[]> = {};
+
+    const currencyPopularityIndex = (code: string | null | undefined) => {
+      if (!code) {
+        return POPULAR_CURRENCY_ORDER.length;
+      }
+      const upperCased = code.toUpperCase();
+      const index = POPULAR_CURRENCY_ORDER.indexOf(upperCased);
+      return index === -1 ? POPULAR_CURRENCY_ORDER.length : index;
+    };
+
+    const groupedByCurrency = new Map<
+      string,
+      {
+        displayName: string;
+        methods: Map<string, string[]>;
+        popularityIndex: number;
+      }
+    >();
+
     for (const rate of sortedRates) {
-      const header = `💱 <b>${rate.currency.name}</b> — <i>${rate.paymentMethod.nameEn}</i>`;
-      const line = `▫️ <b>${rate.minAmount}${
+      const currencyCode = String(
+        rate.currency.nameEn ?? rate.currency.name ?? '',
+      );
+      const currencyDisplayName = String(
+        rate.currency.name ?? rate.currency.nameEn ?? currencyCode,
+      );
+      if (!groupedByCurrency.has(currencyCode)) {
+        groupedByCurrency.set(currencyCode, {
+          displayName: currencyDisplayName,
+          methods: new Map(),
+          popularityIndex: currencyPopularityIndex(currencyCode),
+        });
+      }
+
+      const currencyGroup = groupedByCurrency.get(currencyCode)!;
+      const methodKey = rate.paymentMethod.nameEn;
+      const amountLabel =
         rate.maxAmount !== null && rate.maxAmount > 0
-          ? ' - ' + rate.maxAmount
-          : '+'
-      }</b> — <b>${rate.rate}</b>`;
-      if (!grouped[header]) grouped[header] = [];
-      grouped[header].push(line);
+          ? `${rate.minAmount} - ${rate.maxAmount}`
+          : `${rate.minAmount}+`;
+      const line = `${amountLabel} — ${rate.rate}`;
+      const lineWithoutAmount = `— ${rate.rate}`
+      if (!currencyGroup.methods.has(methodKey)) {
+        currencyGroup.methods.set(methodKey, []);
+      }
+      if(!CURRENCY_TO_SKIP_RANGE.includes(currencyCode)){
+
+        currencyGroup.methods.get(methodKey)!.push(line);
+      }else{
+        currencyGroup.methods.get(methodKey)!.push(lineWithoutAmount);
+      }
     }
-    const message: string[] = ['<b>Актуальные курсы:</b>\n'];
-    for (const header in grouped) {
-      message.push(header);
-      message.push(...grouped[header]);
+
+    const message: string[] = ['Актуальные курсы:'];
+
+    const sortedCurrencies = Array.from(groupedByCurrency.entries()).sort(
+      ([codeA, groupA], [codeB, groupB]) => {
+        if (groupA.popularityIndex !== groupB.popularityIndex) {
+          return groupA.popularityIndex - groupB.popularityIndex;
+        }
+        return codeA.localeCompare(codeB);
+      },
+    );
+
+    for (const [, group] of sortedCurrencies) {
+      message.push(`💱${group.displayName}`);
+
+      for (const [method, lines] of group.methods) {
+        if(CURRENCY_TO_SKIP_RANGE.includes(group.displayName)){
+          message.push(method.toUpperCase()+' '+ lines.join('\n'));
+        }else{
+          message.push(method.toUpperCase());
+          message.push(...lines);
+        }
+      }
+
       message.push('');
     }
-    return message.join('\n');
+
+    return message.join('\n').trim();
   }
   // Группируем по header
 

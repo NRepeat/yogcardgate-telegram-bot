@@ -25,6 +25,8 @@ export class RequestMessageFactory {
         return this.buildIbanMessage(accessType, request, method, options);
       case PaymentMethodEnum.SKRILL_EMAIL:
         return this.buildSkrillMessage(accessType, request, method, options);
+      case PaymentMethodEnum.PAYONEER:
+        return this.buildPayoneerMessage(accessType, request, method, options);
       case PaymentMethodEnum.PHONE:
         return this.buildPhoneMessage(accessType, request, method, options);
       case PaymentMethodEnum.QR:
@@ -154,6 +156,32 @@ export class RequestMessageFactory {
     return this.wrapWithButtons(accessType, request.id, lines);
   }
 
+  private static buildPayoneerMessage(
+    accessType: AccessType,
+    request: FullRequestType,
+    method: RequestMethodWithDetails,
+    options: RequestMessageFactoryOptions,
+  ): ReplyPhotoMessage | null {
+    const details = method.payoneerDetails;
+    if (!details) {
+      return null;
+    }
+
+    const email = details.email
+      ? options.maskSensitive
+        ? this.maskEmail(details.email, true)
+        : details.email
+      : null;
+
+    const lines = this.composeBaseLines(request, method.method, [
+      email ? `📧<b>Email:</b> <code>${email}</code>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      this.partnerLine(request),
+    ]);
+
+    return this.wrapWithButtons(accessType, request.id, lines);
+  }
+
   private static buildPhoneMessage(
     accessType: AccessType,
     request: FullRequestType,
@@ -245,7 +273,11 @@ export class RequestMessageFactory {
     requestId: string,
     lines: string[],
   ): ReplyPhotoMessage {
-    const caption = lines.join('\n');
+    const sanitizedLines =
+      accessType === 'PUBLIC'
+        ? lines.filter((line) => !line.startsWith('👤<b>Принята:'))
+        : lines;
+    const caption = sanitizedLines.join('\n');
 
     let inline_keyboard = Markup.inlineKeyboard([
       [Markup.button.callback(BUTTON_TEXTS.IN_WORK, BUTTON_CALLBACKS.IN_WORK)],

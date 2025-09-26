@@ -214,45 +214,7 @@ export default class PaymentWizard {
       await ctx.scene.leave();
     }
   }
-  // @On('callback_query')
-  // async onCallbackQuery(@Ctx() ctx: CustomSceneContext) {
-  //   console.log('Callback query data:', ctx.callbackQuery);
-  //   const callbackQuery = ctx.callbackQuery;
-  //   if (!callbackQuery) {
-  //     console.error('No callback query found');
-  //     return;
-  //   } else if ('data' in callbackQuery) {
-  //     if (callbackQuery.data === 'cancel_payment_photo_proceed') {
-  //       const state = ctx.wizard.state as { requestId: string };
-  //       const requestId = state.requestId;
-  //       const request = await this.requestService.findById(requestId);
-  //       if (!request) {
-  //         await ctx.scene.leave();
-  //         throw new Error('Request not found');
-  //       }
-  //       const photoUrl = './src/assets/0056.jpg';
-
-  //       const workerMenu = MenuFactory.createWorkerMenu(
-  //         request as unknown as FullRequestType,
-  //         photoUrl,
-  //       );
-  //       await this.telegramService.updateAllWorkersMessagesWithRequestsId(
-  //         {
-  //           text: workerMenu.inWork().caption,
-  //           inline_keyboard: workerMenu.inWork().markup,
-  //         },
-  //         requestId,
-  //       );
-
-  //       await ctx.deleteMessage();
-  //     } else {
-  //       console.error('Unknown callback query data:', callbackQuery);
-  //       await ctx.answerCbQuery('Unknown action');
-  //       // await ctx.scene.leave();
-  //       return;
-  //     }
-  //   }
-  // }
+  
   @SceneLeave()
   async onSceneLeave(@Ctx() ctx: CustomSceneContext) {
     await this.deleteSceneMessages(ctx);

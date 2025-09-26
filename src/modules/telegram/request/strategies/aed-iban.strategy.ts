@@ -126,10 +126,22 @@ export class AedIbanStrategy extends AedBaseStrategy {
       };
     }
 
-    const [rawIban, rawName, rawAmount, rawBank, ...rest] = lines;
+    const [rawIban, rawName, ...rest] = lines;
 
-    const iban = rawIban.replace(/\s+/g, '').toUpperCase();
-    if (!/^[A-Z]{2}[0-9A-Z]{12,34}$/.test(iban)) {
+    const iban = rawIban
+      .toUpperCase()
+      .replace(/[^0-9A-Z]/g, '');
+
+    if (iban.length < 15) {
+      return {
+        success: false,
+        error: 'Укажите корректный IBAN.',
+      };
+    }
+
+    const body = iban.slice(4);
+    const isValidBody = /^[0-9A-Z]+$/.test(body);
+    if (!isValidBody) {
       return {
         success: false,
         error: 'Укажите корректный IBAN.',
@@ -144,18 +156,37 @@ export class AedIbanStrategy extends AedBaseStrategy {
       };
     }
 
-    const amount = this.tryParseAmount(rawAmount);
-    if (!amount || amount <= 0) {
+    if (rest.length === 0) {
+      return {
+        success: false,
+        error: 'Укажите банк и сумму (каждое с новой строки).',
+      };
+    }
+    const bank = rest[0]?.trim() || undefined;
+
+    let amountLineIndex = 1;
+    let amount: number | null = null;
+
+    while (amountLineIndex < rest.length && amount === null) {
+      const attempt = this.tryParseAmount(rest[amountLineIndex]);
+      if (attempt !== null && attempt > 0) {
+        amount = attempt;
+      } else {
+        amountLineIndex++;
+      }
+    }
+
+    if (amount === null || amount <= 0) {
       return {
         success: false,
         error: 'Сумма должна быть положительным числом.',
       };
     }
 
-    const bank = rawBank?.trim() || undefined;
-    const comment = rest.join(' ').trim() || undefined;
+    const remaining = rest.slice(amountLineIndex + 1).filter(Boolean);
+    const comment = remaining.length ? remaining.join('\n') : undefined;
 
-    const consumed = 3 + (bank ? 1 : 0) + (comment ? 1 : 0);
+    const consumed = 2 + rest.length;
 
     return {
       success: true,

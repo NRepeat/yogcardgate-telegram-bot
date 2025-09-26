@@ -41,6 +41,8 @@ enum PaymentMethodEnum {
   WIRE
   PHONE
   WIZE
+  BANK
+  PAYONEER
   SKRILL_EMAIL
   QR
 }
@@ -153,6 +155,7 @@ model PaymentRequestMethod {
   wireDetails WirePaymentRequestsMethod?
   phoneDetails PhonePaymentRequestsMethod?
   skrillDetails SkrillEmailPaymentRequestsMethod?
+  payoneerDetails PayoneerPaymentRequestsMethod?
   qrDetails   QrPaymentRequestsMethod?
 }
 
@@ -205,6 +208,16 @@ model PhonePaymentRequestsMethod {
 }
 
 model SkrillEmailPaymentRequestsMethod {
+  id        String               @id @default(cuid())
+  methodId  String               @unique
+  method    PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  email     String
+  comment   String?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+}
+
+model PayoneerPaymentRequestsMethod {
   id        String               @id @default(cuid())
   methodId  String               @unique
   method    PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)

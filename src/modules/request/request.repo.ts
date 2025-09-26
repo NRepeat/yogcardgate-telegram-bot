@@ -36,6 +36,10 @@ export interface PaymentMethodDetailsInput {
     email: string;
     comment?: string | null;
   };
+  payoneer?: {
+    email: string;
+    comment?: string | null;
+  };
   qr?: {
     identifier: string;
     comment?: string | null;
@@ -73,6 +77,7 @@ const PAYMENT_REQUEST_DEFAULT_INCLUDE = {
       wireDetails: true,
       phoneDetails: true,
       skrillDetails: true,
+      payoneerDetails: true,
       qrDetails: true,
     },
   },
@@ -156,6 +161,19 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
           create: {
             email: details.skrill.email,
             comment: details.skrill.comment ?? null,
+          },
+        },
+      };
+    case PaymentMethodEnum.PAYONEER:
+      if (!details.payoneer) {
+        throw new Error('Payoneer details are required for Payoneer method');
+      }
+      return {
+        method: details.method,
+        payoneerDetails: {
+          create: {
+            email: details.payoneer.email,
+            comment: details.payoneer.comment ?? null,
           },
         },
       };

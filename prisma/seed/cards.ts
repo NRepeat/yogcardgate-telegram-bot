@@ -104,8 +104,13 @@ const paymentMethods = [
   },
   {
     nameEn: PaymentMethodEnum.SKRILL,
-    description: 'Skrill (оплата по почте)',
-    descriptionEn: 'Skrill (email)',
+    description: 'Skrill',
+    descriptionEn: 'Skrill',
+  },
+  {
+    nameEn: PaymentMethodEnum.PAYONEER,
+    description: 'Payoneer',
+    descriptionEn: 'Payoneer',
   },
   {
     nameEn: PaymentMethodEnum.QR,
@@ -119,12 +124,14 @@ const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
   [CurrencyEnum.USD]: [
     PaymentMethodEnum.CARD,
     PaymentMethodEnum.WIRE,
+    PaymentMethodEnum.SKRILL,
+    PaymentMethodEnum.PAYONEER,
   ],
-  [CurrencyEnum.EUR]: [PaymentMethodEnum.CARD, PaymentMethodEnum.IBAN],
+  [CurrencyEnum.EUR]: [PaymentMethodEnum.CARD, PaymentMethodEnum.IBAN, PaymentMethodEnum.SKRILL],
   [CurrencyEnum.PLN]: [PaymentMethodEnum.IBAN],
-  [CurrencyEnum.THB]: [PaymentMethodEnum.WIRE],
-  [CurrencyEnum.CZK]: [PaymentMethodEnum.WIRE],
-  [CurrencyEnum.KZT]: [PaymentMethodEnum.CARD, PaymentMethodEnum.PHONE],
+  [CurrencyEnum.THB]: [PaymentMethodEnum.BANK],
+  [CurrencyEnum.CZK]: [PaymentMethodEnum.BANK],
+  [CurrencyEnum.KZT]: [PaymentMethodEnum.CARD],
   [CurrencyEnum.TRY]: [PaymentMethodEnum.IBAN],
   [CurrencyEnum.AZN]: [PaymentMethodEnum.CARD],
   [CurrencyEnum.CNY]: [PaymentMethodEnum.QR],
@@ -328,6 +335,18 @@ async function seedRates() {
           maxAmount: 100000,
           rate: 37.2,
         },
+        {
+          method: PaymentMethodEnum.SKRILL,
+          minAmount: 500,
+          maxAmount: 100000,
+          rate: 37.2,
+        },
+        {
+          method: PaymentMethodEnum.PAYONEER,
+          minAmount: 500,
+          maxAmount: 100000,
+          rate: 37.2,
+        },
       ],
       [CurrencyEnum.EUR]: [
         {
@@ -342,6 +361,13 @@ async function seedRates() {
           maxAmount: 100000,
           rate: 41.5,
         },
+        {
+          method: PaymentMethodEnum.SKRILL,
+          minAmount: 500,
+          maxAmount: 100000,
+          rate: 41.5,
+        },
+      
       ],
       [CurrencyEnum.AED]: [
         {
@@ -361,7 +387,7 @@ async function seedRates() {
       ],
       [CurrencyEnum.THB]: [
         {
-          method: PaymentMethodEnum.WIRE,
+          method: PaymentMethodEnum.BANK,
           minAmount: 500,
           maxAmount: 120000,
           rate: 1.05,
@@ -369,7 +395,7 @@ async function seedRates() {
       ],
       [CurrencyEnum.CZK]: [
         {
-          method: PaymentMethodEnum.WIRE,
+          method: PaymentMethodEnum.BANK,
           minAmount: 500,
           maxAmount: 150000,
           rate: 1.6,
@@ -382,12 +408,7 @@ async function seedRates() {
           maxAmount: 200000,
           rate: 0.092,
         },
-        {
-          method: PaymentMethodEnum.PHONE,
-          minAmount: 5000,
-          maxAmount: 200000,
-          rate: 0.091,
-        },
+    
       ],
       [CurrencyEnum.TRY]: [
         {

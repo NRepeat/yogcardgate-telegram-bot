@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { promises as fs, createReadStream } from 'fs';
+import * as path from 'path';
 import { Wizard, WizardStep, Ctx, SceneLeave, On } from 'nestjs-telegraf';
 import { RatesService } from 'src/modules/rates/rates.service';
 import { RequestService } from 'src/modules/request/request.service';
@@ -11,11 +13,13 @@ import {
   IbanRequestType,
   PaymentMethodFormDefinition,
   SerializedMessage,
+  ReplyPhotoMessage,
 } from 'src/types/types';
 import { TelegramService } from '../telegram.service';
 import {
   InlineKeyboardButton,
   InlineKeyboardMarkup,
+  PhotoSize,
 } from 'telegraf/typings/core/types/typegram';
 import {
   BUTTON_CALLBACKS,
@@ -62,6 +66,16 @@ import { UsdPayoneerStrategy } from './strategies/usd-payoneer.strategy';
 
 const DEFAULT_FORM_INTRO =
   'отправьте, пожалуйста, данные строками в указанном порядке:';
+
+type RequestAttachment = {
+  requestId: string;
+  photoPath: string;
+};
+
+type CnyQrWizardPayload = {
+  text?: string;
+  photo?: PhotoSize;
+};
 
 @Injectable()
 @Wizard('create-request')
@@ -164,13 +178,10 @@ export class CreateRequestWizard {
 
         ctx.session.selectedCurrencyId = currency.id;
         const currencyEnum = currency.name as CurrencyEnum;
-        console.log('currency.Rates ',currency.Rates )
         const availableMethodIds = new Set(
           (currency.Rates || []).map((rate) => rate.paymentMethodId),
         );
-        console.log(currency,'availableMethodIds')
         const paymentMethods = currency.paymentMethod.filter((method) => {
-          console.log(method,'method')
           return availableMethodIds.has(method.id)
          
         }
@@ -309,8 +320,11 @@ export class CreateRequestWizard {
 
   @WizardStep(1)
   async processPaymentDetails(@Ctx() ctx: CustomSceneContext) {
-    const message = ctx.message;
-    if (!message || !('text' in message)) {
+    const message = ctx.message as
+      | (typeof ctx.message & { caption?: string; photo?: unknown })
+      | undefined;
+
+    if (!message) {
       await this.replyEphemeral(
         ctx,
         'Ожидаю текстовое сообщение с данными для заявки.',
@@ -319,15 +333,15 @@ export class CreateRequestWizard {
       return;
     }
 
-    const input = (message.text || '').trim();
-    if (!input) {
-      await this.replyEphemeral(
-        ctx,
-        'Пожалуйста, отправьте данные в соответствии с формой.',
-      );
-      ctx.wizard.selectStep(1);
-      return;
-    }
+    const rawInputCandidate =
+      typeof (message as { text?: string }).text === 'string'
+        ? (message as { text?: string }).text
+        : typeof (message as { caption?: string }).caption === 'string'
+          ? (message as { caption?: string }).caption
+          : '';
+
+    const initialInput = (rawInputCandidate ?? '').trim();
+    let input = initialInput;
 
     const selectedCurrencyId = ctx.session.selectedCurrencyId;
     const requestType = ctx.session.requestType;
@@ -364,6 +378,60 @@ export class CreateRequestWizard {
       return;
     }
 
+    if (methodEnum === PaymentMethodEnum.QR) {
+      const wizardState = ctx.scene.state as {
+        cnyQrPayload?: CnyQrWizardPayload;
+      };
+
+      if (!wizardState.cnyQrPayload) {
+        wizardState.cnyQrPayload = {};
+      }
+
+      const qrPayload = wizardState.cnyQrPayload;
+
+      if (input.length > 0) {
+        qrPayload.text = input;
+      }
+
+      const photos = (message as { photo?: PhotoSize[] }).photo;
+      if (Array.isArray(photos) && photos.length > 0) {
+        const largest = photos[photos.length - 1];
+        if (largest) {
+          qrPayload.photo = largest;
+        }
+      }
+
+      const hasText = Boolean(qrPayload.text && qrPayload.text.trim().length > 0);
+      const hasPhoto = Boolean(qrPayload.photo);
+
+      if (!hasText) {
+        await this.replyEphemeral(
+          ctx,
+          'Пожалуйста, отправьте данные заявки текстом (сумма, идентификатор, получатель).',
+        );
+        ctx.wizard.selectStep(1);
+        return;
+      }
+
+      if (!hasPhoto) {
+        await this.replyEphemeral(
+          ctx,
+          'Теперь прикрепите фотографию с QR-кодом получателя.',
+        );
+        ctx.wizard.selectStep(1);
+        return;
+      }
+
+      input = qrPayload.text!.trim();
+    } else if (!input) {
+      await this.replyEphemeral(
+        ctx,
+        'Пожалуйста, отправьте данные в соответствии с формой.',
+      );
+      ctx.wizard.selectStep(1);
+      return;
+    }
+
     const strategyContext: StrategyExecuteContext = {
       ctx,
       message: input,
@@ -382,11 +450,28 @@ export class CreateRequestWizard {
       return;
     }
 
-    const originalMessage = message as { message_id: number; text?: string };
+    const originalMessage = message as {
+      message_id: number;
+      text?: string;
+      caption?: string;
+    };
+
+    let attachments: RequestAttachment[] | undefined;
+    if (methodEnum === PaymentMethodEnum.QR) {
+      const state = ctx.scene.state as {
+        cnyQrAttachments?: RequestAttachment[];
+      };
+      if (state?.cnyQrAttachments?.length) {
+        attachments = [...state.cnyQrAttachments];
+        delete state.cnyQrAttachments;
+      }
+    }
+
     await this.handleStrategySuccess(ctx, {
       requests: result.requests,
       details: result.details,
       originalMessage,
+      attachments,
     });
   }
 
@@ -703,6 +788,7 @@ export class CreateRequestWizard {
       requests: FullRequestType[];
       details: string[];
       originalMessage: { message_id: number; text?: string };
+      attachments?: RequestAttachment[];
     },
   ) {
     const chatId = ctx.chat?.id;
@@ -714,27 +800,65 @@ export class CreateRequestWizard {
       return;
     }
 
+    const wizardState = ctx.scene.state as {
+      cnyQrPayload?: CnyQrWizardPayload;
+    };
+    if (wizardState.cnyQrPayload) {
+      delete wizardState.cnyQrPayload;
+    }
+
     if (!ctx.session.messagesToDelete) {
       ctx.session.messagesToDelete = [];
     }
     ctx.session.messagesToDelete.push(payload.originalMessage.message_id);
 
-    const photoUrl = './src/assets/0056.jpg';
+    const defaultPhotoUrl = './src/assets/0056.jpg';
 
     try {
       for (let index = 0; index < payload.requests.length; index++) {
         const request = payload.requests[index];
-
+        const attachment = payload.attachments?.find(
+          (item) => item.requestId === request.id,
+        );
+        
+        // Check scene state for photo path (for new CNY QR requests)
+        let photoUrl = attachment?.photoPath ?? defaultPhotoUrl;
+        if (ctx) {
+          const state = ctx.scene.state as {
+            cnyQrPhotoPath?: string;
+          };
+          if (state.cnyQrPhotoPath) {
+            photoUrl = state.cnyQrPhotoPath;
+            console.log(`[RequestScene] Using photo path from scene state: ${photoUrl}`);
+          }
+        }
+        
+        const photoBuffer = photoUrl !== defaultPhotoUrl
+          ? await this.loadPhotoBuffer(photoUrl)
+          : undefined;
         const publicMenu = MenuFactory.createPublicMenu(
           request as unknown as FullRequestType,
           photoUrl,
+          photoBuffer,
         );
 
         const publicPayload = publicMenu.inWork();
+        
+        // Handle HTTP URLs vs local files/buffers
+        let photoSource;
+        if (publicPayload.url && publicPayload.url.startsWith('http')) {
+          // It's a Telegram CDN URL, use it directly
+          photoSource = publicPayload.url;
+        } else if (publicPayload.source) {
+          // Use the provided buffer/stream
+          photoSource = { source: publicPayload.source };
+        } else {
+          // Fallback to URL as file path
+          photoSource = { source: createReadStream(publicPayload.url) };
+        }
+        
         const menuMessage = await ctx.replyWithPhoto(
-          {
-            source: publicPayload.source,
-          },
+          photoSource,
           {
             caption: publicPayload.caption,
             reply_markup: publicPayload.markup,
@@ -747,7 +871,9 @@ export class CreateRequestWizard {
           messageId: menuMessage.message_id,
           text: publicPayload.caption,
           photoUrl,
-        });
+        }, ctx);
+
+    
       }
     } catch (error) {
       console.error('Failed to finalize request flow:', error);
@@ -768,16 +894,52 @@ export class CreateRequestWizard {
     ctx.session.paymentMethodsMeta = undefined;
   }
 
+  private resolvePhotoPath(photoUrl: string): string {
+    if (/^https?:\/\//i.test(photoUrl)) {
+      return photoUrl;
+    }
+    const normalized = photoUrl.startsWith('./') ? photoUrl.slice(2) : photoUrl;
+    return path.isAbsolute(normalized)
+      ? normalized
+      : path.join(process.cwd(), normalized);
+  }
+
+  private async loadPhotoBuffer(photoUrl: string): Promise<Buffer | undefined> {
+    try {
+      const resolvedPath = this.resolvePhotoPath(photoUrl);
+      if (resolvedPath.startsWith('http')) {
+        return undefined;
+      }
+      return await fs.readFile(resolvedPath);
+    } catch (error) {
+      console.error('Failed to load photo buffer from', photoUrl, error);
+      return undefined;
+    }
+  }
+
   private async persistMessageSafely(
     requestId: string,
     payload: { chatId: number; messageId: number; text: string; photoUrl?: string },
+    ctx?: CustomSceneContext,
   ) {
     try {
+      // Check if there's a photo path stored in scene state (for CNY QR requests)
+      let finalPhotoUrl = payload.photoUrl ?? '';
+      if (ctx) {
+        const state = ctx.scene.state as {
+          cnyQrPhotoPath?: string;
+        };
+        if (state.cnyQrPhotoPath) {
+          finalPhotoUrl = state.cnyQrPhotoPath;
+          console.log(`[RequestScene] Using photo path from scene state: ${finalPhotoUrl}`);
+        }
+      }
+
       await this.requestService.insertCardRequestMessage(requestId, {
         chatId: BigInt(payload.chatId),
         messageId: payload.messageId,
         text: payload.text,
-        photoUrl: payload.photoUrl ?? '',
+        photoUrl: finalPhotoUrl,
         requestId,
         accessType: AccessType.PUBLIC,
       });

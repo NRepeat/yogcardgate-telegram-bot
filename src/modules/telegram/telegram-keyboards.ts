@@ -23,7 +23,7 @@ interface IMenu {
 
 interface IMenuWithMedia extends IMenu {
   url: string;
-  source: Buffer<ArrayBufferLike>;
+  source?: Buffer<ArrayBufferLike>;
 }
 
 class Menu implements IMenu {
@@ -45,7 +45,7 @@ class Menu implements IMenu {
 
 class MenuWithMedia extends Menu implements IMenuWithMedia {
   url: string;
-  source: Buffer<ArrayBufferLike>;
+  source?: Buffer<ArrayBufferLike>;
 
   constructor(
     caption: string,
@@ -56,7 +56,27 @@ class MenuWithMedia extends Menu implements IMenuWithMedia {
   ) {
     super(caption, markup, request);
     this.url = url;
-    this.source = (source ?? (createReadStream(url) as any)) as Buffer<ArrayBufferLike>;
+    
+    // Only create read stream for local file paths, not HTTP URLs
+    if (source) {
+      this.source = source;
+    } else if (url.startsWith('http')) {
+      this.source = undefined;
+    } else {
+      // Check if local file exists before creating read stream
+      try {
+        const fs = require('fs');
+        if (fs.existsSync(url)) {
+          this.source = createReadStream(url) as any;
+        } else {
+          console.warn(`Photo file not found: ${url}, using default`);
+          this.source = createReadStream('./src/assets/0056.jpg') as any;
+        }
+      } catch (error) {
+        console.warn(`Error checking photo file: ${error}, using default`);
+        this.source = createReadStream('./src/assets/0056.jpg') as any;
+      }
+    }
   }
 }
 
@@ -595,7 +615,7 @@ abstract class BaseRequestMenu {
 
     const markup =
       baseMessage.inline_keyboard ?? this.createInWorkMarkup(requestId);
-    const photoUrl = baseMessage.photoUrl ?? url ?? this.url;
+    const photoUrl = this.url ?? baseMessage.photoUrl ?? url;
     const source = baseMessage.source ?? this.source;
 
     return new MenuWithMedia(

@@ -1,11 +1,15 @@
-import { PaymentMethodEnum } from '@prisma/client';
-import { FullRequestType } from 'src/types/types';
+import { promises as fs } from 'fs';
+import * as path from 'path';
+import { PaymentMethodEnum, AccessType } from '@prisma/client';
+import { FullRequestType, CustomSceneContext, SerializedMessage } from 'src/types/types';
 import {
   CnyBaseStrategy,
   CnyStrategyDependencies,
   CreateRequestParams,
   ParsedStrategyInput,
+  MissingAttachmentError,
 } from './cny-base.strategy';
+import { PhotoSize } from 'telegraf/typings/core/types/typegram';
 
 interface CnyQrParsedInput extends ParsedStrategyInput {
   identifier: string;
@@ -88,11 +92,14 @@ export class CnyQrStrategy extends CnyBaseStrategy {
   }
 
   protected async createRequest({
+    ctx,
     currencyId,
     vendorId,
     rate,
     parsed,
   }: CreateRequestParams & { parsed: CnyQrParsedInput }): Promise<FullRequestType> {
+    const photo = this.extractPhotoOrThrow(ctx);
+    const photoBuffer = await this.downloadPhotoBuffer(ctx, photo);
     const request = await this.deps.requestService.createGeneralRequest({
       amount: parsed.amount,
       vendorId,
@@ -110,6 +117,10 @@ export class CnyQrStrategy extends CnyBaseStrategy {
         },
       },
     });
+
+    // Save photo locally and store path in scene state
+    const photoPath = await this.savePhotoForRequest(photoBuffer, request.id);
+    await this.savePhotoToDatabase(request.id, photoPath, ctx);
 
     return request as unknown as FullRequestType;
   }
@@ -135,5 +146,101 @@ export class CnyQrStrategy extends CnyBaseStrategy {
     }
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private getWizardPayload(ctx: CustomSceneContext) {
+    const state = ctx.scene.state as {
+      cnyQrPayload?: {
+        text?: string;
+        photo?: PhotoSize;
+      };
+    };
+
+    if (!state.cnyQrPayload) {
+      state.cnyQrPayload = {};
+    }
+
+    return state.cnyQrPayload;
+  }
+
+  private extractPhotoOrThrow(ctx: CustomSceneContext): PhotoSize {
+    const payload = this.getWizardPayload(ctx);
+    const message = ctx.message as { photo?: PhotoSize[] } | undefined;
+    const messagePhoto =
+      message && Array.isArray(message.photo) && message.photo.length > 0
+        ? message.photo[message.photo.length - 1]
+        : undefined;
+
+    if (messagePhoto) {
+      payload.photo = messagePhoto;
+      return messagePhoto;
+    }
+
+    if (payload.photo) {
+      return payload.photo;
+    }
+
+    throw new MissingAttachmentError(
+      'Пожалуйста, прикрепите фотографию QR-кода получателя.',
+    );
+  }
+
+
+  private async savePhotoForRequest(buffer: Buffer, requestId: string): Promise<string> {
+    const photoDir = path.join(process.cwd(), 'storage', 'request-photos');
+    await fs.mkdir(photoDir, { recursive: true });
+    const filename = `${requestId}.jpg`;
+    const filePath = path.join(photoDir, filename);
+    await fs.writeFile(filePath, buffer);
+
+    const relativePath = path
+      .relative(process.cwd(), filePath)
+      .split(path.sep)
+      .join('/');
+
+    return `./${relativePath}`;
+  }
+
+  private async downloadPhotoBuffer(
+    ctx: CustomSceneContext,
+    photo: PhotoSize,
+  ): Promise<Buffer> {
+    try {
+      const fileLink = await ctx.telegram.getFileLink(photo.file_id);
+      const response = await fetch(fileLink.toString());
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to download photo: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      return Buffer.from(await response.arrayBuffer());
+    } catch (error) {
+      console.error('[CnyQrStrategy] Unable to download photo from message', error);
+      throw new MissingAttachmentError(
+        'Не удалось загрузить фотографию QR-кода. Попробуйте отправить заявку снова.',
+      );
+    }
+  }
+
+  private async savePhotoToDatabase(
+    requestId: string,
+    photoPath: string,
+    ctx: CustomSceneContext,
+  ): Promise<void> {
+    try {
+      // Store the photo path in the scene state so it can be retrieved later
+      // when the actual message is sent and we have a real messageId
+      const state = ctx.scene.state as {
+        cnyQrPhotoPath?: string;
+      };
+      state.cnyQrPhotoPath = photoPath;
+      
+      console.log(`[CnyQrStrategy] Photo path stored in scene state: ${photoPath}`);
+    } catch (error) {
+      console.error('[CnyQrStrategy] Failed to save photo path to scene state', error);
+      // Don't throw here as the request is already created successfully
+    }
   }
 }

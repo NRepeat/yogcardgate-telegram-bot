@@ -29,16 +29,53 @@ export class RequestTaskService {
           requests[i].methods?.map((method) =>
             RequestMessageFactory.create('ADMIN', requests[i], method),
           ).find((message) => message !== null) ?? null;
-
         if (adminMessage) {
+          if (requests[i].methods?.some(method => method.method === 'QR')) {
+            let photoUrl = './src/assets/0056.jpg'; 
+            try {
+              const messages = await this.requestService.getAllPublicMessagesWithRequestsId(requests[i].id);
+              if (messages && messages.length > 0) {
+                const messageWithPhoto = messages.find(msg => msg.photoUrl && msg.photoUrl !== '');
+                if (messageWithPhoto && messageWithPhoto.photoUrl) {
+                  if (messageWithPhoto.photoUrl.startsWith('https://api.telegram.org/file/bot')) {
+                    console.warn('Found old Telegram CDN URL in database, using default image');
+                    photoUrl = './src/assets/0056.jpg';
+                  } else {
+                    photoUrl = messageWithPhoto.photoUrl;
+                  }
+                }
+              }
+            } catch (error) {
+              console.warn('Failed to retrieve photo from database for QR admin message, using default:', error);
+            }
+            adminMessage.photoUrl = photoUrl;
+          }
           await this.telegramService.sendPhotoMessageToAllAdmins(
             adminMessage,
             requests[i].id,
           );
         } else {
+          let adminPhotoUrl = photoUrl; // default fallback
+          try {
+            const messages = await this.requestService.getAllPublicMessagesWithRequestsId(requests[i].id);
+            if (messages && messages.length > 0) {
+              const messageWithPhoto = messages.find(msg => msg.photoUrl && msg.photoUrl !== '');
+              if (messageWithPhoto && messageWithPhoto.photoUrl) {
+                if (messageWithPhoto.photoUrl.startsWith('https://api.telegram.org/file/bot')) {
+                  console.warn('Found old Telegram CDN URL in database, using default image');
+                  adminPhotoUrl = photoUrl; 
+                } else {
+                  adminPhotoUrl = messageWithPhoto.photoUrl;
+                }
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to retrieve photo from database for admin message, using default:', error);
+          }
+          
           const adminMenu = MenuFactory.createAdminMenu(
             requests[i] as unknown as FullRequestType,
-            photoUrl,
+            adminPhotoUrl,
           );
           const fallbackMessage: ReplyPhotoMessage = {
             photoUrl: adminMenu.inWork().url,

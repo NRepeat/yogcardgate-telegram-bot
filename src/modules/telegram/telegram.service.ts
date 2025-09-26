@@ -57,9 +57,41 @@ export class TelegramService {
       const messages = request.message.filter((m) => m.accessType === 'WORKER');
       if (messages.length === 0) return;
       for (const message of messages) {
+        // Try to get photo URL from database
+        let photoUrl = './src/assets/0056.jpg'; // default fallback
+        try {
+          const dbMessages = await this.requestService.getAllPublicMessagesWithRequestsId(requestId);
+          if (dbMessages && dbMessages.length > 0) {
+            const messageWithPhoto = dbMessages.find(msg => msg.photoUrl && msg.photoUrl !== '');
+            if (messageWithPhoto && messageWithPhoto.photoUrl) {
+              // Check if it's a Telegram CDN URL (old format) and fall back to default
+              if (messageWithPhoto.photoUrl.startsWith('https://api.telegram.org/file/bot')) {
+                console.warn('Found old Telegram CDN URL in database, using default image');
+                photoUrl = './src/assets/0056.jpg';
+              } else {
+                // Check if the local file exists
+                try {
+                  const fs = require('fs');
+                  if (fs.existsSync(messageWithPhoto.photoUrl)) {
+                    photoUrl = messageWithPhoto.photoUrl;
+                  } else {
+                    console.warn(`Photo file not found: ${messageWithPhoto.photoUrl}, using default`);
+                    photoUrl = './src/assets/0056.jpg';
+                  }
+                } catch (fileError) {
+                  console.warn(`Error checking photo file: ${fileError}, using default`);
+                  photoUrl = './src/assets/0056.jpg';
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to retrieve photo from database, using default:', error);
+        }
+        
         const adminMenu = MenuFactory.createWorkerMenu(
           request as unknown as FullRequestType,
-          './src/assets/0056.jpg',
+          photoUrl,
           undefined,
           isWorkGroup,
           isHubGroup,
@@ -88,10 +120,42 @@ export class TelegramService {
       if (!request) throw new Error('Request not found');
       const messages = request.message.filter((m) => m.accessType === 'ADMIN');
       if (messages.length === 0) return;
+      // Try to get photo URL from database
+      let photoUrl = './src/assets/0056.jpg'; // default fallback
+      try {
+        const dbMessages = await this.requestService.getAllPublicMessagesWithRequestsId(requestId);
+        if (dbMessages && dbMessages.length > 0) {
+          const messageWithPhoto = dbMessages.find(msg => msg.photoUrl && msg.photoUrl !== '');
+          if (messageWithPhoto && messageWithPhoto.photoUrl) {
+            // Check if it's a Telegram CDN URL (old format) and fall back to default
+            if (messageWithPhoto.photoUrl.startsWith('https://api.telegram.org/file/bot')) {
+              console.warn('Found old Telegram CDN URL in database, using default image');
+              photoUrl = './src/assets/0056.jpg';
+            } else {
+              // Check if the local file exists
+              try {
+                const fs = require('fs');
+                if (fs.existsSync(messageWithPhoto.photoUrl)) {
+                  photoUrl = messageWithPhoto.photoUrl;
+                } else {
+                  console.warn(`Photo file not found: ${messageWithPhoto.photoUrl}, using default`);
+                  photoUrl = './src/assets/0056.jpg';
+                }
+              } catch (fileError) {
+                console.warn(`Error checking photo file: ${fileError}, using default`);
+                photoUrl = './src/assets/0056.jpg';
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to retrieve photo from database, using default:', error);
+      }
+      
       const requests = messages.map((m) => {
         const adminMenu = MenuFactory.createAdminMenu(
           request as unknown as FullRequestType,
-          './src/assets/0056.jpg',
+          photoUrl,
         );
         return this.bot.telegram.editMessageCaption(
           Number(m.chatId),
@@ -152,6 +216,21 @@ export class TelegramService {
       if (!chatId) {
         throw new Error('Work group chat not found');
       }
+      
+      // Try to get photo URL from database
+      let photoUrl = './src/assets/0056.jpg'; // default fallback
+      try {
+        const messages = await this.requestService.getAllPublicMessagesWithRequestsId(request.id);
+        if (messages && messages.length > 0) {
+          const messageWithPhoto = messages.find(msg => msg.photoUrl && msg.photoUrl !== '');
+          if (messageWithPhoto && messageWithPhoto.photoUrl) {
+            photoUrl = messageWithPhoto.photoUrl;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to retrieve photo from database, using default:', error);
+      }
+      
       let handled = false;
       if (request.currency?.name === CurrencyEnum.USD && request.methods?.length) {
         for (const method of request.methods) {
@@ -192,6 +271,7 @@ export class TelegramService {
     payload: ReplyPhotoMessage,
   ) {
     const photoPath = payload.photoUrl ?? photoUrl;
+    
     const photoSource = payload.source
       ? { source: payload.source }
       : { source: createReadStream(photoPath) };
@@ -219,14 +299,12 @@ export class TelegramService {
   ) {
     try {
       const inline_keyboard = message.inline_keyboard;
+      const photoPath = message.photoUrl ? message.photoUrl : './src/assets/0056.jpg';
+      const photoSource = { source: createReadStream(photoPath) };
 
       const photoMsg = await this.bot.telegram.sendPhoto(
         chatId,
-        {
-          source: createReadStream(
-            message.photoUrl ? message.photoUrl : './src/assets/0056.jpg',
-          ),
-        },
+        photoSource,
         {
           parse_mode: 'HTML',
           reply_markup: inline_keyboard,
@@ -402,13 +480,12 @@ export class TelegramService {
           await this.userService.appendRequestToUser(foundWorker.id, requestId);
 
           try {
+            const photoPath = message.photoUrl ? message.photoUrl : './src/assets/0056.jpg';
+            const photoSource = { source: createReadStream(photoPath) };
+              
             const photoMsg = await this.bot.telegram.sendPhoto(
               chatId,
-              {
-                source: createReadStream(
-                  message.photoUrl ? message.photoUrl : './src/assets/0056.jpg',
-                ),
-              },
+              photoSource,
               {
                 reply_markup: inline_keyboard,
                 caption: message.text || '',
@@ -491,9 +568,11 @@ export class TelegramService {
           if (requestId) {
             try {
               const photoPath = message.photoUrl ?? './src/assets/0056.jpg';
+              
               const photoSource = message.source
                 ? { source: message.source }
                 : { source: createReadStream(photoPath) };
+              
               const photoMsg = await this.bot.telegram.sendPhoto(
                 chatId,
                 photoSource,
@@ -782,13 +861,12 @@ export class TelegramService {
       }
 
       await this.userService.appendRequestToUser(worker.id, requestId);
+      const photoPath = message.photoUrl ? message.photoUrl : './src/assets/0056.jpg';
+      const photoSource = { source: createReadStream(photoPath) };
+        
       const photoMsg = await this.bot.telegram.sendPhoto(
         chatId,
-        {
-          source: createReadStream(
-            message.photoUrl ? message.photoUrl : './src/assets/0056.jpg',
-          ),
-        },
+        photoSource,
         {
           parse_mode: 'HTML',
           reply_markup: message.inline_keyboard,

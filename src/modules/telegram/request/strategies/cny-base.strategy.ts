@@ -15,6 +15,13 @@ export interface CnyStrategyDependencies {
   vendorService: VendorService;
 }
 
+export class MissingAttachmentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MissingAttachmentError';
+  }
+}
+
 export abstract class CnyBaseStrategy implements PaymentRequestStrategy {
   protected readonly targetCurrency = CurrencyEnum.CNY;
 
@@ -59,17 +66,27 @@ export abstract class CnyBaseStrategy implements PaymentRequestStrategy {
           };
         }
 
-        const request = await this.createRequest({
-          ctx: context.ctx,
-          method,
-          currencyId: rate.currencyId,
-          vendorId: vendor.id,
-          rate,
-          parsed: item,
-        });
+        try {
+          const request = await this.createRequest({
+            ctx: context.ctx,
+            method,
+            currencyId: rate.currencyId,
+            vendorId: vendor.id,
+            rate,
+            parsed: item,
+          });
 
-        requests.push(request as unknown as FullRequestType);
-        details.push(this.buildDetails(item));
+          requests.push(request as unknown as FullRequestType);
+          details.push(this.buildDetails(item));
+        } catch (error) {
+          if (error instanceof MissingAttachmentError) {
+            return {
+              status: 'error' as const,
+              error: error.message,
+            };
+          }
+          throw error;
+        }
       }
 
       return {

@@ -22,6 +22,53 @@ export class UserActions {
     private readonly VendorCallbackService: VendorCallbackService,
   ) {}
 
+  private async getPhotoUrlFromDatabase(requestId: string): Promise<string> {
+    try {
+      const messages = await this.requestService.getAllPublicMessagesWithRequestsId(requestId);
+      if (messages && messages.length > 0) {
+        const messageWithPhoto = messages.find(msg => msg.photoUrl && msg.photoUrl !== '');
+        if (messageWithPhoto && messageWithPhoto.photoUrl) {
+          // Check if it's a Telegram CDN URL (old format) and fall back to default
+          if (messageWithPhoto.photoUrl.startsWith('https://api.telegram.org/file/bot')) {
+            console.warn('Found old Telegram CDN URL in database, using default image');
+            return './src/assets/0056.jpg';
+          }
+          return messageWithPhoto.photoUrl;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to retrieve photo from database, using default:', error);
+    }
+    return './src/assets/0056.jpg'; // default fallback
+  }
+
+  private async deletePhotoFileIfExists(photoUrl: string): Promise<void> {
+    try {
+      // Only delete local files, not default images or HTTP URLs
+      if (photoUrl && 
+          photoUrl !== './src/assets/0056.jpg' && 
+          !photoUrl.startsWith('http') &&
+          photoUrl.startsWith('./storage/request-photos/')) {
+        
+        const fs = require('fs').promises;
+        try {
+          await fs.unlink(photoUrl);
+          console.log(`[UserActions] Successfully deleted photo file: ${photoUrl}`);
+        } catch (fileError: any) {
+          if (fileError.code === 'ENOENT') {
+            console.log(`[UserActions] Photo file already deleted or doesn't exist: ${photoUrl}`);
+          } else {
+            console.error(`[UserActions] Error deleting photo file: ${photoUrl}`, fileError);
+          }
+        }
+      } else {
+        console.log(`[UserActions] Skipping deletion of non-local photo: ${photoUrl}`);
+      }
+    } catch (error) {
+      console.error('[UserActions] Error in deletePhotoFileIfExists:', error);
+    }
+  }
+
   @Action('new_user')
   async onNewUser(@Ctx() ctx: Context) {
     await ctx.answerCbQuery();
@@ -70,14 +117,15 @@ export class UserActions {
           'FAILED',
           callbackQuery.from.id,
         );
+        const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
         const workerMenu = MenuFactory.createWorkerMenu(
           request as unknown as FullRequestType,
-          './src/assets/0056.jpg',
+          photoUrl,
         );
 
         const adminMenu = MenuFactory.createAdminMenu(
           request as unknown as FullRequestType,
-          './src/assets/0056.jpg',
+          photoUrl,
         );
         await this.telegramService.updateAllWorkersMessagesWithRequestsId(
           {
@@ -101,6 +149,9 @@ export class UserActions {
           publicPayload,
           requestId,
         );
+        
+        // Delete saved photo file if it exists
+        await this.deletePhotoFileIfExists(photoUrl);
       }
       if (callbackQuery.data.startsWith('cancel_payment_')) {
         const requestId = callbackQuery.data.substring('cancel_payment_'.length);
@@ -125,9 +176,10 @@ export class UserActions {
         if (!request) {
           throw new Error('Request not found');
         }
+        const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
         const workerMenu = MenuFactory.createWorkerMenu(
           request as unknown as FullRequestType,
-          './src/assets/0056.jpg',
+          photoUrl,
         );
         await ctx.editMessageCaption(
           workerMenu.canceled().caption + '\n' + 'Заявка отменена',
@@ -136,6 +188,7 @@ export class UserActions {
             parse_mode: 'HTML',
           },
         );
+        
       }
       if (callbackQuery.data.startsWith('accept_request_')) {
         const requestId = callbackQuery.data.substring('accept_request_'.length);
@@ -185,7 +238,7 @@ export class UserActions {
         if (!request) {
           throw new Error('Request not found');
         }
-        const photoUrl = './src/assets/0056.jpg';
+        const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
 
         const workerMenu = MenuFactory.createWorkerMenu(
           request as unknown as FullRequestType,
@@ -199,6 +252,9 @@ export class UserActions {
           },
           requestId,
         );
+        
+        // Delete saved photo file if it exists
+        await this.deletePhotoFileIfExists(photoUrl);
       } else if (callbackQuery.data.startsWith('give_next_')) {
         const requestId = callbackQuery.data.substring('give_next_'.length);
 
@@ -297,13 +353,14 @@ export class UserActions {
         if (!request) {
           throw new Error('Request not found');
         }
+        const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
         const workerMenu = MenuFactory.createWorkerMenu(
           request as unknown as FullRequestType,
-          '',
+          photoUrl,
         );
         const adminMenu = MenuFactory.createAdminMenu(
           request as unknown as FullRequestType,
-          '',
+          photoUrl,
         );
         const markup = Markup.inlineKeyboard([
           Markup.button.callback('Валютная карта', 'афлют'),
@@ -331,6 +388,7 @@ export class UserActions {
           'FAILED',
           Number(userId),
         );
+        await this.deletePhotoFileIfExists(photoUrl);
       } else if (callbackQuery.data.includes('back_to_take_request_')) {
         const requestId = callbackQuery.data.split('_')[4];
         const accessCheck = await this.accessControlService.canManageRequest(
@@ -384,9 +442,10 @@ export class UserActions {
         if (!request) {
           throw new Error('Request not found');
         }
+        const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
         const workerMenu = MenuFactory.createWorkerMenu(
           request as unknown as FullRequestType,
-          './src/assets/0056.jpg',
+          photoUrl,
         );
         const button = Markup.button.callback(
           'Отменить',
@@ -403,7 +462,7 @@ export class UserActions {
         await ctx.editMessageMedia(
           {
             media: {
-              source: './src/assets/0056.jpg',
+              source: photoUrl,
             },
             type: 'photo',
             caption: workerMenu.inWork().caption,

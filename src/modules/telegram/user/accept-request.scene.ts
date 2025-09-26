@@ -7,7 +7,6 @@ import { Markup } from 'telegraf';
 import { TelegramService } from '../telegram.service';
 import { AccessControlService } from '../access-control/access-control.service';
 import { UserService } from 'src/modules/user/user.service';
-const photoUrl = './src/assets/0056.jpg';
 
 @Injectable()
 @Wizard('accept-request')
@@ -18,6 +17,26 @@ export class AcceptRequestScene {
     private readonly accessControlService: AccessControlService,
     private readonly userService: UserService,
   ) {}
+
+  private async getPhotoUrlFromDatabase(requestId: string): Promise<string> {
+    try {
+      const messages = await this.requestService.getAllPublicMessagesWithRequestsId(requestId);
+      if (messages && messages.length > 0) {
+        const messageWithPhoto = messages.find(msg => msg.photoUrl && msg.photoUrl !== '');
+        if (messageWithPhoto && messageWithPhoto.photoUrl) {
+          // Check if it's a Telegram CDN URL (old format) and fall back to default
+          if (messageWithPhoto.photoUrl.startsWith('https://api.telegram.org/file/bot')) {
+            console.warn('Found old Telegram CDN URL in database, using default image');
+            return './src/assets/0056.jpg';
+          }
+          return messageWithPhoto.photoUrl;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to retrieve photo from database, using default:', error);
+    }
+    return './src/assets/0056.jpg'; // default fallback
+  }
 
   @WizardStep(0)
   async enter(ctx: CustomSceneContext) {
@@ -53,6 +72,7 @@ export class AcceptRequestScene {
       const request = (await this.requestService.findById(
         state.requestId,
       )) as FullRequestType;
+      const photoUrl = await this.getPhotoUrlFromDatabase(state.requestId);
       const workerMenu = MenuFactory.createWorkerMenu(
         request,
         photoUrl,
@@ -96,9 +116,10 @@ export class AcceptRequestScene {
       console.error(error);
       await ctx.reply('An error occurred while notifying users.');
     }
+    const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
     const workerMenu = MenuFactory.createWorkerMenu(
       request as unknown as FullRequestType,
-      './src/assets/0056.jpg',
+      photoUrl,
       undefined,
       false,
       true,
@@ -116,7 +137,7 @@ export class AcceptRequestScene {
 
     const adminMenu = MenuFactory.createAdminMenu(
       request as unknown as FullRequestType,
-      './src/assets/0056.jpg',
+      photoUrl,
     );
     await this.telegramService.updateAllAdminsMessagesWithRequestsId(
       {

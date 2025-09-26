@@ -5,7 +5,39 @@
       "data": {
         "__scenes": {},
         "messagesToDelete": [],
-        "customState": ""
+        "customState": "",
+        "selectedCurrencyId": "cmfz5uom00008d3npexk5acav",
+        "paymentMethodsMeta": [
+          {
+            "name": "BANK",
+            "buttonLabel": "CZK • Bank payment",
+            "instruction": "отправьте, пожалуйста, данные строками в указанном порядке:",
+            "rawDescription": "Банковский счет",
+            "rawDescriptionEn": "Bank payment",
+            "form": {
+              "title": "Bank payment",
+              "intro": "отправьте, пожалуйста, данные строками в указанном порядке:",
+              "fields": [
+                {
+                  "label": "ФИО",
+                  "description": "Например 96092666/5500"
+                },
+                {
+                  "label": "Сумма и валюта",
+                  "description": "Например 10000"
+                },
+                {
+                  "label": "Номер счета",
+                  "description": "12345678/2200"
+                },
+                {
+                  "label": "Название банка"
+                }
+              ],
+              "sample": "00000000/0000\nNAME SURNAME\n10000"
+            }
+          }
+        ]
       }
     },
     {

@@ -9,6 +9,20 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CurrencyEnum, PaymentMethodEnum } from '@prisma/client';
 import { UtilsService } from '../utils/utils.service';
 
+const POPULAR_CURRENCY_ORDER: string[] = [
+  CurrencyEnum.UAH,
+  CurrencyEnum.USD,
+  CurrencyEnum.EUR,
+  CurrencyEnum.KZT,
+  CurrencyEnum.AZN,
+  CurrencyEnum.AED,
+  CurrencyEnum.CNY,
+  CurrencyEnum.PLN,
+  CurrencyEnum.TRY,
+  CurrencyEnum.CZK,
+  CurrencyEnum.THB,
+];
+
 @Injectable()
 export class RatesService {
   // private readonly logger = new Logger(TelegramService.name);
@@ -26,45 +40,91 @@ export class RatesService {
 
   async getAllRatesMarkupMessage() {
     const allRates = await this.getAllRates();
-    // Группируем по header
-    const grouped: Record<
+    type MethodRates = {
+      minAmount: number;
+      maxAmount: number | null;
+      rate: number;
+    };
+
+    const currencyPopularityIndex = (code: string | null | undefined) => {
+      if (!code) {
+        return POPULAR_CURRENCY_ORDER.length;
+      }
+      const upperCased = code.toUpperCase();
+      const index = POPULAR_CURRENCY_ORDER.indexOf(upperCased);
+      return index === -1 ? POPULAR_CURRENCY_ORDER.length : index;
+    };
+
+    const groupedByCurrency = new Map<
       string,
-      { minAmount: number; maxAmount: number | null; rate: number }[]
-    > = {};
+      {
+        displayName: string;
+        popularityIndex: number;
+        methods: Map<string, MethodRates[]>;
+      }
+    >();
+
     for (const rate of allRates) {
-      const header = `${rate.currency.nameEn}:${rate.paymentMethod.nameEn}`;
-      if (!grouped[header]) grouped[header] = [];
-      grouped[header].push({
+      const currencyDisplayName = String(
+        rate.currency.nameEn ?? rate.currency.name ?? '',
+      );
+      const currencyCode = currencyDisplayName.toUpperCase();
+      if (!groupedByCurrency.has(currencyCode)) {
+        groupedByCurrency.set(currencyCode, {
+          displayName: currencyDisplayName,
+          popularityIndex: currencyPopularityIndex(currencyCode),
+          methods: new Map(),
+        });
+      }
+      const currencyGroup = groupedByCurrency.get(currencyCode)!;
+      const methodKey = rate.paymentMethod.nameEn;
+      if (!currencyGroup.methods.has(methodKey)) {
+        currencyGroup.methods.set(methodKey, []);
+      }
+      currencyGroup.methods.get(methodKey)!.push({
         minAmount: rate.minAmount,
         maxAmount: rate.maxAmount,
         rate: rate.rate,
       });
     }
-    // Сортируем header: Card всегда первым, остальные по алфавиту
-    const headers = Object.keys(grouped).sort((a, b) => {
-      if (a.toLowerCase().includes('card') && !b.toLowerCase().includes('card'))
-        return -1;
-      if (!a.toLowerCase().includes('card') && b.toLowerCase().includes('card'))
-        return 1;
-      return a.localeCompare(b);
-    });
+
     const message: string[] = [];
-    for (const header of headers) {
-      // Сортируем внутри header по minAmount по возрастанию, а maxAmount === null (то есть +) всегда в конце
-      grouped[header].sort((a, b) => {
-        if (a.maxAmount === null && b.maxAmount !== null) return 1;
-        if (a.maxAmount !== null && b.maxAmount === null) return -1;
-        return a.minAmount - b.minAmount;
-      });
-      // Переворачиваем порядок (теперь сначала min, потом max+)
-      grouped[header].reverse();
-      message.push(header);
-      for (const r of grouped[header]) {
-        const amount =
-          r.maxAmount !== null && r.maxAmount > 0
-            ? `${r.minAmount}-${r.maxAmount}`
-            : `${r.minAmount}+`;
-        message.push(`${amount} ${r.rate}`);
+    const sortedCurrencies = Array.from(groupedByCurrency.entries()).sort(
+      ([codeA, groupA], [codeB, groupB]) => {
+        if (groupA.popularityIndex !== groupB.popularityIndex) {
+          return groupA.popularityIndex - groupB.popularityIndex;
+        }
+        return codeA.localeCompare(codeB);
+      },
+    );
+
+    for (const [, group] of sortedCurrencies) {
+      const methods = Array.from(group.methods.entries()).sort(
+        ([methodA], [methodB]) => {
+          const aIsCard = methodA.toLowerCase().includes('card');
+          const bIsCard = methodB.toLowerCase().includes('card');
+          if (aIsCard && !bIsCard) return -1;
+          if (!aIsCard && bIsCard) return 1;
+          return methodA.localeCompare(methodB);
+        },
+      );
+
+      for (const [methodKey, rates] of methods) {
+        const header = `${group.displayName}:${methodKey}`;
+        rates.sort((a, b) => {
+          if (a.maxAmount === null && b.maxAmount !== null) return 1;
+          if (a.maxAmount !== null && b.maxAmount === null) return -1;
+          return a.minAmount - b.minAmount;
+        });
+        rates.reverse();
+        message.push(header);
+        for (const r of rates) {
+          const amount =
+            r.maxAmount !== null && r.maxAmount > 0
+              ? `${r.minAmount}-${r.maxAmount}`
+              : `${r.minAmount}+`;
+          message.push(`${amount} ${r.rate}`);
+        }
       }
     }
     return message.join('\n');

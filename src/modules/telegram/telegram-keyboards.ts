@@ -81,21 +81,22 @@ class MenuWithMedia extends Menu implements IMenuWithMedia {
 }
 
 class SelectPaymentMethodMenu extends Menu {
-  constructor(username?: string) {
+  constructor(username?: string, userId?: number) {
     const caption = MESSAGES.SELECT_PAYMENT_METHOD(username || '');
+    const userIdSuffix = userId ? `_${userId}` : '';
     const markup: InlineKeyboardMarkup = Markup.inlineKeyboard([
       [
         Markup.button.callback(
           BUTTON_TEXTS.CARD,
-          BUTTON_CALLBACKS.CARD_REQUEST,
+          BUTTON_CALLBACKS.CARD_REQUEST + userIdSuffix,
         ),
         Markup.button.callback(
           BUTTON_TEXTS.IBAN,
-          BUTTON_CALLBACKS.IBAN_REQUEST,
+          BUTTON_CALLBACKS.IBAN_REQUEST + userIdSuffix,
         ),
         Markup.button.callback(
           BUTTON_TEXTS.CANCEL,
-          BUTTON_CALLBACKS.CANCEL_REQUEST,
+          BUTTON_CALLBACKS.CANCEL_REQUEST + userIdSuffix,
         ),
       ],
     ]).reply_markup;
@@ -756,8 +757,9 @@ export class MenuFactory {
 
   static createSelectPaymentMethodMenu(
     username: string,
+    userId?: number,
   ): SelectPaymentMethodMenu {
-    return new SelectPaymentMethodMenu(username);
+    return new SelectPaymentMethodMenu(username, userId);
   }
 
   static createCardPaymentMenu(username?: string): CardPaymentMenu {

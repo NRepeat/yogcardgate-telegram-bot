@@ -61,7 +61,7 @@ export class CurrencyService {
 
     return this.attachMissingPaymentMethods(currency);
   }
-  async getCurrencyKeyboard() {
+  async getCurrencyKeyboard(userId?: number) {
     const currencies = await this.getAll();
     const popularIndex = (code: string) => {
       const idx = POPULAR_CURRENCY_ORDER.indexOf(code as CurrencyEnum);
@@ -95,7 +95,7 @@ export class CurrencyService {
         const text = `${currency.nameEn}`;
         return Markup.button.callback(
           text,
-          `select_currency_${currency.id}`,
+          `select_currency_${currency.id}${userId ? `_${userId}` : ''}`,
         );
       });
     const caption =

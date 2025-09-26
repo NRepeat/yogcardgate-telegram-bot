@@ -99,7 +99,7 @@ export class CreateRequestWizard {
   async selectMethod(@Ctx() ctx: CustomSceneContext) {
     const username = ctx.from?.username || 'Unknown User';
     const availableCurrenciesKeyboard =
-      await this.currenciesService.getCurrencyKeyboard();
+      await this.currenciesService.getCurrencyKeyboard(ctx.from?.id);
     ctx.session.messagesToDelete = ctx.session.messagesToDelete || [];
     ctx.session.requestMenuMessageId = ctx.session.requestMenuMessageId || [];
     if (ctx.session.customState !== 'select_currency' && !ctx.session.selectedCurrencyId) {
@@ -163,10 +163,19 @@ export class CreateRequestWizard {
     }
     const username = ctx.from?.username || 'Unknown User';
     const selectPaymentMenu =
-      MenuFactory.createSelectPaymentMethodMenu(username);
+      MenuFactory.createSelectPaymentMethodMenu(username, ctx.from?.id);
     let currencyId: string | undefined;
     if (callbackQuery.data.startsWith('select_currency_')) {
-      currencyId = callbackQuery.data.replace('select_currency_', '');
+      // Extract currency ID and user ID from callback data
+      const parts = callbackQuery.data.replace('select_currency_', '').split('_');
+      currencyId = parts[0];
+      const callbackUserId = parts[1] ? parseInt(parts[1]) : null;
+      
+      // Check if this callback is for the current user
+      if (callbackUserId && callbackUserId !== ctx.from?.id) {
+        await ctx.answerCbQuery('Это меню другого пользователя');
+        return;
+      }
     }
     console.log(callbackQuery.data, 'callbackQuery.data')
     switch (true) {
@@ -255,9 +264,18 @@ export class CreateRequestWizard {
         break;
       }
       case callbackQuery.data.startsWith('select_method_'): {
-        const methodKey = callbackQuery.data
-          .replace('select_method_', '')
-          .toUpperCase();
+        // Extract method name and user ID from callback data
+        const parts = callbackQuery.data.replace('select_method_', '').split('_');
+        const methodName = parts[0];
+        const callbackUserId = parts[1] ? parseInt(parts[1]) : null;
+        
+        // Check if this callback is for the current user
+        if (callbackUserId && callbackUserId !== ctx.from?.id) {
+          await ctx.answerCbQuery('Это меню другого пользователя');
+          return;
+        }
+        
+        const methodKey = methodName.toUpperCase();
         if (!(methodKey in PaymentMethodEnum)) {
           await ctx.answerCbQuery('Unknown payment method');
           return;
@@ -272,7 +290,16 @@ export class CreateRequestWizard {
         await this.showPaymentForm(ctx, methodEnum, instruction, username);
         break;
       }
-      case callbackQuery.data === 'return_to_request_menu': {
+      case callbackQuery.data.startsWith('return_to_request_menu'): {
+        // Extract user ID from callback data
+        const parts = callbackQuery.data.replace('return_to_request_menu_', '').split('_');
+        const callbackUserId = parts[0] ? parseInt(parts[0]) : null;
+        
+        // Check if this callback is for the current user
+        if (callbackUserId && callbackUserId !== ctx.from?.id) {
+          await ctx.answerCbQuery('Это меню другого пользователя');
+          return;
+        }
         const keyboard = await this.buildPaymentMethodKeyboard(
           ctx,
           username,
@@ -295,14 +322,32 @@ export class CreateRequestWizard {
         // ctx.wizard.selectStep(0);
         break;
       }
-      case callbackQuery.data === 'cancel_request': {
+      case callbackQuery.data.startsWith('cancel_request'): {
+        // Extract user ID from callback data
+        const parts = callbackQuery.data.replace('cancel_request_', '').split('_');
+        const callbackUserId = parts[0] ? parseInt(parts[0]) : null;
+        
+        // Check if this callback is for the current user
+        if (callbackUserId && callbackUserId !== ctx.from?.id) {
+          await ctx.answerCbQuery('Это меню другого пользователя');
+          return;
+        }
         await ctx.answerCbQuery('Request creation cancelled');
         await this.deleteSceneMessages(ctx);
         ctx.session.customState = '';
         await this.cancel(ctx);
         break;
       }
-      case callbackQuery.data === "return_to_select_currency": {
+      case callbackQuery.data.startsWith("return_to_select_currency"): {
+        // Extract user ID from callback data
+        const parts = callbackQuery.data.replace('return_to_select_currency_', '').split('_');
+        const callbackUserId = parts[0] ? parseInt(parts[0]) : null;
+        
+        // Check if this callback is for the current user
+        if (callbackUserId && callbackUserId !== ctx.from?.id) {
+          await ctx.answerCbQuery('Это меню другого пользователя');
+          return;
+        }
         // await this.deleteSceneMessages(ctx);
         // await this.deleteSceneMenuMessages(ctx);
         // ctx.session.selectedCurrencyId = undefined;
@@ -647,7 +692,7 @@ export class CreateRequestWizard {
     const methodButtons = meta.map((item) =>
       Markup.button.callback(
         item.buttonLabel,
-        `select_method_${item.name.toLowerCase()}`,
+        `select_method_${item.name.toLowerCase()}_${ctx.from?.id || ''}`,
       ),
     );
     const rows: InlineKeyboardButton[][] = [];
@@ -657,10 +702,10 @@ export class CreateRequestWizard {
     }
 
     const selectPaymentMenu =
-      MenuFactory.createSelectPaymentMethodMenu(username);
+      MenuFactory.createSelectPaymentMethodMenu(username, ctx.from?.id);
     const cancelButton = Markup.button.callback(
       BUTTON_TEXTS.BACK,
-      'return_to_select_currency',
+      `return_to_select_currency_${ctx.from?.id || ''}`,
     );
     const markup = Markup.inlineKeyboard([
       ...rows,
@@ -687,13 +732,13 @@ export class CreateRequestWizard {
       [
         Markup.button.callback(
           BUTTON_TEXTS.BACK,
-          BUTTON_CALLBACKS.RETURN_TO_REQUEST_MENU,
+          `${BUTTON_CALLBACKS.RETURN_TO_REQUEST_MENU}_${ctx.from?.id || ''}`,
         ),
       ],
       [
         Markup.button.callback(
           BUTTON_TEXTS.CANCEL,
-          BUTTON_CALLBACKS.CANCEL_REQUEST,
+          `${BUTTON_CALLBACKS.CANCEL_REQUEST}_${ctx.from?.id || ''}`,
         ),
       ],
     ]).reply_markup;

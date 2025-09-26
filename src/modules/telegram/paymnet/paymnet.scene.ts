@@ -36,6 +36,53 @@ export default class PaymentWizard {
   ) {}
   paymentPhotos: PaymentPhoto[] = [];
 
+  private async getPhotoUrlFromDatabase(requestId: string): Promise<string> {
+    try {
+      const messages = await this.requestService.getAllPublicMessagesWithRequestsId(requestId);
+      if (messages && messages.length > 0) {
+        const messageWithPhoto = messages.find(msg => msg.photoUrl && msg.photoUrl !== '');
+        if (messageWithPhoto && messageWithPhoto.photoUrl) {
+          // Check if it's a Telegram CDN URL (old format) and fall back to default
+          if (messageWithPhoto.photoUrl.startsWith('https://api.telegram.org/file/bot')) {
+            console.warn('Found old Telegram CDN URL in database, using default image');
+            return './src/assets/0056.jpg';
+          }
+          return messageWithPhoto.photoUrl;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to retrieve photo from database, using default:', error);
+    }
+    return './src/assets/0056.jpg'; // default fallback
+  }
+
+  private async deletePhotoFileIfExists(photoUrl: string): Promise<void> {
+    try {
+      // Only delete local files, not default images or HTTP URLs
+      if (photoUrl && 
+          photoUrl !== './src/assets/0056.jpg' && 
+          !photoUrl.startsWith('http') &&
+          photoUrl.startsWith('./storage/request-photos/')) {
+        
+        const fs = require('fs').promises;
+        try {
+          await fs.unlink(photoUrl);
+          console.log(`[PaymentWizard] Successfully deleted photo file: ${photoUrl}`);
+        } catch (fileError: any) {
+          if (fileError.code === 'ENOENT') {
+            console.log(`[PaymentWizard] Photo file already deleted or doesn't exist: ${photoUrl}`);
+          } else {
+            console.error(`[PaymentWizard] Error deleting photo file: ${photoUrl}`, fileError);
+          }
+        }
+      } else {
+        console.log(`[PaymentWizard] Skipping deletion of non-local photo: ${photoUrl}`);
+      }
+    } catch (error) {
+      console.error('[PaymentWizard] Error in deletePhotoFileIfExists:', error);
+    }
+  }
+
   @WizardStep(0)
   async proceedFirstStep(@Ctx() ctx: CustomSceneContext) {
     const inline_keyboard = Markup.inlineKeyboard([
@@ -124,6 +171,10 @@ export default class PaymentWizard {
           },
           requestId,
         );
+
+        // Delete saved photo file if it exists after completing the request
+        const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
+        await this.deletePhotoFileIfExists(photoUrl);
       } else {
         return;
       }
@@ -154,7 +205,7 @@ export default class PaymentWizard {
             await ctx.scene.leave();
             throw new Error('Request not found');
           }
-          const photoUrl = './src/assets/0056.jpg';
+          const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
 
           const workerMenu = MenuFactory.createWorkerMenu(
             request as unknown as FullRequestType,
@@ -189,7 +240,7 @@ export default class PaymentWizard {
             await ctx.scene.leave();
             throw new Error('Request not found');
           }
-          const photoUrl = './src/assets/0056.jpg';
+          const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
 
           const workerMenu = MenuFactory.createWorkerMenu(
             request as unknown as FullRequestType,

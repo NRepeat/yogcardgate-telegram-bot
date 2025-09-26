@@ -81,7 +81,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       ],
       sample: 'JOHN DOE\nDE44500105175407324931\n1000.00',
     },
-    [PaymentMethodEnum.SKRILL_EMAIL]: {
+    [PaymentMethodEnum.SKRILL]: {
       title: 'Skrill',
       intro: DEFAULT_INTRO,
       fields: [
@@ -155,7 +155,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       ],
       sample: '4000000012345678 1111 JOHN DOE',
     },
-    [PaymentMethodEnum.SKRILL_EMAIL]: {
+    [PaymentMethodEnum.SKRILL]: {
       title: 'Skrill',
       intro: DEFAULT_INTRO,
       fields: [

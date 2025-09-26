@@ -14,7 +14,7 @@ interface UsdSkrillParsedInput extends ParsedStrategyInput {
 
 export class UsdSkrillEmailStrategy extends UsdBaseStrategy {
   protected supportsMethod(method: PaymentMethodEnum): boolean {
-    return method === PaymentMethodEnum.SKRILL_EMAIL;
+    return method === PaymentMethodEnum.SKRILL;
   }
 
   protected parseInput(message: string) {
@@ -74,7 +74,7 @@ export class UsdSkrillEmailStrategy extends UsdBaseStrategy {
       rateId: rate.id,
       rate: String(rate.rate ?? ''),
       method: {
-        method: PaymentMethodEnum.SKRILL_EMAIL,
+        method: PaymentMethodEnum.SKRILL,
         skrill: {
           email: parsed.email,
           comment: parsed.comment ?? null,
@@ -87,7 +87,7 @@ export class UsdSkrillEmailStrategy extends UsdBaseStrategy {
 
   protected buildDetails(data: UsdSkrillParsedInput): string {
     const lines = [
-      'Тип: USD SKRILL_EMAIL',
+      'Тип: USD SKRILL',
       `Email: ${data.email}`,
       `Сумма (ввод): ${data.rawAmountToken}`,
       `Сумма (число): ${data.amount} USD`,

@@ -43,7 +43,7 @@ enum PaymentMethodEnum {
   WIZE
   BANK
   PAYONEER
-  SKRILL_EMAIL
+  SKRILL
   QR
 }
 

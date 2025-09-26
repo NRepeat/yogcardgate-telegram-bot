@@ -188,7 +188,7 @@ export class CreateRequestWizard {
           [PaymentMethodEnum.IBAN]: BUTTON_TEXTS.IBAN,
           [PaymentMethodEnum.WIRE]: 'Bank transfer',
           [PaymentMethodEnum.PHONE]: 'Phone transfer',
-          [PaymentMethodEnum.SKRILL_EMAIL]: 'Skrill / email',
+          [PaymentMethodEnum.SKRILL]: 'Skrill / email',
           [PaymentMethodEnum.QR]: 'QR',
         };
 

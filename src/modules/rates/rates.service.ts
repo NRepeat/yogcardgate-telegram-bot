@@ -69,45 +69,6 @@ export class RatesService {
     }
     return message.join('\n');
   }
-  // async getAllPublicRatesMarkupMessage() {
-  //   const allRates = await this.getAllRates();
-  //   if (!allRates.length) return 'Нет доступных курсов.';
-  //   // Сортируем: сначала Card, затем остальные, внутри Card — сначала + (maxAmount === null/0), потом по minAmount по убыванию
-  //   type Rate = (typeof allRates)[number];
-  //   function plusFirstSort(a: Rate, b: Rate) {
-  //     const aPlus = !a.maxAmount || a.maxAmount === 0;
-  //     const bPlus = !b.maxAmount || b.maxAmount === 0;
-  //     if (aPlus && !bPlus) return -1;
-  //     if (!aPlus && bPlus) return 1;
-  //     return (b.minAmount ?? 0) - (a.minAmount ?? 0);
-  //   }
-  //   const cardRates = allRates
-  //     .filter((r) => r.paymentMethod.nameEn.toLowerCase() === 'card')
-  //     .sort(plusFirstSort);
-  //   const otherRates = allRates
-  //     .filter((r) => r.paymentMethod.nameEn.toLowerCase() !== 'card')
-  //     .sort(plusFirstSort);
-  //   const sortedRates = [...cardRates, ...otherRates];
-  //   // Группируем по валюте и методу оплаты
-  //   const grouped: Record<string, string[]> = {};
-  //   for (const rate of sortedRates) {
-  //     const header = `💱 <b>${rate.currency.name}</b> — <i>${rate.paymentMethod.nameEn}</i>`;
-  //     const line = `▫️ <b>${rate.minAmount}${
-  //       rate.maxAmount !== null && rate.maxAmount > 0
-  //         ? ' - ' + rate.maxAmount
-  //         : '+'
-  //     }</b> — <b>${rate.rate}</b>`;
-  //     if (!grouped[header]) grouped[header] = [];
-  //     grouped[header].push(line);
-  //   }
-  //   const message: string[] = ['<b>Актуальные курсы:</b>\n'];
-  //   for (const header in grouped) {
-  //     message.push(header);
-  //     message.push(...grouped[header]);
-  //     message.push('');
-  //   }
-  //   return message.join('\n');
-  // }
   parseAllRatesMarkupMessage(message: string) {
     try {
       const lines = message.split('\n').filter((line) => line.trim() !== '');

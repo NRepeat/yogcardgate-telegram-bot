@@ -29,10 +29,10 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethodEnum, string> = {
   [PaymentMethodEnum.WIRE]: 'ваер',
   [PaymentMethodEnum.PHONE]: 'телефон',
   [PaymentMethodEnum.WIZE]: 'Wise',
-  [PaymentMethodEnum.SKRILL_EMAIL]: 'Skrill',
+  [PaymentMethodEnum.SKRILL]: 'Skrill',
   [PaymentMethodEnum.QR]: 'QR-код',
-  [PaymentMethodEnum.BANK]:"Банковская оплата",
-  [PaymentMethodEnum.PAYONEER]:"PAYONEER"
+  [PaymentMethodEnum.BANK]: 'Банковская оплата',
+  [PaymentMethodEnum.PAYONEER]: 'PAYONEER',
 };
 
 const CHUNK_SIZE = 2;

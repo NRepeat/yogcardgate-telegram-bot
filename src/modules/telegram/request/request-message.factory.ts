@@ -23,7 +23,7 @@ export class RequestMessageFactory {
         return this.buildWireMessage(accessType, request, method, options);
       case PaymentMethodEnum.IBAN:
         return this.buildIbanMessage(accessType, request, method, options);
-      case PaymentMethodEnum.SKRILL_EMAIL:
+      case PaymentMethodEnum.SKRILL:
         return this.buildSkrillMessage(accessType, request, method, options);
       case PaymentMethodEnum.PAYONEER:
         return this.buildPayoneerMessage(accessType, request, method, options);

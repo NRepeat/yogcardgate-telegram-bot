@@ -12,6 +12,7 @@ import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
 import * as sharp from 'sharp';
 import { RatesService } from '../rates/rates.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { getParamByParam } from 'iso-country-currency';
 
 const POPULAR_CURRENCY_ORDER = [
   'UAH',
@@ -115,6 +116,7 @@ export class UtilsService {
         displayName: string;
         methods: Map<string, string[]>;
         popularityIndex: number;
+        symbol: string | null;
       }
     >();
 
@@ -126,10 +128,12 @@ export class UtilsService {
         rate.currency.name ?? rate.currency.nameEn ?? currencyCode,
       );
       if (!groupedByCurrency.has(currencyCode)) {
+        const symbol = this.resolveCurrencySymbol(currencyCode);
         groupedByCurrency.set(currencyCode, {
           displayName: currencyDisplayName,
           methods: new Map(),
           popularityIndex: currencyPopularityIndex(currencyCode),
+          symbol,
         });
       }
 
@@ -139,20 +143,19 @@ export class UtilsService {
         rate.maxAmount !== null && rate.maxAmount > 0
           ? `${rate.minAmount} - ${rate.maxAmount}`
           : `${rate.minAmount}+`;
-      const line = `${amountLabel} — ${rate.rate}`;
-      const lineWithoutAmount = `— ${rate.rate}`
+      const line = `•[${amountLabel}] — ${rate.rate}`;
+      const lineWithoutAmount = `— ${rate.rate}`;
       if (!currencyGroup.methods.has(methodKey)) {
         currencyGroup.methods.set(methodKey, []);
       }
-      if(!CURRENCY_TO_SKIP_RANGE.includes(currencyCode)){
-
+      if (!CURRENCY_TO_SKIP_RANGE.includes(currencyCode)) {
         currencyGroup.methods.get(methodKey)!.push(line);
-      }else{
+      } else {
         currencyGroup.methods.get(methodKey)!.push(lineWithoutAmount);
       }
     }
 
-    const message: string[] = ['Актуальные курсы:'];
+    const message: string[] = ['📍Актуальный курс:'];
 
     const sortedCurrencies = Array.from(groupedByCurrency.entries()).sort(
       ([codeA, groupA], [codeB, groupB]) => {
@@ -163,14 +166,26 @@ export class UtilsService {
       },
     );
 
-    for (const [, group] of sortedCurrencies) {
-      message.push(`💱${group.displayName}`);
+    for (const [currencyCode, group] of sortedCurrencies) {
+      const symbol = group.symbol ?? null;
+      const shouldShowSymbol =
+        symbol !== null &&
+        symbol.trim().length > 0 &&
+        symbol.trim().length <= 3 &&
+        symbol.trim().toUpperCase() !== currencyCode.toUpperCase() &&
+        symbol.trim().toUpperCase() !== group.displayName.trim().toUpperCase();
+
+      const currencyLabel = shouldShowSymbol
+        ? `${symbol} ${group.displayName}`
+        : group.displayName;
 
       for (const [method, lines] of group.methods) {
-        if(CURRENCY_TO_SKIP_RANGE.includes(group.displayName)){
-          message.push(method.toUpperCase()+' '+ lines.join('\n'));
-        }else{
-          message.push(method.toUpperCase());
+        if (CURRENCY_TO_SKIP_RANGE.includes(currencyCode)) {
+          message.push(
+            `${currencyLabel} ${method.toUpperCase()} ${lines.join('\n')}`,
+          );
+        } else {
+          message.push(`${currencyLabel} ${method.toUpperCase()}`);
           message.push(...lines);
         }
       }
@@ -179,6 +194,15 @@ export class UtilsService {
     }
 
     return message.join('\n').trim();
+  }
+
+  private resolveCurrencySymbol(currencyCode: string): string | null {
+    try {
+      const symbol = getParamByParam('currency', currencyCode, 'symbol');
+      return symbol ? symbol.trim() || null : null;
+    } catch (error) {
+      return null;
+    }
   }
   // Группируем по header
 

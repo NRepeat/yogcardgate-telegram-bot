@@ -240,10 +240,10 @@ export default class ReportService {
           clientName: details?.holderName ?? '',
         };
       }
-      case PaymentMethodEnum.SKRILL_EMAIL: {
+      case PaymentMethodEnum.SKRILL: {
         const details = method.skrillDetails;
         return {
-          type: PaymentMethodEnum.SKRILL_EMAIL,
+          type: PaymentMethodEnum.SKRILL,
           requisites: details?.email ?? '',
           bank: '',
           comment: details?.comment ?? '',

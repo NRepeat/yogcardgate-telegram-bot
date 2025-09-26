@@ -245,7 +245,7 @@ abstract class BaseRequestMenu {
         return this.buildIbanLines(accessType, method);
       case PaymentMethodEnum.PHONE:
         return this.buildPhoneLines(accessType, method);
-      case PaymentMethodEnum.SKRILL_EMAIL:
+      case PaymentMethodEnum.SKRILL:
         return this.buildSkrillLines(accessType, method, currencyLabel);
       case PaymentMethodEnum.QR:
         return this.buildQrLines(method);

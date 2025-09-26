@@ -103,7 +103,7 @@ const paymentMethods = [
     descriptionEn: 'Phone number transfer',
   },
   {
-    nameEn: PaymentMethodEnum.SKRILL_EMAIL,
+    nameEn: PaymentMethodEnum.SKRILL,
     description: 'Skrill (оплата по почте)',
     descriptionEn: 'Skrill (email)',
   },

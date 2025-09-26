@@ -151,7 +151,7 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
           },
         },
       };
-    case PaymentMethodEnum.SKRILL_EMAIL:
+    case PaymentMethodEnum.SKRILL:
       if (!details.skrill) {
         throw new Error('Skrill details are required for Skrill method');
       }

@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { PaymentMethodEnum, AccessType } from '@prisma/client';
-import { FullRequestType, CustomSceneContext, SerializedMessage } from 'src/types/types';
+import { FullRequestType, CustomSceneContext } from 'src/types/types';
 import {
   CnyBaseStrategy,
   CnyStrategyDependencies,

@@ -50,6 +50,7 @@ import { PlnStrategyDependencies } from './strategies/pln-base.strategy';
 import { PlnIbanStrategy } from './strategies/pln-iban.strategy';
 import { ThbStrategyDependencies } from './strategies/thb-base.strategy';
 import { ThbWireStrategy } from './strategies/thb-wire.strategy';
+import { ThbBankStrategy } from './strategies/thb-bank.strategy';
 import { CzkStrategyDependencies } from './strategies/czk-base.strategy';
 import { CzkWireStrategy } from './strategies/czk-wire.strategy';
 import { CzkBankStrategy } from './strategies/czk-bank.strategy';
@@ -615,6 +616,7 @@ export class CreateRequestWizard {
       new AedIbanStrategy(aedDeps),
       new PlnIbanStrategy(plnDeps),
       new ThbWireStrategy(thbDeps),
+      new ThbBankStrategy(thbDeps),
       new CzkWireStrategy(czkDeps),
       new CzkBankStrategy(czkDeps),
       new KztCardStrategy({

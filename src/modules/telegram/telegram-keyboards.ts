@@ -244,7 +244,7 @@ abstract class BaseRequestMenu {
       .filter((part): part is string => Boolean(part && part.length > 0))
       .join(' • ');
 
-    return label ? `🔖<b>Тип:</b> ${label}` : null;
+    return label ? `🔖<b>Валюта:</b> ${label}` : null;
   }
 
   private buildMethodSpecificLines(

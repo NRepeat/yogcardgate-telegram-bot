@@ -153,6 +153,7 @@ model PaymentRequestMethod {
   cardDetails CardPaymentRequestsMethod?
   ibanDetails IbanPaymentRequestsMethod?
   wireDetails WirePaymentRequestsMethod?
+  bankDetails BankPaymentRequestsMethod?
   phoneDetails PhonePaymentRequestsMethod?
   skrillDetails SkrillEmailPaymentRequestsMethod?
   payoneerDetails PayoneerPaymentRequestsMethod?
@@ -185,6 +186,18 @@ model IbanPaymentRequestsMethod {
 }
 
 model WirePaymentRequestsMethod {
+  id          String               @id @default(cuid())
+  methodId    String               @unique
+  method      PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  account     String
+  recipient   String
+  bankName    String?
+  comment     String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model BankPaymentRequestsMethod {
   id          String               @id @default(cuid())
   methodId    String               @unique
   method      PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)

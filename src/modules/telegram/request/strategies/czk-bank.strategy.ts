@@ -1,22 +1,26 @@
 import { PaymentMethodEnum } from '@prisma/client';
 import { FullRequestType } from 'src/types/types';
 import {
+  CzkBaseStrategy,
+  CzkStrategyDependencies,
   CreateRequestParams,
   ParsedStrategyInput,
-  UsdBaseStrategy,
-} from './usd-base.strategy';
+} from './czk-base.strategy';
 
-interface UsdWireParsedInput extends ParsedStrategyInput {
-  account: string;
+interface CzkBankParsedInput extends ParsedStrategyInput {
   recipient: string;
-  bank?: string;
+  account: string;
+  bankName?: string;
   comment?: string;
-  rawAmountToken: string;
 }
 
-export class UsdWireStrategy extends UsdBaseStrategy {
+export class CzkBankStrategy extends CzkBaseStrategy {
+  constructor(deps: CzkStrategyDependencies) {
+    super(deps);
+  }
+
   protected supportsMethod(method: PaymentMethodEnum): boolean {
-    return method === PaymentMethodEnum.WIRE;
+    return method === PaymentMethodEnum.BANK;
   }
 
   protected parseInput(message: string) {
@@ -25,7 +29,7 @@ export class UsdWireStrategy extends UsdBaseStrategy {
       .map((line) => line.trim())
       .filter(Boolean);
 
-    // Check if it's a single line format: "JOHN DOE 1234567890 5000"
+    // Check if it's a single line format: "JOHN DOE 5000 1234567890/2200"
     if (lines.length === 1) {
       return this.parseSingleLine(lines[0]);
     }
@@ -34,18 +38,17 @@ export class UsdWireStrategy extends UsdBaseStrategy {
     if (lines.length < 3) {
       return {
         success: false as const,
-        error:
-          'Ожидались минимум три строки: сумма, номер счёта и имя получателя.',
+        error: 'Ожидались минимум три строки: ФИО, сумма и номер счёта.',
       };
     }
 
-    const recipient = lines[0];
-    const account = lines[1].replace(/\s+/g, '');
-    const remainder = lines.slice(2);
+    const recipient = lines[0];        // ФИО
+    const amountLine = lines[1];       // Сумма
+    const account = lines[2];          // Номер счета
+    const bankName = lines[3]?.trim(); // Название банка
+    const comment = lines.slice(4).join('\n').trim();
 
-    const rawAmountToken = remainder[0];
-    const amount = rawAmountToken ? this.tryParseAmount(rawAmountToken) : null;
-
+    const amount = this.tryParseAmount(amountLine);
     if (!amount || amount <= 0) {
       return {
         success: false as const,
@@ -53,33 +56,29 @@ export class UsdWireStrategy extends UsdBaseStrategy {
       };
     }
 
-    if (account.length < 6) {
+    if (!account || account.length < 4) {
       return {
         success: false as const,
-        error: 'Номер счёта слишком короткий.',
+        error: 'Укажите корректный номер счёта.',
       };
     }
 
     if (!recipient || recipient.length < 3) {
       return {
         success: false as const,
-        error: 'Имя получателя указано некорректно.',
+        error: 'Укажите корректное имя получателя.',
       };
     }
-
-    const bank = remainder[1]?.trim();
-    const comment = remainder.slice(bank ? 2 : 1).join('\n').trim();
 
     return {
       success: true as const,
       data: [
         {
           amount,
-          account,
           recipient,
-          bank: bank || undefined,
+          account,
+          bankName: bankName || undefined,
           comment: comment || undefined,
-          rawAmountToken,
         },
       ],
     };
@@ -90,7 +89,7 @@ export class UsdWireStrategy extends UsdBaseStrategy {
     vendorId,
     rate,
     parsed,
-  }: CreateRequestParams & { parsed: UsdWireParsedInput }): Promise<FullRequestType> {
+  }: CreateRequestParams & { parsed: CzkBankParsedInput }): Promise<FullRequestType> {
     const request = await this.deps.requestService.createGeneralRequest({
       amount: parsed.amount,
       vendorId,
@@ -98,11 +97,11 @@ export class UsdWireStrategy extends UsdBaseStrategy {
       rateId: rate.id,
       rate: String(rate.rate ?? ''),
       method: {
-        method: PaymentMethodEnum.WIRE,
-        wire: {
+        method: PaymentMethodEnum.BANK,
+        bank: {
           account: parsed.account,
           recipient: parsed.recipient,
-          bankName: parsed.bank ?? null,
+          bankName: parsed.bankName ?? null,
           comment: parsed.comment ?? null,
         },
       },
@@ -111,16 +110,15 @@ export class UsdWireStrategy extends UsdBaseStrategy {
     return request as unknown as FullRequestType;
   }
 
-  protected buildDetails(data: UsdWireParsedInput): string {
+  protected buildDetails(data: CzkBankParsedInput): string {
     const lines = [
-      'Тип: USD WIRE',
-      `Сумма (ввод): ${data.rawAmountToken}`,
-      `Сумма (число): ${data.amount} USD`,
+      'Тип: CZK BANK',
+      `ФИО: ${data.recipient}`,
       `Счёт: ${data.account}`,
-      `Получатель: ${data.recipient}`,
+      `Сумма: ${data.amount} CZK`,
     ];
-    if (data.bank) {
-      lines.push(`Банк: ${data.bank}`);
+    if (data.bankName) {
+      lines.push(`Банк: ${data.bankName}`);
     }
     if (data.comment) {
       lines.push(`Комментарий: ${data.comment}`);
@@ -129,18 +127,18 @@ export class UsdWireStrategy extends UsdBaseStrategy {
   }
 
   private parseSingleLine(line: string) {
-    // Parse format: "JOHN DOE 1234567890 5000"
+    // Parse format: "JOHN DOE 5000 1234567890/2200"
     const parts = line.trim().split(/\s+/);
     
     if (parts.length < 3) {
       return {
         success: false as const,
-        error: 'Ожидался формат: ИМЯ НОМЕР_СЧЕТА СУММА (например: JOHN DOE 1234567890 5000)',
+        error: 'Ожидался формат: ФИО СУММА НОМЕР_СЧЕТА (например: JOHN DOE 5000 1234567890/2200)',
       };
     }
 
-    // Last part should be the amount
-    const rawAmountToken = parts[parts.length - 1];
+    // Second part should be the amount
+    const rawAmountToken = parts[1];
     const amount = this.tryParseAmount(rawAmountToken);
     
     if (!amount || amount <= 0) {
@@ -150,23 +148,23 @@ export class UsdWireStrategy extends UsdBaseStrategy {
       };
     }
 
-    // Second to last part should be the account number
-    const account = parts[parts.length - 2].replace(/\s+/g, '');
+    // Third part should be the account number
+    const account = parts[2];
     
-    if (account.length < 6) {
+    if (!account || account.length < 4) {
       return {
         success: false as const,
-        error: 'Номер счёта слишком короткий.',
+        error: 'Укажите корректный номер счёта.',
       };
     }
 
-    // Everything before account and amount is the recipient name
-    const recipient = parts.slice(0, parts.length - 2).join(' ');
+    // First part is the recipient name
+    const recipient = parts[0];
     
     if (!recipient || recipient.length < 3) {
       return {
         success: false as const,
-        error: 'Имя получателя указано некорректно.',
+        error: 'Укажите корректное имя получателя.',
       };
     }
 
@@ -175,11 +173,10 @@ export class UsdWireStrategy extends UsdBaseStrategy {
       data: [
         {
           amount,
-          account,
           recipient,
-          bank: undefined,
+          account,
+          bankName: undefined,
           comment: undefined,
-          rawAmountToken,
         },
       ],
     };

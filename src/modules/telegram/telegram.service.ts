@@ -348,7 +348,6 @@ export class TelegramService {
         this.logger.warn('No public messages found for the given request ID');
         return;
       }
-      console.log('messages',messages)
       for (const message of messages) {
         const chatId = Number(message.chatId);
         const messageId = Number(message.messageId);
@@ -833,7 +832,25 @@ export class TelegramService {
         if (msgIdToPass?.includes(messageId)) {
           continue;
         }
-        await this.bot.telegram.deleteMessage(chatId, messageId);
+        try {
+          await this.bot.telegram.deleteMessage(chatId, messageId);
+          this.logger.log(`Successfully deleted message ${messageId} from chat ${chatId}`);
+        } catch (deleteError: any) {
+          // Handle specific error cases
+          if (deleteError.response?.error_code === 400) {
+            const errorDescription = deleteError.response?.description || '';
+            if (errorDescription.includes('message to delete not found')) {
+              this.logger.warn(`Message ${messageId} not found in chat ${chatId} - may have been deleted already or doesn't exist`);
+            } else if (errorDescription.includes('message can\'t be deleted')) {
+              this.logger.warn(`Message ${messageId} cannot be deleted from chat ${chatId} - ${errorDescription}`);
+            } else {
+              this.logger.warn(`Failed to delete message ${messageId} from chat ${chatId}: ${errorDescription}`);
+            }
+            continue;
+          }
+          // Re-throw other errors
+          throw deleteError;
+        }
       }
     } catch (error) {
       this.logger.error('Error deleting messages', error);

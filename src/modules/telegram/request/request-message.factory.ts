@@ -21,6 +21,8 @@ export class RequestMessageFactory {
         return this.buildCardMessage(accessType, request, method, options);
       case PaymentMethodEnum.WIRE:
         return this.buildWireMessage(accessType, request, method, options);
+      case PaymentMethodEnum.BANK:
+        return this.buildBankMessage(accessType, request, method, options);
       case PaymentMethodEnum.IBAN:
         return this.buildIbanMessage(accessType, request, method, options);
       case PaymentMethodEnum.SKRILL:
@@ -55,8 +57,7 @@ export class RequestMessageFactory {
 
     const lines = this.composeBaseLines(request, method.method, [
       cardNumber ? `💳<b>Номер карты:</b> <code>${cardNumber}</code>` : null,
-      `🏦<b>Банк:</b> <i>${details.bank?.bankName ?? '-'}</i>`,
-      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      details.bank?.bankName ? `🏦<b>Банк:</b> <i>${details.bank.bankName}</i>` : null,
       this.partnerLine(request),
     ]);
 
@@ -102,6 +103,36 @@ export class RequestMessageFactory {
     return this.wrapWithButtons(accessType, request.id, lines);
   }
 
+  private static buildBankMessage(
+    accessType: AccessType,
+    request: FullRequestType,
+    method: RequestMethodWithDetails,
+    options: RequestMessageFactoryOptions,
+  ): ReplyPhotoMessage | null {
+    const details = method.bankDetails;
+    if (!details) {
+      return null;
+    }
+
+    const account = details.account
+      ? options.maskSensitive
+        ? this.maskDigits(details.account)
+        : details.account
+      : null;
+
+    const lines = this.composeBaseLines(request, method.method, [
+      account ? `🏦<b>Счёт:</b> <code>${account}</code>` : null,
+      details.recipient
+        ? `👤<b>Получатель:</b> <code>${details.recipient}</code>`
+        : null,
+      details.bankName ? `🏦<b>Банк:</b> <i>${details.bankName}</i>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      this.partnerLine(request),
+    ]);
+
+    return this.wrapWithButtons(accessType, request.id, lines);
+  }
+
   private static buildIbanMessage(
     accessType: AccessType,
     request: FullRequestType,
@@ -123,7 +154,6 @@ export class RequestMessageFactory {
       details.name ? `👤<b>Получатель:</b> <code>${details.name}</code>` : null,
       iban ? `🏦<b>IBAN:</b> <code>${iban}</code>` : null,
       details.inn ? `📋<b>ИНН:</b> <code>${details.inn}</code>` : null,
-      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
       this.partnerLine(request),
     ]);
 
@@ -225,7 +255,7 @@ export class RequestMessageFactory {
       details.identifier
         ? `💼<b>Идентификатор:</b> <code>${details.identifier}</code>`
         : null,
-      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      details.comment ? `👤<b>ФИО латиницей:</b> ${details.comment}` : null,
       this.partnerLine(request),
     ]);
 
@@ -255,7 +285,7 @@ export class RequestMessageFactory {
 
     const lines: Array<string | null> = [
       `✉️<b>Заявка номер:</b> <code>${request.id}</code>`,
-      `🔖<b>Тип:</b> ${methodLabel}`,
+      `🔖<b>Валюта:</b> ${methodLabel}`,
       amountLine,
       rateLine,
       ...extraLines,

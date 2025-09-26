@@ -1,5 +1,6 @@
 import {
   AdminRequestPhotoMessage,
+  BankPaymentRequestsMethod,
   BlackList,
   CardBank,
   CardPaymentRequestsMethod,
@@ -95,6 +96,7 @@ export type FullRequestType = PaymentRequests & {
     }) | null;
     ibanDetails?: IbanPaymentRequestsMethod | null;
     wireDetails?: WirePaymentRequestsMethod | null;
+    bankDetails?: BankPaymentRequestsMethod | null;
     phoneDetails?: PhonePaymentRequestsMethod | null;
     skrillDetails?: SkrillEmailPaymentRequestsMethod | null;
     payoneerDetails?: PayoneerPaymentRequestsMethod | null;

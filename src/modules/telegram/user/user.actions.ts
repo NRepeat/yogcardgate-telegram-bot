@@ -500,7 +500,7 @@ export class UserActions {
     return {
       text: baseText,
       inline_keyboard: Markup.inlineKeyboard([
-          [Markup.button.callback(BUTTON_TEXTS.IN_WORK, BUTTON_CALLBACKS.DUMMY)],
+          [Markup.button.callback("❌ Заявка отменена", BUTTON_CALLBACKS.DUMMY)],
         ]).reply_markup,
       photoUrl: methodPayload?.photoUrl,
       source: methodPayload?.source,

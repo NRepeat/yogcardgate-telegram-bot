@@ -243,4 +243,5 @@ export class CnyQrStrategy extends CnyBaseStrategy {
       // Don't throw here as the request is already created successfully
     }
   }
+
 }

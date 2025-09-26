@@ -52,6 +52,7 @@ import { ThbStrategyDependencies } from './strategies/thb-base.strategy';
 import { ThbWireStrategy } from './strategies/thb-wire.strategy';
 import { CzkStrategyDependencies } from './strategies/czk-base.strategy';
 import { CzkWireStrategy } from './strategies/czk-wire.strategy';
+import { CzkBankStrategy } from './strategies/czk-bank.strategy';
 import { KztStrategyDependencies } from './strategies/kzt-base.strategy';
 import { KztCardStrategy } from './strategies/kzt-card.strategy';
 import { KztPhoneStrategy } from './strategies/kzt-phone.strategy';
@@ -100,7 +101,6 @@ export class CreateRequestWizard {
       await this.currenciesService.getCurrencyKeyboard();
     ctx.session.messagesToDelete = ctx.session.messagesToDelete || [];
     ctx.session.requestMenuMessageId = ctx.session.requestMenuMessageId || [];
-    console.log(ctx.session)
     if (ctx.session.customState !== 'select_currency' && !ctx.session.selectedCurrencyId) {
       const msg = await ctx.reply(availableCurrenciesKeyboard.caption, {
         reply_markup: availableCurrenciesKeyboard.markup,
@@ -398,6 +398,9 @@ export class CreateRequestWizard {
         const largest = photos[photos.length - 1];
         if (largest) {
           qrPayload.photo = largest;
+          
+          // Add photo message to deletion list immediately when received
+          this.addPhotoMessageToDeletionList(ctx);
         }
       }
 
@@ -491,12 +494,20 @@ export class CreateRequestWizard {
   }
   async deleteSceneMessages(ctx: CustomSceneContext, msgIdToPass?: number[]) {
     try {
+      const messagesToDelete = ctx.session.messagesToDelete || [];
+      const chatId = ctx.chat?.id;
+      
+      console.log(`[RequestScene] Attempting to delete ${messagesToDelete.length} messages from chat ${chatId}`);
+      console.log(`[RequestScene] Messages to delete: ${JSON.stringify(messagesToDelete)}`);
+      console.log(`[RequestScene] Messages to pass: ${JSON.stringify(msgIdToPass)}`);
+      
       await this.telegramService.deleteAllTelegramMessages(
-        ctx.session.messagesToDelete,
-        ctx.chat?.id,
+        messagesToDelete,
+        chatId,
         msgIdToPass,
       );
       ctx.session.messagesToDelete = [];
+      console.log(`[RequestScene] Successfully processed message deletion`);
     } catch (error) {
       console.error('Failed to delete scene messages:', error);
     }
@@ -510,6 +521,33 @@ export class CreateRequestWizard {
       ctx.session.requestMenuMessageId = [];
     } catch (error) {
       console.error('Failed to delete scene messages:', error);
+    }
+  }
+
+  private addPhotoMessageToDeletionList(ctx: CustomSceneContext): void {
+    try {
+      const message = ctx.message;
+      if (message && 'message_id' in message) {
+        // Initialize messagesToDelete if it doesn't exist
+        if (!ctx.session.messagesToDelete) {
+          ctx.session.messagesToDelete = [];
+        }
+        
+        // Check if message ID is already in the deletion list
+        if (ctx.session.messagesToDelete.includes(message.message_id)) {
+          console.log(`[RequestScene] Photo message ${message.message_id} already in deletion list, skipping`);
+          return;
+        }
+        
+        // Add the photo message ID to the deletion list
+        ctx.session.messagesToDelete.push(message.message_id);
+        console.log(`[RequestScene] Photo message ${message.message_id} added to deletion list. Total messages to delete: ${ctx.session.messagesToDelete.length}`);
+      } else {
+        console.warn('[RequestScene] No valid message found to add to deletion list');
+      }
+    } catch (error) {
+      console.error('[RequestScene] Failed to add photo message to deletion list:', error);
+      // Don't throw here as this is not critical
     }
   }
   async updateSceneMenuMessage(
@@ -578,6 +616,7 @@ export class CreateRequestWizard {
       new PlnIbanStrategy(plnDeps),
       new ThbWireStrategy(thbDeps),
       new CzkWireStrategy(czkDeps),
+      new CzkBankStrategy(czkDeps),
       new KztCardStrategy({
         ...kztDeps,
         utilsService: this.utilsService,

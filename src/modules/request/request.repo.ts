@@ -27,6 +27,12 @@ export interface PaymentMethodDetailsInput {
     bankName?: string | null;
     comment?: string | null;
   };
+  bank?: {
+    account: string;
+    recipient: string;
+    bankName?: string | null;
+    comment?: string | null;
+  };
   phone?: {
     phoneNumber: string;
     holderName?: string | null;
@@ -75,6 +81,7 @@ const PAYMENT_REQUEST_DEFAULT_INCLUDE = {
       },
       ibanDetails: true,
       wireDetails: true,
+      bankDetails: true,
       phoneDetails: true,
       skrillDetails: true,
       payoneerDetails: true,
@@ -134,6 +141,21 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
             recipient: details.wire.recipient,
             bankName: details.wire.bankName ?? null,
             comment: details.wire.comment ?? null,
+          },
+        },
+      };
+    case PaymentMethodEnum.BANK:
+      if (!details.bank) {
+        throw new Error('Bank details are required for bank method');
+      }
+      return {
+        method: details.method,
+        bankDetails: {
+          create: {
+            account: details.bank.account,
+            recipient: details.bank.recipient,
+            bankName: details.bank.bankName ?? null,
+            comment: details.bank.comment ?? null,
           },
         },
       };

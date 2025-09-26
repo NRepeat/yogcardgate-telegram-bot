@@ -245,13 +245,14 @@ const FORM_REGISTRY: PaymentFormRegistry = {
         },
       ],
       sample: '50000 \n0000000000\nNAME SURNAME\nBank Name',
-    },   [PaymentMethodEnum.BANK]:{
+    },  
+     [PaymentMethodEnum.BANK]:{
       title: 'Bank payment',
       intro: DEFAULT_INTRO,
       fields: [
         {
           label: 'ФИО',
-          description: 'Например 96092666/5500',
+          description: 'Например NAME SURNAME',
         },
   
         {
@@ -266,7 +267,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           label:"Название банка"
         }
       ],
-      sample: '00000000/0000\nNAME SURNAME\n10000',
+      sample: 'NAME SURNAME\n10000\n00000000\nBank Name',
     }
   },
   [CurrencyEnum.CZK]: {
@@ -294,7 +295,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       fields: [
         {
           label: 'ФИО',
-          description: 'Например 96092666/5500',
+          description: 'Например NAME SURNAME',
         },
   
         {
@@ -309,7 +310,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           label:"Название банка"
         }
       ],
-      sample: '00000000/0000\nNAME SURNAME\n10000',
+      sample: 'NAME SURNAME\n10000\n00000000/0000\nBank Name',
     }
   },
   [CurrencyEnum.KZT]: {

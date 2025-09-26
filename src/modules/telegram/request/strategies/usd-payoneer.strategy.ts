@@ -23,6 +23,12 @@ export class UsdPayoneerStrategy extends UsdBaseStrategy {
       .map((line) => line.trim())
       .filter(Boolean);
 
+    // Check if it's a single line format: "user@example.com 5000"
+    if (lines.length === 1) {
+      return this.parseSingleLine(lines[0]);
+    }
+
+    // Multi-line format (existing logic)
     if (lines.length < 2) {
       return {
         success: false as const,
@@ -100,6 +106,51 @@ export class UsdPayoneerStrategy extends UsdBaseStrategy {
 
   private isValidEmail(value: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  private parseSingleLine(line: string) {
+    // Parse format: "user@example.com 5000"
+    const parts = line.trim().split(/\s+/);
+    
+    if (parts.length < 2) {
+      return {
+        success: false as const,
+        error: 'Ожидался формат: EMAIL СУММА (например: user@example.com 5000)',
+      };
+    }
+
+    // Last part should be the amount
+    const rawAmountToken = parts[parts.length - 1];
+    const amount = this.tryParseAmount(rawAmountToken);
+    
+    if (!amount || amount <= 0) {
+      return {
+        success: false as const,
+        error: 'Сумма должна быть положительным числом.',
+      };
+    }
+
+    // Everything before amount is the email
+    const email = parts.slice(0, parts.length - 1).join(' ');
+    
+    if (!this.isValidEmail(email)) {
+      return {
+        success: false as const,
+        error: 'Некорректный email. Проверьте формат.',
+      };
+    }
+
+    return {
+      success: true as const,
+      data: [
+        {
+          amount,
+          email,
+          rawAmountToken,
+          comment: undefined,
+        },
+      ],
+    };
   }
 
   private tryParseAmount(value: string): number | null {

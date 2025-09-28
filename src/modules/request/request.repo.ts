@@ -11,6 +11,7 @@ export interface PaymentMethodDetailsInput {
   method: PaymentMethodEnum;
   card?: {
     card: string;
+    holder?: string | null;
     comment?: string | null;
     bankId?: string | null;
     blackListId?: string | null;
@@ -105,6 +106,7 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
         cardDetails: {
           create: {
             card: details.card.card,
+            holder: details.card.holder ?? null,
             comment: details.card.comment ?? null,
             bankId: details.card.bankId ?? null,
             blackList: details.card.blackListId

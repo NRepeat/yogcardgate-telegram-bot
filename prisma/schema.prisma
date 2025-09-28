@@ -171,6 +171,7 @@ model CardPaymentRequestsMethod {
   methodId  String                  @unique
   method    PaymentRequestMethod    @relation(fields: [methodId], references: [id], onDelete: Cascade)
   card      String
+  holder    String?
   blackList BlackList[]
   bank      CardBank?               @relation(fields: [bankId], references: [id], onDelete: Cascade)
   bankId    String?

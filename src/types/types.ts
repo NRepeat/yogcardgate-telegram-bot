@@ -84,6 +84,7 @@ export type CardRequestType = {
   blackList?: BlackList;
   card: {
     card: string;
+    holder?: string;
     comment?: string;
     bankId?: string;
   };

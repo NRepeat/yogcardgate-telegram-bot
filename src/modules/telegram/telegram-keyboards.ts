@@ -319,9 +319,21 @@ abstract class BaseRequestMenu {
 
     const lines: Array<string | null> = [
       cardNumber ? `💳<b>Номер карты:</b> <code>${cardNumber}</code>` : null,
-      `🏦<b>Банк:</b> <i>${details.bank?.bankName ?? '-'}</i>`,
-      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
     ];
+
+    // Special handling for CNY_CARD - use holder field
+    if (method.method === PaymentMethodEnum.CNY_CARD) {
+      if (details.holder) {
+        lines.push(`👤<b>ФИО:</b> ${details.holder}`);
+      }
+      lines.push(`🏦<b>Банк:</b> <i>Китайский банк</i>`);
+    } else {
+      // Regular card handling
+      lines.push(`🏦<b>Банк:</b> <i>${details.bank?.bankName ?? '-'}</i>`);
+      if (details.comment) {
+        lines.push(`💬<b>Комментарий:</b> ${details.comment}`);
+      }
+    }
 
     if (details.blackList?.length) {
       const reason = details.blackList[0]?.reason;

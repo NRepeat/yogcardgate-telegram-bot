@@ -63,6 +63,7 @@ export class RequestMessageFactory {
 
     const lines = this.composeBaseLines(request, method.method, [
       cardNumber ? `💳<b>Номер карты:</b> <code>${cardNumber}</code>` : null,
+      details.holder ? `👤<b>ФИО:</b> ${details.holder}` : null,
       details.bank?.bankName ? `🏦<b>Банк:</b> <i>${details.bank.bankName}</i>` : null,
       this.partnerLine(request),
     ]);

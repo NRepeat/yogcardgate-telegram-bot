@@ -27,27 +27,42 @@ export class CnyCardStrategy extends CnyBaseStrategy {
       .map((line) => line.trim())
       .filter(Boolean);
 
-    if (lines.length < 2) {
+    let cardNumber: string;
+    let amount: number;
+    let holderName: string;
+
+    if (lines.length === 1) {
+      // Single line format: "4000000012345678 3000 张三"
+      const singleLineMatch = lines[0].match(/^(\d+)\s+(\d+(?:\.\d+)?)\s+(.+)$/);
+      if (!singleLineMatch) {
+        return {
+          success: false as const,
+          error: 'Неверный формат. Используйте: Номер карты Сумма ФИО на китайском',
+        };
+      }
+      cardNumber = singleLineMatch[1];
+      amount = parseFloat(singleLineMatch[2]);
+      holderName = singleLineMatch[3];
+    } else if (lines.length >= 2) {
+      // Two line format: "4000000012345678 3000" on first line, "张三" on second line
+      const cardDataLine = lines[0];
+      holderName = lines[1];
+
+      const cardAmountMatch = cardDataLine.match(/^(\d+)\s+(\d+(?:\.\d+)?)$/);
+      if (!cardAmountMatch) {
+        return {
+          success: false as const,
+          error: 'Неверный формат первой строки. Используйте: Номер карты Сумма',
+        };
+      }
+      cardNumber = cardAmountMatch[1];
+      amount = parseFloat(cardAmountMatch[2]);
+    } else {
       return {
         success: false as const,
-        error: 'Укажите номер карты, сумму и ФИО на китайском. Формат: Номер карты - Сумма\nФИО на китайском',
+        error: 'Укажите номер карты, сумму и ФИО на китайском. Формат: Номер карты Сумма ФИО на китайском',
       };
     }
-
-    const cardDataLine = lines[0];
-    const holderName = lines[1];
-
-    // Parse card number and amount from first line
-    const cardAmountMatch = cardDataLine.match(/^(\d+)\s+(\d+(?:\.\d+)?)$/);
-    if (!cardAmountMatch) {
-      return {
-        success: false as const,
-        error: 'Неверный формат. Используйте: Номер карты - Сумма',
-      };
-    }
-
-    const cardNumber = cardAmountMatch[1];
-    const amount = parseFloat(cardAmountMatch[2]);
 
     if (!cardNumber || cardNumber.length < 16) {
       return {
@@ -92,7 +107,8 @@ export class CnyCardStrategy extends CnyBaseStrategy {
         method: PaymentMethodEnum.CNY_CARD,
         card: {
           card: parsed.cardNumber,
-          comment: `Bank: Chinese Bank\nHolder: ${parsed.holderName}`,
+          holder: parsed.holderName,
+          comment: 'Bank: Chinese Bank',
           bankId: null,
         },
       },

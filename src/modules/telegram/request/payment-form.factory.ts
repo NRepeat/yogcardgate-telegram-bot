@@ -79,7 +79,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
         },
      
       ],
-      sample: 'JOHN DOE\nDE44500105175407324931\n1000.00',
+      sample: 'JOHN DOE\nDE00000000000000000000\n1000.00',
     },
     [PaymentMethodEnum.SKRILL]: {
       title: 'Skrill',

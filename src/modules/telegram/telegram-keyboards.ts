@@ -241,11 +241,30 @@ abstract class BaseRequestMenu {
       return null;
     }
 
-    const label = [currencyLabel, methodName]
+    const methodDisplayName = methodName ? this.getMethodDisplayName(methodName) : '';
+    const label = [currencyLabel, methodDisplayName]
       .filter((part): part is string => Boolean(part && part.length > 0))
       .join(' • ');
 
     return label ? `🔖<b>Валюта:</b> ${label}` : null;
+  }
+
+  private getMethodDisplayName(methodName: string): string {
+    const methodDisplayMap: Record<string, string> = {
+      'KZT_KASPI_BANK': 'Kaspi Bank',
+      'KZT_OTHER_BANKS': 'Остальные банки',
+      'CARD': 'карта',
+      'IBAN': 'IBAN',
+      'WIRE': 'ваер',
+      'PHONE': 'телефон',
+      'WIZE': 'Wise',
+      'SKRILL': 'Skrill',
+      'QR': 'QR-код',
+      'BANK': 'Банковская оплата',
+      'PAYONEER': 'PAYONEER',
+    };
+    
+    return methodDisplayMap[methodName] || methodName;
   }
 
   private buildMethodSpecificLines(
@@ -256,9 +275,11 @@ abstract class BaseRequestMenu {
     if (!method) {
       return [];
     }
-
+    console.log('method.method', method.method);
     switch (method.method) {
       case PaymentMethodEnum.CARD:
+      case PaymentMethodEnum.KZT_KASPI_BANK:
+      case PaymentMethodEnum.KZT_OTHER_BANKS:
         return this.buildCardLines(accessType, method);
       case PaymentMethodEnum.WIRE:
         return this.buildWireLines(accessType, method);

@@ -325,6 +325,28 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       ],
       sample: '0000000000000000 100000',
     },
+    [PaymentMethodEnum.KZT_KASPI_BANK]: {
+      title: 'Kaspi Bank',
+      intro: DEFAULT_INTRO,
+      fields: [
+        {
+          label: 'Номер карты - Сумма',
+        },
+      ],
+      sample: '0000000000000000 100000',
+      notes: ['Оплата через Kaspi Bank'],
+    },
+    [PaymentMethodEnum.KZT_OTHER_BANKS]: {
+      title: 'Остальные банки',
+      intro: DEFAULT_INTRO,
+      fields: [
+        {
+          label: 'Номер карты - Сумма',
+        },
+      ],
+      sample: '0000000000000000 100000',
+      notes: ['Оплата через другие банки'],
+    },
     [PaymentMethodEnum.PHONE]: {
       title: 'TEL-NUMBER',
       intro: DEFAULT_INTRO,

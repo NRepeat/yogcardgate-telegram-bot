@@ -65,6 +65,7 @@ import { CnyStrategyDependencies } from './strategies/cny-base.strategy';
 import { CnyQrStrategy } from './strategies/cny-qr.strategy';
 import { UsdStrategyDependencies } from './strategies/usd-base.strategy';
 import { UsdPayoneerStrategy } from './strategies/usd-payoneer.strategy';
+import { KztBankCardStrategy } from './strategies/kzt-bank-card.strategy';
 
 const DEFAULT_FORM_INTRO =
   'отправьте, пожалуйста, данные строками в указанном порядке:';
@@ -265,9 +266,10 @@ export class CreateRequestWizard {
       }
       case callbackQuery.data.startsWith('select_method_'): {
         // Extract method name and user ID from callback data
-        const parts = callbackQuery.data.replace('select_method_', '').split('_');
-        const methodName = parts[0];
-        const callbackUserId = parts[1] ? parseInt(parts[1]) : null;
+        const callbackData = callbackQuery.data.replace('select_method_', '');
+        const lastUnderscoreIndex = callbackData.lastIndexOf('_');
+        const methodName = callbackData.substring(0, lastUnderscoreIndex);
+        const callbackUserId = callbackData.substring(lastUnderscoreIndex + 1) ? parseInt(callbackData.substring(lastUnderscoreIndex + 1)) : null;
         
         // Check if this callback is for the current user
         if (callbackUserId && callbackUserId !== ctx.from?.id) {
@@ -282,6 +284,14 @@ export class CreateRequestWizard {
         }
         const methodEnum = methodKey as PaymentMethodEnum;
         ctx.session.requestType = methodEnum;
+        
+        // Set custom state for KZT bank methods
+        if (methodEnum === PaymentMethodEnum.KZT_KASPI_BANK) {
+          ctx.session.customState = 'kzt_bank_kaspi';
+        } else if (methodEnum === PaymentMethodEnum.KZT_OTHER_BANKS) {
+          ctx.session.customState = 'kzt_bank_other';
+        }
+        
         const instruction = this.getPaymentMethodInstruction(
           ctx,
           methodEnum,
@@ -664,7 +674,7 @@ export class CreateRequestWizard {
       new ThbBankStrategy(thbDeps),
       new CzkWireStrategy(czkDeps),
       new CzkBankStrategy(czkDeps),
-      new KztCardStrategy({
+      new KztBankCardStrategy({
         ...kztDeps,
         utilsService: this.utilsService,
       }),

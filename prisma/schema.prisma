@@ -45,6 +45,8 @@ enum PaymentMethodEnum {
   PAYONEER
   SKRILL
   QR
+  KZT_KASPI_BANK
+  KZT_OTHER_BANKS
 }
 
 enum RoleEnum {

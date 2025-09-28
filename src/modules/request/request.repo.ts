@@ -91,8 +91,11 @@ const PAYMENT_REQUEST_DEFAULT_INCLUDE = {
 } as const;
 
 const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
+  console.log('details.method', details.method);
   switch (details.method) {
     case PaymentMethodEnum.CARD:
+    case PaymentMethodEnum.KZT_KASPI_BANK:
+    case PaymentMethodEnum.KZT_OTHER_BANKS:
       if (!details.card) {
         throw new Error('Card details are required for CARD method');
       }

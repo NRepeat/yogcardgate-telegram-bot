@@ -33,6 +33,8 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethodEnum, string> = {
   [PaymentMethodEnum.QR]: 'QR-код',
   [PaymentMethodEnum.BANK]: 'Банковская оплата',
   [PaymentMethodEnum.PAYONEER]: 'PAYONEER',
+  [PaymentMethodEnum.KZT_KASPI_BANK]: 'Kaspi Bank',
+  [PaymentMethodEnum.KZT_OTHER_BANKS]: 'Остальные банки',
 };
 
 const CHUNK_SIZE = 2;

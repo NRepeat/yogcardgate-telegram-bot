@@ -16,8 +16,11 @@ export class RequestMessageFactory {
     method: RequestMethodWithDetails,
     options: RequestMessageFactoryOptions = {},
   ): ReplyPhotoMessage | null {
+    console.log('method.method', method.method);  
     switch (method.method) {
       case PaymentMethodEnum.CARD:
+      case PaymentMethodEnum.KZT_KASPI_BANK:
+      case PaymentMethodEnum.KZT_OTHER_BANKS:
         return this.buildCardMessage(accessType, request, method, options);
       case PaymentMethodEnum.WIRE:
         return this.buildWireMessage(accessType, request, method, options);
@@ -281,7 +284,8 @@ export class RequestMessageFactory {
   ): string[] {
     const rateLine = this.formatRateLine(request);
     const amountLine = this.formatAmountLine(request);
-    const methodLabel = `${request.currency?.nameEn ?? request.currency?.name ?? ''} ${method}`.trim();
+    const methodDisplayName = this.getMethodDisplayName(method);
+    const methodLabel = `${request.currency?.nameEn ?? request.currency?.name ?? ''} ${methodDisplayName}`.trim();
 
     const lines: Array<string | null> = [
       `✉️<b>Заявка номер:</b> <code>${request.id}</code>`,
@@ -290,6 +294,7 @@ export class RequestMessageFactory {
       rateLine,
       ...extraLines,
     ];
+
 
     if (request.activeUser?.username) {
       lines.push(`👤<b>Принята:</b> @${request.activeUser.username}`);
@@ -346,9 +351,8 @@ export class RequestMessageFactory {
     }
 
     const currency = request.currency?.nameEn ?? request.currency?.name ?? '';
-    return `💵<b>Сумма:</b> <code>${request.amount}</code>${
-      currency ? ` ${currency}` : ''
-    }`;
+    return `💵<b>Сумма:</b> <code>${request.amount}</code>${currency ? ` ${currency}` : ''
+      }`;
   }
 
   private static formatRateLine(request: FullRequestType): string | null {
@@ -434,5 +438,24 @@ export class RequestMessageFactory {
     }
 
     return `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
+  }
+
+
+  private static getMethodDisplayName(method: PaymentMethodEnum): string {
+    const methodDisplayMap: Record<PaymentMethodEnum, string> = {
+      [PaymentMethodEnum.KZT_KASPI_BANK]: 'Kaspi Bank',
+      [PaymentMethodEnum.KZT_OTHER_BANKS]: 'Остальные банки',
+      [PaymentMethodEnum.CARD]: 'карта',
+      [PaymentMethodEnum.IBAN]: 'IBAN',
+      [PaymentMethodEnum.WIRE]: 'ваер',
+      [PaymentMethodEnum.PHONE]: 'телефон',
+      [PaymentMethodEnum.WIZE]: 'Wise',
+      [PaymentMethodEnum.SKRILL]: 'Skrill',
+      [PaymentMethodEnum.QR]: 'QR-код',
+      [PaymentMethodEnum.BANK]: 'Банковская оплата',
+      [PaymentMethodEnum.PAYONEER]: 'PAYONEER',
+    };
+
+    return methodDisplayMap[method] || method;
   }
 }

@@ -117,6 +117,16 @@ const paymentMethods = [
     description: 'Оплата по QR-коду',
     descriptionEn: 'QR payment',
   },
+  {
+    nameEn: PaymentMethodEnum.KZT_KASPI_BANK,
+    description: 'Kaspi Bank',
+    descriptionEn: 'Kaspi Bank',
+  },
+  {
+    nameEn: PaymentMethodEnum.KZT_OTHER_BANKS,
+    description: 'Остальные банки',
+    descriptionEn: 'Other Banks',
+  },
 ];
 
 const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
@@ -131,7 +141,7 @@ const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
   [CurrencyEnum.PLN]: [PaymentMethodEnum.IBAN],
   [CurrencyEnum.THB]: [PaymentMethodEnum.BANK],
   [CurrencyEnum.CZK]: [PaymentMethodEnum.BANK],
-  [CurrencyEnum.KZT]: [PaymentMethodEnum.CARD],
+  [CurrencyEnum.KZT]: [PaymentMethodEnum.CARD, PaymentMethodEnum.KZT_KASPI_BANK, PaymentMethodEnum.KZT_OTHER_BANKS],
   [CurrencyEnum.TRY]: [PaymentMethodEnum.IBAN],
   [CurrencyEnum.AZN]: [PaymentMethodEnum.CARD],
   [CurrencyEnum.CNY]: [PaymentMethodEnum.QR],
@@ -406,9 +416,20 @@ async function seedRates() {
           method: PaymentMethodEnum.CARD,
           minAmount: 5000,
           maxAmount: 200000,
-          rate: 0.092,
+          rate: 0.092, // Base rate for Kaspi Bank
         },
-    
+        {
+          method: PaymentMethodEnum.KZT_KASPI_BANK,
+          minAmount: 5000,
+          maxAmount: 200000,
+          rate: 0.092, // Kaspi Bank rate
+        },
+        {
+          method: PaymentMethodEnum.KZT_OTHER_BANKS,
+          minAmount: 5000,
+          maxAmount: 200000,
+          rate: 0.0966, // Other banks rate (5% higher)
+        },
       ],
       [CurrencyEnum.TRY]: [
         {

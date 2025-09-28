@@ -38,7 +38,7 @@ export abstract class KztBaseStrategy implements PaymentRequestStrategy {
         };
       }
 
-      const parsed = this.parseInput(context.message);
+      const parsed = this.parseInput(context.message, context.ctx);
       if (!parsed.success) {
         return {
           status: 'error',
@@ -118,6 +118,7 @@ export abstract class KztBaseStrategy implements PaymentRequestStrategy {
   protected abstract supportsMethod(method: PaymentMethodEnum): boolean;
   protected abstract parseInput(
     message: string,
+    context?: any,
   ): { success: true; data: ParsedStrategyInput[] } | { success: false; error: string };
   protected abstract createRequest(
     params: CreateRequestParams,
@@ -139,7 +140,7 @@ export interface CreateRequestParams {
   parsed: ParsedStrategyInput;
 }
 
-type RateWithRelations = Rates & {
+export type RateWithRelations = Rates & {
   paymentMethod: { nameEn: PaymentMethodEnum };
   currency: { name: CurrencyEnum };
 };

@@ -21,7 +21,7 @@ export class KztPhoneStrategy extends KztBaseStrategy {
     return method === PaymentMethodEnum.PHONE;
   }
 
-  protected parseInput(message: string) {
+  protected parseInput(message: string, context?: any) {
     const lines = message
       .split(/\r?\n/)
       .map((line) => line.trim())

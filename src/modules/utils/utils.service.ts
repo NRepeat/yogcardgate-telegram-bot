@@ -50,7 +50,7 @@ export class UtilsService {
     @Inject(forwardRef(() => RatesService))
     private readonly ratesService: RatesService,
     private readonly prismaService: PrismaService, // Assuming you have a PrismaService to inject
-  ) {}
+  ) { }
   async getBankNameByCardNumber(cardNumber: string) {
     // console.log(`Fetching bank name for card number: ${cardNumber}`);
     // Try exact match first
@@ -81,7 +81,7 @@ export class UtilsService {
   }
 
   async getAllPublicRatesMarkupMessage() {
-    
+
     const allRates = await this.ratesService.getAllRates();
     if (!allRates.length) return 'Нет доступных курсов.';
     // Сортируем: сначала Card, затем остальные, внутри Card — сначала + (maxAmount === null/0), потом по minAmount по убыванию
@@ -175,11 +175,17 @@ export class UtilsService {
         symbol.trim().toUpperCase() !== currencyCode.toUpperCase() &&
         symbol.trim().toUpperCase() !== group.displayName.trim().toUpperCase();
 
-      const currencyLabel = shouldShowSymbol
-        ? `${symbol} ${group.displayName}`
-        : group.displayName;
 
-      for (const [method, lines] of group.methods) {
+      const      currencyLabel = shouldShowSymbol
+      ? `${symbol} ${group.displayName}`
+      : group.displayName;
+  
+      for (let [method, lines] of group.methods) {
+          if (method === "KZT_KASPI_BANK") {
+            method = "Kaspi Bank"
+          } else if(method === "KZT_OTHER_BANKS") {
+            method = "Остальные банки"
+          }
         if (CURRENCY_TO_SKIP_RANGE.includes(currencyCode)) {
           message.push(
             `${currencyLabel} ${method.toUpperCase()} ${lines.join('\n')}`,

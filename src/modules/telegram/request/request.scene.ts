@@ -63,9 +63,13 @@ import { AznStrategyDependencies } from './strategies/azn-base.strategy';
 import { AznCardStrategy } from './strategies/azn-card.strategy';
 import { CnyStrategyDependencies } from './strategies/cny-base.strategy';
 import { CnyQrStrategy } from './strategies/cny-qr.strategy';
+import { CnyCardStrategy } from './strategies/cny-card.strategy';
+import { CnyAccountStrategy } from './strategies/cny-account.strategy';
 import { UsdStrategyDependencies } from './strategies/usd-base.strategy';
 import { UsdPayoneerStrategy } from './strategies/usd-payoneer.strategy';
 import { KztBankCardStrategy } from './strategies/kzt-bank-card.strategy';
+import { CnyAlipayStrategy } from './strategies/cny-alipay.strategy';
+import { CnyWechatStrategy } from './strategies/cny-wechat.strategy';
 
 const DEFAULT_FORM_INTRO =
   'отправьте, пожалуйста, данные строками в указанном порядке:';
@@ -433,8 +437,8 @@ export class CreateRequestWizard {
       ctx.wizard.selectStep(0);
       return;
     }
-
-    if (methodEnum === PaymentMethodEnum.QR) {
+    const isQr = methodEnum === PaymentMethodEnum.QR || methodEnum === PaymentMethodEnum.CNY_ALIPAY || methodEnum === PaymentMethodEnum.CNY_WECHAT;
+    if (isQr) {
       const wizardState = ctx.scene.state as {
         cnyQrPayload?: CnyQrWizardPayload;
       };
@@ -685,6 +689,10 @@ export class CreateRequestWizard {
         utilsService: this.utilsService,
       }),
       new CnyQrStrategy(cnyDeps),
+      new CnyAlipayStrategy(cnyDeps),
+      new CnyWechatStrategy(cnyDeps),
+      new CnyCardStrategy(cnyDeps),
+      new CnyAccountStrategy(cnyDeps),
     ];
   }
   private async buildPaymentMethodKeyboard(
@@ -857,8 +865,10 @@ export class CreateRequestWizard {
     currency: CurrencyEnum,
     method: PaymentMethodEnum,
   ): PaymentRequestStrategy | undefined {
-    return this.paymentStrategies.find((strategy) =>
-      strategy.supports(currency, method),
+    return this.paymentStrategies.find((strategy) =>{
+      console.log('strategy', currency, method);
+      return strategy.supports(currency, method); 
+    }
     );
   }
 

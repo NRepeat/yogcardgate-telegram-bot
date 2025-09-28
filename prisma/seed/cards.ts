@@ -127,6 +127,26 @@ const paymentMethods = [
     description: 'Остальные банки',
     descriptionEn: 'Other Banks',
   },
+  {
+    nameEn: PaymentMethodEnum.CNY_ALIPAY,
+    description: 'Alipay',
+    descriptionEn: 'Alipay',
+  },
+  {
+    nameEn: PaymentMethodEnum.CNY_WECHAT,
+    description: 'WeChat Pay',
+    descriptionEn: 'WeChat Pay',
+  },
+  {
+    nameEn: PaymentMethodEnum.CNY_CARD,
+    description: 'Оплата по карте',
+    descriptionEn: 'Card payment',
+  },
+  {
+    nameEn: PaymentMethodEnum.CNY_ACCOUNT,
+    description: 'Оплата по номеру счета',
+    descriptionEn: 'Account payment',
+  },
 ];
 
 const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
@@ -144,7 +164,7 @@ const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
   [CurrencyEnum.KZT]: [PaymentMethodEnum.CARD, PaymentMethodEnum.KZT_KASPI_BANK, PaymentMethodEnum.KZT_OTHER_BANKS],
   [CurrencyEnum.TRY]: [PaymentMethodEnum.IBAN],
   [CurrencyEnum.AZN]: [PaymentMethodEnum.CARD],
-  [CurrencyEnum.CNY]: [PaymentMethodEnum.QR],
+  [CurrencyEnum.CNY]: [PaymentMethodEnum.QR, PaymentMethodEnum.CNY_ALIPAY, PaymentMethodEnum.CNY_WECHAT, PaymentMethodEnum.CNY_CARD, PaymentMethodEnum.CNY_ACCOUNT],
   [CurrencyEnum.AED]: [PaymentMethodEnum.IBAN],
 };
 
@@ -453,6 +473,30 @@ async function seedRates() {
           minAmount: 500,
           maxAmount: 100000,
           rate: 5.25,
+        },
+        {
+          method: PaymentMethodEnum.CNY_ALIPAY,
+          minAmount: 500,
+          maxAmount: 100000,
+          rate: 5.25,
+        },
+        {
+          method: PaymentMethodEnum.CNY_WECHAT,
+          minAmount: 500,
+          maxAmount: 100000,
+          rate: 5.25,
+        },
+        {
+          method: PaymentMethodEnum.CNY_CARD,
+          minAmount: 500,
+          maxAmount: 100000,
+          rate: 5.30,
+        },
+        {
+          method: PaymentMethodEnum.CNY_ACCOUNT,
+          minAmount: 500,
+          maxAmount: 100000,
+          rate: 5.30,
         },
       ],
     };

@@ -416,6 +416,74 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       ],
       sample: '3000\nRECIPIENT IDENTIFIER\nNAME SURNAME',
     },
+    [PaymentMethodEnum.CNY_ALIPAY]: {
+      title: 'Alipay',
+      intro: DEFAULT_INTRO,
+      fields: [
+        {
+          label: 'Сумма и валюта',
+          description: 'например 2812',
+        },
+        {
+          label: 'Идентификатор/название получателя',
+          description: 'например Lub*************',
+        },
+        {
+          label: 'ФИО латиницей',
+        },
+      ],
+      sample: '3000\nRECIPIENT IDENTIFIER\nNAME SURNAME',
+      notes: ['Оплата через Alipay'],
+    },
+    [PaymentMethodEnum.CNY_WECHAT]: {
+      title: 'WeChat Pay',
+      intro: DEFAULT_INTRO,
+      fields: [
+        {
+          label: 'Сумма и валюта',
+          description: 'например 2812',
+        },
+        {
+          label: 'Идентификатор/название получателя',
+          description: 'например Lub*************',
+        },
+        {
+          label: 'ФИО латиницей',
+        },
+      ],
+      sample: '3000\nRECIPIENT IDENTIFIER\nNAME SURNAME',
+      notes: ['Оплата через WeChat Pay'],
+    },
+    [PaymentMethodEnum.CNY_CARD]: {
+      title: 'Оплата по карте',
+      intro: DEFAULT_INTRO,
+      fields: [
+        {
+          label: 'Номер карты - Сумма',
+        },
+        {
+          label: 'ФИО на китайском',
+          description: 'точно как на карте',
+        },
+      ],
+      sample: '4000000012345678 3000 张三',
+      notes: ['Оплата по китайской карте'],
+    },
+    [PaymentMethodEnum.CNY_ACCOUNT]: {
+      title: 'Оплата по номеру счета',
+      intro: DEFAULT_INTRO,
+      fields: [
+        {
+          label: 'Номер счета - Сумма',
+        },
+        {
+          label: 'ФИО на китайском',
+          description: 'точно как в банке',
+        },
+      ],
+      sample: '1234567890123456 3000 张三',
+      notes: ['Оплата по банковскому счету'],
+    },
   },
 };
 

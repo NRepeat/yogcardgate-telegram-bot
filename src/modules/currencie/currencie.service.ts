@@ -35,6 +35,10 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethodEnum, string> = {
   [PaymentMethodEnum.PAYONEER]: 'PAYONEER',
   [PaymentMethodEnum.KZT_KASPI_BANK]: 'Kaspi Bank',
   [PaymentMethodEnum.KZT_OTHER_BANKS]: 'Остальные банки',
+  [PaymentMethodEnum.CNY_ALIPAY]: 'Alipay',
+  [PaymentMethodEnum.CNY_WECHAT]: 'WeChat Pay',
+  [PaymentMethodEnum.CNY_CARD]: 'карта',
+  [PaymentMethodEnum.CNY_ACCOUNT]: 'номер счета',
 };
 
 const CHUNK_SIZE = 2;

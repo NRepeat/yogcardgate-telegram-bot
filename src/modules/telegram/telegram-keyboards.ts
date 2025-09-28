@@ -253,6 +253,10 @@ abstract class BaseRequestMenu {
     const methodDisplayMap: Record<string, string> = {
       'KZT_KASPI_BANK': 'Kaspi Bank',
       'KZT_OTHER_BANKS': 'Остальные банки',
+      'CNY_ALIPAY': 'Alipay',
+      'CNY_WECHAT': 'WeChat Pay',
+      'CNY_CARD': 'карта',
+      'CNY_ACCOUNT': 'номер счета',
       'CARD': 'карта',
       'IBAN': 'IBAN',
       'WIRE': 'ваер',
@@ -280,8 +284,10 @@ abstract class BaseRequestMenu {
       case PaymentMethodEnum.CARD:
       case PaymentMethodEnum.KZT_KASPI_BANK:
       case PaymentMethodEnum.KZT_OTHER_BANKS:
+      case PaymentMethodEnum.CNY_CARD:
         return this.buildCardLines(accessType, method);
       case PaymentMethodEnum.WIRE:
+      case PaymentMethodEnum.CNY_ACCOUNT:
         return this.buildWireLines(accessType, method);
       case PaymentMethodEnum.IBAN:
         return this.buildIbanLines(accessType, method);
@@ -290,6 +296,8 @@ abstract class BaseRequestMenu {
       case PaymentMethodEnum.SKRILL:
         return this.buildSkrillLines(accessType, method, currencyLabel);
       case PaymentMethodEnum.QR:
+      case PaymentMethodEnum.CNY_ALIPAY:
+      case PaymentMethodEnum.CNY_WECHAT:
         return this.buildQrLines(method);
       default:
         return [];

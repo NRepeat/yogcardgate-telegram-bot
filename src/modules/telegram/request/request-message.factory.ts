@@ -16,13 +16,14 @@ export class RequestMessageFactory {
     method: RequestMethodWithDetails,
     options: RequestMessageFactoryOptions = {},
   ): ReplyPhotoMessage | null {
-    console.log('method.method', method.method);  
-    switch (method.method) {
-      case PaymentMethodEnum.CARD:
-      case PaymentMethodEnum.KZT_KASPI_BANK:
-      case PaymentMethodEnum.KZT_OTHER_BANKS:
-        return this.buildCardMessage(accessType, request, method, options);
-      case PaymentMethodEnum.WIRE:
+      switch (method.method) {
+        case PaymentMethodEnum.CARD:
+        case PaymentMethodEnum.KZT_KASPI_BANK:
+        case PaymentMethodEnum.KZT_OTHER_BANKS:
+        case PaymentMethodEnum.CNY_CARD:
+          return this.buildCardMessage(accessType, request, method, options);
+        case PaymentMethodEnum.WIRE:
+        case PaymentMethodEnum.CNY_ACCOUNT:
         return this.buildWireMessage(accessType, request, method, options);
       case PaymentMethodEnum.BANK:
         return this.buildBankMessage(accessType, request, method, options);
@@ -35,6 +36,8 @@ export class RequestMessageFactory {
       case PaymentMethodEnum.PHONE:
         return this.buildPhoneMessage(accessType, request, method, options);
       case PaymentMethodEnum.QR:
+      case PaymentMethodEnum.CNY_ALIPAY:
+      case PaymentMethodEnum.CNY_WECHAT:
         return this.buildQrMessage(accessType, request, method);
       default:
         return this.buildGenericMessage(accessType, request, method);
@@ -445,6 +448,10 @@ export class RequestMessageFactory {
     const methodDisplayMap: Record<PaymentMethodEnum, string> = {
       [PaymentMethodEnum.KZT_KASPI_BANK]: 'Kaspi Bank',
       [PaymentMethodEnum.KZT_OTHER_BANKS]: 'Остальные банки',
+      [PaymentMethodEnum.CNY_ALIPAY]: 'Alipay',
+      [PaymentMethodEnum.CNY_WECHAT]: 'WeChat Pay',
+      [PaymentMethodEnum.CNY_CARD]: 'карта',
+      [PaymentMethodEnum.CNY_ACCOUNT]: 'номер счета',
       [PaymentMethodEnum.CARD]: 'карта',
       [PaymentMethodEnum.IBAN]: 'IBAN',
       [PaymentMethodEnum.WIRE]: 'ваер',

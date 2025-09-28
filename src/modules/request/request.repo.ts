@@ -96,6 +96,7 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
     case PaymentMethodEnum.CARD:
     case PaymentMethodEnum.KZT_KASPI_BANK:
     case PaymentMethodEnum.KZT_OTHER_BANKS:
+    case PaymentMethodEnum.CNY_CARD:
       if (!details.card) {
         throw new Error('Card details are required for CARD method');
       }
@@ -203,6 +204,8 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
         },
       };
     case PaymentMethodEnum.QR:
+    case PaymentMethodEnum.CNY_ALIPAY:
+    case PaymentMethodEnum.CNY_WECHAT:
       if (!details.qr) {
         throw new Error('QR details are required for QR method');
       }
@@ -212,6 +215,20 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
           create: {
             identifier: details.qr.identifier,
             comment: details.qr.comment ?? null,
+          },
+        },
+      };
+    case PaymentMethodEnum.CNY_ACCOUNT:
+      if (!details.wire) {
+        throw new Error('Wire details are required for CNY_ACCOUNT method');
+      }
+      return {
+        method: details.method,
+        wireDetails: {
+          create: {
+            account: details.wire.account,
+            recipient: details.wire.recipient,
+            comment: details.wire.comment ?? null,
           },
         },
       };

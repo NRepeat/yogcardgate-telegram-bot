@@ -47,6 +47,10 @@ enum PaymentMethodEnum {
   QR
   KZT_KASPI_BANK
   KZT_OTHER_BANKS
+  CNY_ALIPAY
+  CNY_WECHAT
+  CNY_CARD
+  CNY_ACCOUNT
 }
 
 enum RoleEnum {

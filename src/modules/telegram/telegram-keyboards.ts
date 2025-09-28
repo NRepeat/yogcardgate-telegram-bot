@@ -360,14 +360,20 @@ abstract class BaseRequestMenu {
       ? this.maskDigits(details.account, this.shouldMask(accessType))
       : null;
 
-    return [
+    const lines: Array<string | null> = [
       account ? `🏦<b>Счёт:</b> <code>${account}</code>` : null,
       details.recipient
         ? `👤<b>Получатель:</b> <code>${details.recipient}</code>`
         : null,
       details.bankName ? `🏦<b>Банк:</b> <i>${details.bankName}</i>` : null,
-      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
     ];
+
+    // Don't show comment for CNY_ACCOUNT as holder info is already displayed
+    if (method.method !== PaymentMethodEnum.CNY_ACCOUNT && details.comment) {
+      lines.push(`💬<b>Комментарий:</b> ${details.comment}`);
+    }
+
+    return lines;
   }
 
   private buildIbanLines(

@@ -27,27 +27,42 @@ export class CnyAccountStrategy extends CnyBaseStrategy {
       .map((line) => line.trim())
       .filter(Boolean);
 
-    if (lines.length < 2) {
+    let accountNumber: string;
+    let amount: number;
+    let holderName: string;
+
+    if (lines.length === 1) {
+      // Single line format: "1234567890123456 3000 张三"
+      const singleLineMatch = lines[0].match(/^(\d+)\s+(\d+(?:\.\d+)?)\s+(.+)$/);
+      if (!singleLineMatch) {
+        return {
+          success: false as const,
+          error: 'Неверный формат. Используйте: Номер счета Сумма ФИО на китайском',
+        };
+      }
+      accountNumber = singleLineMatch[1];
+      amount = parseFloat(singleLineMatch[2]);
+      holderName = singleLineMatch[3];
+    } else if (lines.length >= 2) {
+      // Two line format: "1234567890123456 3000" on first line, "张三" on second line
+      const accountDataLine = lines[0];
+      holderName = lines[1];
+
+      const accountAmountMatch = accountDataLine.match(/^(\d+)\s+(\d+(?:\.\d+)?)$/);
+      if (!accountAmountMatch) {
+        return {
+          success: false as const,
+          error: 'Неверный формат первой строки. Используйте: Номер счета Сумма',
+        };
+      }
+      accountNumber = accountAmountMatch[1];
+      amount = parseFloat(accountAmountMatch[2]);
+    } else {
       return {
         success: false as const,
-        error: 'Укажите номер счета, сумму и ФИО на китайском. Формат: Номер счета - Сумма\nФИО на китайском',
+        error: 'Укажите номер счета, сумму и ФИО на китайском. Формат: Номер счета Сумма ФИО на китайском',
       };
     }
-
-    const accountDataLine = lines[0];
-    const holderName = lines[1];
-
-    // Parse account number and amount from first line
-    const accountAmountMatch = accountDataLine.match(/^(\d+)\s+(\d+(?:\.\d+)?)$/);
-    if (!accountAmountMatch) {
-      return {
-        success: false as const,
-        error: 'Неверный формат. Используйте: Номер счета - Сумма',
-      };
-    }
-
-    const accountNumber = accountAmountMatch[1];
-    const amount = parseFloat(accountAmountMatch[2]);
 
     if (!accountNumber || accountNumber.length < 10) {
       return {

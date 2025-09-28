@@ -103,7 +103,10 @@ export class RequestMessageFactory {
         ? `👤<b>Получатель:</b> <code>${details.recipient}</code>`
         : null,
       details.bankName ? `🏦<b>Банк:</b> <i>${details.bankName}</i>` : null,
-      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      // Don't show comment for CNY_ACCOUNT as holder info is already displayed
+      method.method !== PaymentMethodEnum.CNY_ACCOUNT && details.comment 
+        ? `💬<b>Комментарий:</b> ${details.comment}` 
+        : null,
       this.partnerLine(request),
     ]);
 

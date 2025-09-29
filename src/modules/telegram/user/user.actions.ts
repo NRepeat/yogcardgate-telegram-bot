@@ -78,7 +78,6 @@ export class UserActions {
 
   @On('callback_query')
   async onCallbackQuery(@Ctx() ctx: SceneContext) {
-    await ctx.answerCbQuery();
     const callbackQuery = ctx.callbackQuery;
     await this.VendorCallbackService.handleVendorAction(
       ctx as CustomSceneContext,

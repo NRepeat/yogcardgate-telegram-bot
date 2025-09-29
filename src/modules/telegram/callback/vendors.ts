@@ -11,45 +11,54 @@ export class VendorCallbackService {
     const cbq = ctx.callbackQuery as { data?: string };
     const data = typeof cbq.data === 'string' ? cbq.data : '';
     console.log(data);
+    
+    let responseMessage = '';
+    
     if (data.startsWith('provider_')) {
       const vendorId = data.replace('provider_', '');
       if (!vendorId) {
-        await ctx.answerCbQuery('Некорректный ID поставщика');
-        return;
+        responseMessage = 'Некорректный ID поставщика';
+      } else {
+        const vendor = await this.vendorService.getVendorById(vendorId);
+        if (!vendor) {
+          responseMessage = 'Поставщик не найден';
+        } else {
+          await this.vendorService.updateVendor({
+            ...vendor,
+            showReceipt: !vendor.showReceipt,
+          });
+          await this.sendVendorsList(ctx, true);
+          responseMessage = 'Изменения сохранены';
+        }
       }
-      const vendor = await this.vendorService.getVendorById(vendorId);
-      if (!vendor) {
-        await ctx.answerCbQuery('Поставщик не найден');
-        return;
-      }
-      await this.vendorService.updateVendor({
-        ...vendor,
-        showReceipt: !vendor.showReceipt,
-      });
     } else if (data.startsWith('toggle_off_')) {
       const vendorId = data.replace('toggle_off_', '');
       if (!vendorId) {
-        await ctx.answerCbQuery('Некорректный ID поставщика');
-        return;
+        responseMessage = 'Некорректный ID поставщика';
+      } else {
+        const vendor = await this.vendorService.getVendorById(vendorId);
+        if (!vendor) {
+          responseMessage = 'Поставщик не найден';
+        } else {
+          await this.vendorService.updateVendor({
+            ...vendor,
+            work: !vendor.work,
+          });
+          await this.sendVendorsList(ctx, true);
+          responseMessage = 'Изменения сохранены';
+        }
       }
-      const vendor = await this.vendorService.getVendorById(vendorId);
-      if (!vendor) {
-        await ctx.answerCbQuery('Поставщик не найден');
-        return;
-      }
-      await this.vendorService.updateVendor({
-        ...vendor,
-        work: !vendor.work,
-      });
     } else if (data === 'close') {
       await ctx.deleteMessage();
-      return;
+      return; // Don't answer callback query for close action
     } else {
-      await ctx.answerCbQuery('Неизвестная команда');
-      return;
+      responseMessage = 'Неизвестная команда';
     }
-    await this.sendVendorsList(ctx, true);
-    await ctx.answerCbQuery('Изменения сохранены');
+    
+    // Answer callback query only once with the appropriate message
+    if (responseMessage) {
+      await ctx.answerCbQuery(responseMessage);
+    }
   }
   private async sendVendorsList(ctx: CustomSceneContext, edit = false) {
     const vendors = await this.vendorService.getAllVendors();

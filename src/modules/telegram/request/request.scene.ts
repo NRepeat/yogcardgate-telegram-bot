@@ -139,8 +139,23 @@ export class CreateRequestWizard {
             'description' in error &&
             typeof (error as any).description === 'string' &&
             (error as any).description.includes('message is not modified');
-          if (!knownMessageNotModified) {
-            throw error;
+          
+          const messageNotFound =
+            error instanceof Error &&
+            'description' in error &&
+            typeof (error as any).description === 'string' &&
+            (error as any).description.includes('message to edit not found');
+          
+          if (!knownMessageNotModified && !messageNotFound) {
+            console.error('Error editing message:', error);
+            // Don't throw error, just log it and continue
+          } else if (messageNotFound) {
+            console.warn('Message to edit not found, sending new message instead');
+            // Send a new message instead of editing
+            await ctx.reply(availableCurrenciesKeyboard.caption, {
+              reply_markup: availableCurrenciesKeyboard.markup,
+              parse_mode: 'HTML',
+            });
           }
         }
         ctx.session.customState = 'select_currency';

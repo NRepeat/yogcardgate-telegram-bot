@@ -203,7 +203,7 @@ export class MenuActions {
     await ctx.deleteMessage(msId);
     const chatId = ctx.chat?.id;
     const isAdmin = await this.userService.isAdminChat(ctx);
-    // console.log(`Chat ID: ${chatId}, isAdmin: ${isAdmin}`);
+    console.log(`Chat ID: ${chatId}, isAdmin: ${isAdmin}`);
     if (!chatId) {
       await ctx.reply('Chat ID not found');
       return;

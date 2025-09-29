@@ -34,10 +34,10 @@ const session = new LocalSession({});
             'callback_query',
             'inline_query',
           ],
-          // webhook: {
-          //   path: '/telegram/webhook',
-          //   domain: configService.get<string>('WEBHOOK_DOMAIN') || '',
-          // },
+          webhook: {
+            path: '/telegram/webhook',
+            domain: configService.get<string>('WEBHOOK_DOMAIN') || '',
+          },
         },
       }),
 

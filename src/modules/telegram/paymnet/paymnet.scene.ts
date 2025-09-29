@@ -210,6 +210,9 @@ export default class PaymentWizard {
           const workerMenu = MenuFactory.createWorkerMenu(
             request as unknown as FullRequestType,
             photoUrl,
+            undefined,
+            true,
+            false,
           );
           await this.bot.telegram.editMessageMedia(
             ctx.chat?.id!,

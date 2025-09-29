@@ -4,6 +4,7 @@ import { CustomSceneContext, FullRequestType } from 'src/types/types';
 export interface StrategyExecuteContext {
   ctx: CustomSceneContext;
   message: string;
+  method: PaymentMethodEnum;
   currency: {
     id: string;
     name: CurrencyEnum;

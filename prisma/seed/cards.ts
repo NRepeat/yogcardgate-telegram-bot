@@ -432,12 +432,12 @@ async function seedRates() {
         },
       ],
       [CurrencyEnum.KZT]: [
-        {
-          method: PaymentMethodEnum.CARD,
-          minAmount: 5000,
-          maxAmount: 200000,
-          rate: 0.092, // Base rate for Kaspi Bank
-        },
+        // {
+        //   method: PaymentMethodEnum.CARD,
+        //   minAmount: 5000,
+        //   maxAmount: 200000,
+        //   rate: 0.092, // Base rate for Kaspi Bank
+        // },
         {
           method: PaymentMethodEnum.KZT_KASPI_BANK,
           minAmount: 5000,

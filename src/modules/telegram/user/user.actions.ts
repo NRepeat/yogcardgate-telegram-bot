@@ -446,26 +446,22 @@ export class UserActions {
         const workerMenu = MenuFactory.createWorkerMenu(
           request as unknown as FullRequestType,
           photoUrl,
+          undefined,
+          true,
+          false,
         );
         const button = Markup.button.callback(
           'Отменить',
           'accept_request_' + requestId,
         );
         const inline_keyboard = Markup.inlineKeyboard([[button]]);
-        // await this.telegramService.updateAllWorkersMessagesWithRequestsId(
-        //   {
-        //     text: workerMenu.inWork().caption,
-        //     inline_keyboard: inline_keyboard.reply_markup,
-        //   },
-        //   requestId,
-        // );
         await ctx.editMessageMedia(
           {
             media: {
               source: photoUrl,
             },
             type: 'photo',
-            caption: workerMenu.inWork().caption,
+            caption: workerMenu.inProcess().caption,
             parse_mode: 'HTML',
           },
           {

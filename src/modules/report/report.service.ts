@@ -273,6 +273,75 @@ export default class ReportService {
           clientName: '',
         };
       }
+      case PaymentMethodEnum.KZT_KASPI_BANK: {
+        const details = method.cardDetails;
+        const cardNumber = details?.card ?? '';
+        return {
+          type: 'Kaspi Bank',
+          requisites: cardNumber,
+          bank: 'Kaspi Bank',
+          comment: details?.comment ?? '',
+          inn: '',
+          clientName: details?.holder ?? '',
+        };
+      }
+      case PaymentMethodEnum.KZT_OTHER_BANKS: {
+        const details = method.cardDetails;
+        const cardNumber = details?.card ?? '';
+        return {
+          type: 'Остальные банки',
+          requisites: cardNumber,
+          bank: 'Другие банки KZT',
+          comment: details?.comment ?? '',
+          inn: '',
+          clientName: details?.holder ?? '',
+        };
+      }
+      case PaymentMethodEnum.CNY_ALIPAY: {
+        const details = method.qrDetails;
+        return {
+          type: 'Alipay',
+          requisites: details?.identifier ?? '',
+          bank: 'Alipay',
+          comment: details?.comment ?? '',
+          inn: '',
+          clientName: '',
+        };
+      }
+      case PaymentMethodEnum.CNY_WECHAT: {
+        const details = method.qrDetails;
+        return {
+          type: 'WeChat Pay',
+          requisites: details?.identifier ?? '',
+          bank: 'WeChat Pay',
+          comment: details?.comment ?? '',
+          inn: '',
+          clientName: '',
+        };
+      }
+      case PaymentMethodEnum.CNY_CARD: {
+        const details = method.cardDetails;
+        const cardNumber = details?.card ?? '';
+        return {
+          type: 'CNY Карта',
+          requisites: cardNumber,
+          bank: 'Китайский банк',
+          comment: details?.comment ?? '',
+          inn: '',
+          clientName: details?.holder ?? '',
+        };
+      }
+      case PaymentMethodEnum.CNY_ACCOUNT: {
+        const details = method.wireDetails;
+        return {
+          type: 'CNY Счет',
+          requisites: details?.account ?? '',
+          bank: 'Китайский банк',
+          comment: details?.comment ?? '',
+          inn: '',
+          clientName: details?.recipient ?? '',
+        };
+      }
       default:
         return {
           ...defaultData,

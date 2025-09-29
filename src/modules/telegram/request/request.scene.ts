@@ -498,6 +498,7 @@ export class CreateRequestWizard {
     const strategyContext: StrategyExecuteContext = {
       ctx,
       message: input,
+      method: methodEnum,
       currency: {
         id: currency.id,
         name: currencyEnum,

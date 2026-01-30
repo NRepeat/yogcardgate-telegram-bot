@@ -1,0 +1,54 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: klim-bot-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-user}
+      POSTGRES_PASSWORD: ${DATABASE_PASS:-password}
+      POSTGRES_DB: ${DATABASE_NAME:-new-yog-bot}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:${DATABASE_PORT:-5432}:5432'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-user} -d ${DATABASE_NAME:-new-yog-bot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      labels:
+        - "image-name=klim-bot"
+    container_name: klim-bot-app
+    restart: always
+    ports:
+      - '${PORT:-3000}:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://${DATABASE_USER:-user}:${DATABASE_PASS:-password}@db:5432/${DATABASE_NAME:-new-yog-bot}?schema=public"
+    env_file:
+      - .env
+
+  seed:
+    build:
+      context: .
+    container_name: klim-bot-seed
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://${DATABASE_USER:-user}:${DATABASE_PASS:-password}@db:5432/${DATABASE_NAME:-new-yog-bot}?schema=public"
+    env_file:
+      - .env
+    entrypoint: sh -c "npx prisma migrate deploy && npm run seed"
+    profiles:
+      - seed
+
+volumes:
+  postgres_data:

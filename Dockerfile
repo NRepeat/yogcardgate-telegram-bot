@@ -31,4 +31,7 @@ COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
-CMD sh -c "npx prisma migrate deploy && node dist/src/main.js"
+CMD sh -c "\
+  until nc -z db 5432; do echo 'Waiting for database...'; sleep 2; done && \
+  npx prisma migrate deploy && \
+  node dist/src/main.js"

@@ -29,7 +29,7 @@ RUN npm ci --omit=dev
 # Copy build output
 COPY --from=builder /app/dist ./dist
 
-EXPOSE 3000
+EXPOSE ${PORT:-3005}
 
 CMD sh -c "\
   until nc -z db 5432; do echo 'Waiting for database...'; sleep 2; done && \

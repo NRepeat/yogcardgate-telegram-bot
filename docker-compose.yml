@@ -26,7 +26,7 @@ services:
     container_name: klim-bot-app
     restart: always
     ports:
-      - '${PORT:-3005}:3000'
+      - '${PORT:-3005}:${PORT:-3005}'
     depends_on:
       db:
         condition: service_healthy

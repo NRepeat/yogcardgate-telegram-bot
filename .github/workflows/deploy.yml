@@ -21,6 +21,6 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             cd ~/klim-bot
-            git pull origin main
+            git pull origin single-group
             make deploy
             make prune

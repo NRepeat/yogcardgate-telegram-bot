@@ -29,6 +29,9 @@ RUN npm ci --omit=dev
 # Copy build output
 COPY --from=builder /app/dist ./dist
 
+# Copy static assets
+COPY --from=builder /app/src/assets ./src/assets
+
 EXPOSE ${PORT:-3005}
 
 CMD sh -c "\

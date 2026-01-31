@@ -336,7 +336,9 @@ export class UserActions {
           requestId,
         );
       } else if (callbackQuery.data.includes('valut_card_')) {
-        const requestId = callbackQuery.data.split('_')[2];
+        const requestId = callbackQuery.data.substring(
+          BUTTON_CALLBACKS.VALUT_CARD.length,
+        );
 
         // Проверка прав на управление заявкой
         const accessCheck = await this.accessControlService.canManageRequest(
@@ -361,23 +363,10 @@ export class UserActions {
           request as unknown as FullRequestType,
           photoUrl,
         );
-        const markup = Markup.inlineKeyboard([
-          Markup.button.callback('Валютная карта', 'афлют'),
+        const valutCardMarkup = Markup.inlineKeyboard([
+          [Markup.button.callback('💳 Валютная карта — отменена', BUTTON_CALLBACKS.DUMMY)],
         ]);
-        await ctx.editMessageCaption(
-          workerMenu.inWork().caption + '\n' + 'Заявка отменина',
-          {
-            reply_markup: markup.reply_markup,
-            parse_mode: 'HTML',
-          },
-        );
-        await this.telegramService.updateAllAdminsMessagesWithRequestsId(
-          {
-            text: adminMenu.inWork().caption + '\n' + 'Заявка отменина',
-            inline_keyboard: markup.reply_markup,
-          },
-          request.id,
-        );
+
         const userId = ctx.from?.id;
         if (!userId) {
           return;
@@ -387,6 +376,31 @@ export class UserActions {
           'FAILED',
           Number(userId),
         );
+
+        await this.telegramService.updateAllWorkersMessagesWithRequestsId(
+          {
+            text: workerMenu.inWork().caption + '\n\n💳 Валютная карта\n❌ Заявка отменена',
+            inline_keyboard: valutCardMarkup.reply_markup,
+          },
+          request.id,
+        );
+        await this.telegramService.updateAllAdminsMessagesWithRequestsId(
+          {
+            text: adminMenu.inWork().caption + '\n\n💳 Валютная карта\n❌ Заявка отменена',
+            inline_keyboard: valutCardMarkup.reply_markup,
+          },
+          request.id,
+        );
+
+        const publicPayload = this.buildPublicCancelPayload(
+          request as unknown as FullRequestType,
+        );
+        publicPayload.text = (publicPayload.text ?? '') + '\n💳 Валютная карта';
+        await this.telegramService.updateAllPublicMessagesWithRequestsId(
+          publicPayload,
+          request.id,
+        );
+
         await this.deletePhotoFileIfExists(photoUrl);
       } else if (callbackQuery.data.includes('back_to_take_request_')) {
         const requestId = callbackQuery.data.split('_')[4];

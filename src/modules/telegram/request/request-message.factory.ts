@@ -23,8 +23,12 @@ export class RequestMessageFactory {
         case PaymentMethodEnum.CNY_CARD:
           return this.buildCardMessage(accessType, request, method, options);
         case PaymentMethodEnum.WIRE:
-        case PaymentMethodEnum.CNY_ACCOUNT:
         return this.buildWireMessage(accessType, request, method, options);
+      case PaymentMethodEnum.WIZE:
+        return this.buildWiseMessage(accessType, request, method, options);
+      case PaymentMethodEnum.PAYPAL:
+        return this.buildPayPalMessage(accessType, request, method, options);
+      case PaymentMethodEnum.CNY_ACCOUNT:
       case PaymentMethodEnum.BANK:
         return this.buildBankMessage(accessType, request, method, options);
       case PaymentMethodEnum.IBAN:
@@ -103,10 +107,62 @@ export class RequestMessageFactory {
         ? `👤<b>Получатель:</b> <code>${details.recipient}</code>`
         : null,
       details.bankName ? `🏦<b>Банк:</b> <i>${details.bankName}</i>` : null,
-      // Don't show comment for CNY_ACCOUNT as holder info is already displayed
-      method.method !== PaymentMethodEnum.CNY_ACCOUNT && details.comment 
-        ? `💬<b>Комментарий:</b> ${details.comment}` 
-        : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      this.partnerLine(request),
+    ]);
+
+    return this.wrapWithButtons(accessType, request.id, lines);
+  }
+
+  private static buildWiseMessage(
+    accessType: AccessType,
+    request: FullRequestType,
+    method: RequestMethodWithDetails,
+    options: RequestMessageFactoryOptions,
+  ): ReplyPhotoMessage | null {
+    const details = method.wiseDetails;
+    if (!details) {
+      return null;
+    }
+
+    const email = details.email
+      ? options.maskSensitive
+        ? this.maskEmail(details.email, true)
+        : details.email
+      : null;
+
+    const lines = this.composeBaseLines(request, method.method, [
+      email ? `📧<b>Email:</b> <code>${email}</code>` : null,
+      details.fullName ? `👤<b>ФИО:</b> <code>${details.fullName}</code>` : null,
+      details.cardNumber ? `💳<b>Карта Wise:</b> <code>${details.cardNumber}</code>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+      this.partnerLine(request),
+    ]);
+
+    return this.wrapWithButtons(accessType, request.id, lines);
+  }
+
+  private static buildPayPalMessage(
+    accessType: AccessType,
+    request: FullRequestType,
+    method: RequestMethodWithDetails,
+    options: RequestMessageFactoryOptions,
+  ): ReplyPhotoMessage | null {
+    const details = method.paypalDetails;
+    if (!details) {
+      return null;
+    }
+
+    const email = details.email
+      ? options.maskSensitive
+        ? this.maskEmail(details.email, true)
+        : details.email
+      : null;
+
+    const lines = this.composeBaseLines(request, method.method, [
+      email ? `📧<b>Email:</b> <code>${email}</code>` : null,
+      details.fullName ? `👤<b>ФИО:</b> <code>${details.fullName}</code>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
       this.partnerLine(request),
     ]);
 
@@ -465,6 +521,7 @@ export class RequestMessageFactory {
       [PaymentMethodEnum.QR]: 'QR-код',
       [PaymentMethodEnum.BANK]: 'Банковская оплата',
       [PaymentMethodEnum.PAYONEER]: 'PAYONEER',
+      [PaymentMethodEnum.PAYPAL]: 'PayPal',
     };
 
     return methodDisplayMap[method] || method;

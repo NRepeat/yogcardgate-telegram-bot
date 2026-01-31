@@ -36,7 +36,8 @@ import {
 } from './strategies/payment-request.strategy';
 import { UsdCardStrategy } from './strategies/usd-card.strategy';
 import { UsdSkrillEmailStrategy } from './strategies/usd-skrill-email.strategy';
-import { UsdWireStrategy } from './strategies/usd-wire.strategy';
+import { UsdWiseStrategy } from './strategies/usd-wise.strategy';
+import { UsdPayPalStrategy } from './strategies/usd-paypal.strategy';
 import { UahCardStrategy } from './strategies/uah-card.strategy';
 import { UahIbanStrategy } from './strategies/uah-iban.strategy';
 import { UahStrategyDependencies } from './strategies/uah-base.strategy';
@@ -49,10 +50,9 @@ import { AedIbanStrategy } from './strategies/aed-iban.strategy';
 import { PlnStrategyDependencies } from './strategies/pln-base.strategy';
 import { PlnIbanStrategy } from './strategies/pln-iban.strategy';
 import { ThbStrategyDependencies } from './strategies/thb-base.strategy';
-import { ThbWireStrategy } from './strategies/thb-wire.strategy';
+import { EurWiseStrategy } from './strategies/eur-wise.strategy';
 import { ThbBankStrategy } from './strategies/thb-bank.strategy';
 import { CzkStrategyDependencies } from './strategies/czk-base.strategy';
-import { CzkWireStrategy } from './strategies/czk-wire.strategy';
 import { CzkBankStrategy } from './strategies/czk-bank.strategy';
 import { KztStrategyDependencies } from './strategies/kzt-base.strategy';
 import { KztCardStrategy } from './strategies/kzt-card.strategy';
@@ -62,9 +62,7 @@ import { TryIbanStrategy } from './strategies/try-iban.strategy';
 import { AznStrategyDependencies } from './strategies/azn-base.strategy';
 import { AznCardStrategy } from './strategies/azn-card.strategy';
 import { CnyStrategyDependencies } from './strategies/cny-base.strategy';
-import { CnyQrStrategy } from './strategies/cny-qr.strategy';
 import { CnyCardStrategy } from './strategies/cny-card.strategy';
-import { CnyAccountStrategy } from './strategies/cny-account.strategy';
 import { UsdStrategyDependencies } from './strategies/usd-base.strategy';
 import { UsdPayoneerStrategy } from './strategies/usd-payoneer.strategy';
 import { KztBankCardStrategy } from './strategies/kzt-bank-card.strategy';
@@ -228,6 +226,8 @@ export class CreateRequestWizard {
           [PaymentMethodEnum.CARD]: BUTTON_TEXTS.CARD,
           [PaymentMethodEnum.IBAN]: BUTTON_TEXTS.IBAN,
           [PaymentMethodEnum.WIRE]: 'Bank transfer',
+          [PaymentMethodEnum.WIZE]: 'Wise',
+          [PaymentMethodEnum.PAYPAL]: 'PayPal',
           [PaymentMethodEnum.PHONE]: 'Phone transfer',
           [PaymentMethodEnum.SKRILL]: 'Skrill / email',
           [PaymentMethodEnum.QR]: 'QR',
@@ -452,55 +452,38 @@ export class CreateRequestWizard {
       ctx.wizard.selectStep(0);
       return;
     }
-    const isQr = methodEnum === PaymentMethodEnum.QR || methodEnum === PaymentMethodEnum.CNY_ALIPAY || methodEnum === PaymentMethodEnum.CNY_WECHAT;
-    if (isQr) {
-      const wizardState = ctx.scene.state as {
-        cnyQrPayload?: CnyQrWizardPayload;
-      };
-
-      if (!wizardState.cnyQrPayload) {
-        wizardState.cnyQrPayload = {};
-      }
-
-      const qrPayload = wizardState.cnyQrPayload;
-
-      if (input.length > 0) {
-        qrPayload.text = input;
-      }
-
+    const isCnyPhoto = methodEnum === PaymentMethodEnum.CNY_ALIPAY || methodEnum === PaymentMethodEnum.CNY_WECHAT;
+    if (isCnyPhoto) {
       const photos = (message as { photo?: PhotoSize[] }).photo;
-      if (Array.isArray(photos) && photos.length > 0) {
-        const largest = photos[photos.length - 1];
-        if (largest) {
-          qrPayload.photo = largest;
-          
-          // Add photo message to deletion list immediately when received
-          this.addPhotoMessageToDeletionList(ctx);
+      if (!Array.isArray(photos) || photos.length === 0) {
+        await this.replyEphemeral(
+          ctx,
+          'Пожалуйста, отправьте фотографию с подписью (сумма в подписи).',
+        );
+        ctx.wizard.selectStep(1);
+        return;
+      }
+
+      const largest = photos[photos.length - 1];
+      if (largest) {
+        const wizardState = ctx.scene.state as {
+          cnyQrPayload?: CnyQrWizardPayload;
+        };
+        if (!wizardState.cnyQrPayload) {
+          wizardState.cnyQrPayload = {};
         }
+        wizardState.cnyQrPayload.photo = largest;
+        this.addPhotoMessageToDeletionList(ctx);
       }
 
-      const hasText = Boolean(qrPayload.text && qrPayload.text.trim().length > 0);
-      const hasPhoto = Boolean(qrPayload.photo);
-
-      if (!hasText) {
+      if (!input) {
         await this.replyEphemeral(
           ctx,
-          'Пожалуйста, отправьте данные заявки текстом (сумма, идентификатор, получатель).',
+          'Пожалуйста, добавьте подпись к фото (сумма).',
         );
         ctx.wizard.selectStep(1);
         return;
       }
-
-      if (!hasPhoto) {
-        await this.replyEphemeral(
-          ctx,
-          'Теперь прикрепите фотографию с QR-кодом получателя.',
-        );
-        ctx.wizard.selectStep(1);
-        return;
-      }
-
-      input = qrPayload.text!.trim();
     } else if (!input) {
       await this.replyEphemeral(
         ctx,
@@ -535,22 +518,10 @@ export class CreateRequestWizard {
       caption?: string;
     };
 
-    let attachments: RequestAttachment[] | undefined;
-    if (methodEnum === PaymentMethodEnum.QR) {
-      const state = ctx.scene.state as {
-        cnyQrAttachments?: RequestAttachment[];
-      };
-      if (state?.cnyQrAttachments?.length) {
-        attachments = [...state.cnyQrAttachments];
-        delete state.cnyQrAttachments;
-      }
-    }
-
     await this.handleStrategySuccess(ctx, {
       requests: result.requests,
       details: result.details,
       originalMessage,
-      attachments,
     });
   }
 
@@ -676,7 +647,8 @@ export class CreateRequestWizard {
       }),
       new UsdPayoneerStrategy(usdDeps),
       new UsdSkrillEmailStrategy(usdDeps),
-      new UsdWireStrategy(usdDeps),
+      new UsdWiseStrategy(usdDeps),
+      new UsdPayPalStrategy(usdDeps),
       new UahCardStrategy({
         ...uahDeps,
         utilsService: this.utilsService,
@@ -688,11 +660,10 @@ export class CreateRequestWizard {
       }),
       new EurIbanStrategy(eurDeps),
       new EurSkrillEmailStrategy(eurDeps),
+      new EurWiseStrategy(eurDeps),
       new AedIbanStrategy(aedDeps),
       new PlnIbanStrategy(plnDeps),
-      new ThbWireStrategy(thbDeps),
       new ThbBankStrategy(thbDeps),
-      new CzkWireStrategy(czkDeps),
       new CzkBankStrategy(czkDeps),
       new KztBankCardStrategy({
         ...kztDeps,
@@ -704,11 +675,9 @@ export class CreateRequestWizard {
         ...aznDeps,
         utilsService: this.utilsService,
       }),
-      new CnyQrStrategy(cnyDeps),
       new CnyAlipayStrategy(cnyDeps),
       new CnyWechatStrategy(cnyDeps),
       new CnyCardStrategy(cnyDeps),
-      new CnyAccountStrategy(cnyDeps),
     ];
   }
   private async buildPaymentMethodKeyboard(

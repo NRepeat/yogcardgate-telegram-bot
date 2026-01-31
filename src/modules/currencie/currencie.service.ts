@@ -39,6 +39,7 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethodEnum, string> = {
   [PaymentMethodEnum.CNY_WECHAT]: 'WeChat Pay',
   [PaymentMethodEnum.CNY_CARD]: 'карта',
   [PaymentMethodEnum.CNY_ACCOUNT]: 'номер счета',
+  [PaymentMethodEnum.PAYPAL]: 'PayPal',
 };
 
 const CHUNK_SIZE = 2;

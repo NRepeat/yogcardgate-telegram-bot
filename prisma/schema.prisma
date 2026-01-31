@@ -51,6 +51,7 @@ enum PaymentMethodEnum {
   CNY_WECHAT
   CNY_CARD
   CNY_ACCOUNT
+  PAYPAL
 }
 
 enum RoleEnum {
@@ -164,6 +165,8 @@ model PaymentRequestMethod {
   skrillDetails SkrillEmailPaymentRequestsMethod?
   payoneerDetails PayoneerPaymentRequestsMethod?
   qrDetails   QrPaymentRequestsMethod?
+  wiseDetails  WisePaymentRequestsMethod?
+  paypalDetails PayPalPaymentRequestsMethod?
 }
 
 model CardPaymentRequestsMethod {
@@ -252,6 +255,29 @@ model QrPaymentRequestsMethod {
   methodId    String               @unique
   method      PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
   identifier  String
+  comment     String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model WisePaymentRequestsMethod {
+  id          String               @id @default(cuid())
+  methodId    String               @unique
+  method      PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  email       String
+  fullName    String
+  cardNumber  String?
+  comment     String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model PayPalPaymentRequestsMethod {
+  id          String               @id @default(cuid())
+  methodId    String               @unique
+  method      PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  email       String
+  fullName    String
   comment     String?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt

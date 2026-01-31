@@ -111,6 +111,30 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       ],
       sample: 'payonner@mail.com\n1112',
     },
+    [PaymentMethodEnum.WIZE]: {
+      title: 'Wise',
+      intro: DEFAULT_INTRO,
+      fields: [
+        {
+          label: 'Email кошелька',
+          description: 'например wise@mail.com',
+        },
+        {
+          label: 'ФИО латиницей',
+          description: 'точно как в Wise',
+        },
+        {
+          label: 'Номер карты Wise',
+          optional: true,
+          description: '16 цифр карты Wise',
+        },
+        {
+          label: 'Сумма',
+          description: 'например 1000',
+        },
+      ],
+      sample: 'wise@mail.com\nJOHN DOE\n1000',
+    },
   },
   [CurrencyEnum.AED]: {
     [PaymentMethodEnum.IBAN]: {
@@ -185,23 +209,48 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       ],
       sample: 'payoneer@mail.com\n1111',
     },
-    [PaymentMethodEnum.WIRE]: {
-      title: 'WIRE',
+    [PaymentMethodEnum.WIZE]: {
+      title: 'Wise',
       intro: DEFAULT_INTRO,
       fields: [
         {
-          label: 'ФИО получателя латиницей',
+          label: 'Email кошелька',
+          description: 'например wise@mail.com',
         },
         {
-          label: 'Номер счёта / wire реквизиты',
+          label: 'ФИО латиницей',
+          description: 'точно как в Wise',
         },
         {
-          label: 'Сумма и валюта',
-          description: 'например 5000',
+          label: 'Номер карты Wise',
           optional: true,
+          description: '16 цифр карты Wise',
+        },
+        {
+          label: 'Сумма',
+          description: 'например 5000',
         },
       ],
-      sample: 'JOHN DOE\n1234567890\n5000',
+      sample: 'wise@mail.com\nJOHN DOE\n5000',
+    },
+    [PaymentMethodEnum.PAYPAL]: {
+      title: 'PayPal',
+      intro: DEFAULT_INTRO,
+      fields: [
+        {
+          label: 'Email PayPal',
+          description: 'например paypal@mail.com',
+        },
+        {
+          label: 'ФИО латиницей',
+          description: 'точно как в PayPal',
+        },
+        {
+          label: 'Сумма',
+          description: 'например 5000',
+        },
+      ],
+      sample: 'paypal@mail.com\nJOHN DOE\n5000',
     },
   },
   [CurrencyEnum.PLN]: {
@@ -224,28 +273,6 @@ const FORM_REGISTRY: PaymentFormRegistry = {
     },
   },
   [CurrencyEnum.THB]: {
-    [PaymentMethodEnum.WIRE]: {
-      title: 'Банковский счёт',
-      intro: DEFAULT_INTRO,
-      fields: [
-        {
-          label: 'Сумма и валюта',
-          description: 'например 65000',
-        },
-        {
-          label: 'Номер счёта',
-          description: 'например 3880523258',
-        },
-        {
-          label: 'ФИО латиницей',
-          description: 'например Worapan Kittiworaroot',
-        },
-        {
-          label: 'Название банка',
-        },
-      ],
-      sample: '50000 \n0000000000\nNAME SURNAME\nBank Name',
-    },  
      [PaymentMethodEnum.BANK]:{
       title: 'Bank payment',
       intro: DEFAULT_INTRO,
@@ -271,24 +298,6 @@ const FORM_REGISTRY: PaymentFormRegistry = {
     }
   },
   [CurrencyEnum.CZK]: {
-    [PaymentMethodEnum.WIRE]: {
-      title: 'účet',
-      intro: DEFAULT_INTRO,
-      fields: [
-        {
-          label: 'Účet (номер счёта)',
-          description: 'например 96092666/5500',
-        },
-        {
-          label: 'ФИО латиницей',
-        },
-        {
-          label: 'Сумма',
-          description: 'например 10000',
-        },
-      ],
-      sample: '00000000/0000\nNAME SURNAME\n10000',
-    },
     [PaymentMethodEnum.BANK]:{
       title: 'Bank payment',
       intro: DEFAULT_INTRO,
@@ -398,61 +407,37 @@ const FORM_REGISTRY: PaymentFormRegistry = {
     },
   },
   [CurrencyEnum.CNY]: {
-    [PaymentMethodEnum.QR]: {
-      title: 'QR',
-      intro: DEFAULT_INTRO,
-      fields: [
-        {
-          label: 'Сумма и валюта',
-          description: 'например 2812',
-        },
-        {
-          label: 'Идентификатор/название получателя',
-          description: 'например Lub*************',
-        },
-        {
-          label: 'ФИО латиницей',
-        },
-      ],
-      sample: '3000\nRECIPIENT IDENTIFIER\nNAME SURNAME',
-    },
     [PaymentMethodEnum.CNY_ALIPAY]: {
       title: 'Alipay',
-      intro: DEFAULT_INTRO,
+      intro: 'отправьте фото с подписью (сумма в подписи):',
       fields: [
         {
-          label: 'Сумма и валюта',
-          description: 'например 2812',
+          label: 'Фото',
+          description: 'скриншот перевода',
         },
         {
-          label: 'Идентификатор/название получателя',
-          description: 'например Lub*************',
-        },
-        {
-          label: 'ФИО латиницей',
+          label: 'Сумма',
+          description: 'в подписи к фото, например 2812',
         },
       ],
-      sample: '3000\nRECIPIENT IDENTIFIER\nNAME SURNAME',
-      notes: ['Оплата через Alipay'],
+      sample: '3000',
+      notes: ['Отправьте фото + сумма в подписи'],
     },
     [PaymentMethodEnum.CNY_WECHAT]: {
       title: 'WeChat Pay',
-      intro: DEFAULT_INTRO,
+      intro: 'отправьте фото с подписью (сумма в подписи):',
       fields: [
         {
-          label: 'Сумма и валюта',
-          description: 'например 2812',
+          label: 'Фото',
+          description: 'скриншот перевода',
         },
         {
-          label: 'Идентификатор/название получателя',
-          description: 'например Lub*************',
-        },
-        {
-          label: 'ФИО латиницей',
+          label: 'Сумма',
+          description: 'в подписи к фото, например 2812',
         },
       ],
-      sample: '3000\nRECIPIENT IDENTIFIER\nNAME SURNAME',
-      notes: ['Оплата через WeChat Pay'],
+      sample: '3000',
+      notes: ['Отправьте фото + сумма в подписи'],
     },
     [PaymentMethodEnum.CNY_CARD]: {
       title: 'Оплата по карте',
@@ -468,21 +453,6 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       ],
       sample: '4000000012345678 3000 张三',
       notes: ['Оплата по китайской карте'],
-    },
-    [PaymentMethodEnum.CNY_ACCOUNT]: {
-      title: 'Оплата по номеру счета',
-      intro: DEFAULT_INTRO,
-      fields: [
-        {
-          label: 'Номер счета - Сумма',
-        },
-        {
-          label: 'ФИО на китайском',
-          description: 'точно как в банке',
-        },
-      ],
-      sample: '1234567890123456 3000 张三',
-      notes: ['Оплата по банковскому счету'],
     },
   },
 };

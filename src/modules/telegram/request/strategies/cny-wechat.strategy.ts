@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { PaymentMethodEnum, AccessType } from '@prisma/client';
+import { PaymentMethodEnum } from '@prisma/client';
 import { FullRequestType, CustomSceneContext } from 'src/types/types';
 import {
   CnyBaseStrategy,
@@ -11,8 +11,8 @@ import {
 } from './cny-base.strategy';
 import { PhotoSize } from 'telegraf/typings/core/types/typegram';
 
-interface CnyQrParsedInput extends ParsedStrategyInput {
-  identifier: string;
+interface CnyWechatParsedInput extends ParsedStrategyInput {
+  identifier?: string;
   recipient?: string;
 }
 
@@ -26,68 +26,32 @@ export class CnyWechatStrategy extends CnyBaseStrategy {
   }
 
   protected parseInput(message: string) {
-    const blocks = message
-      .split(/\n{2,}/)
-      .map((block) =>
-        block
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .filter(Boolean),
-      )
-      .filter((lines) => lines.length > 0);
+    const lines = message
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
 
-    if (blocks.length === 0) {
-      const single = message
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
-      if (single.length) {
-        blocks.push(single);
-      }
-    }
-
-    if (blocks.length === 0) {
+    if (lines.length === 0) {
       return {
         success: false as const,
-        error: 'Укажите сумму, идентификатор и ФИО получателя.',
+        error: 'Укажите сумму в подписи к фото.',
       };
     }
 
-    const parsed: CnyQrParsedInput[] = [];
-    for (const lines of blocks) {
-      if (lines.length < 2) {
-        return {
-          success: false as const,
-          error: 'Для Alipay требуется минимум две строки: сумма и идентификатор.',
-        };
-      }
-
-      const amountLine = lines[0];
-      const identifier = lines[1];
-      const recipient = lines[2] ?? undefined;
-      const comment = lines.slice(3).join('\n').trim() || undefined;
-
-      const amount = this.tryParseAmount(amountLine);
-      if (!amount || amount <= 0) {
-        return {
-          success: false as const,
-          error: 'Сумма должна быть положительным числом.',
-        };
-      }
-
-      if (!identifier || identifier.length < 3) {
-        return {
-          success: false as const,
-          error: 'Укажите идентификатор получателя Alipay.',
-        };
-      }
-
-      parsed.push({ amount, identifier, recipient, comment });
+    const amount = this.tryParseAmount(lines[0]);
+    if (!amount || amount <= 0) {
+      return {
+        success: false as const,
+        error: 'Сумма должна быть положительным числом.',
+      };
     }
+
+    const identifier = lines[1] ?? undefined;
+    const recipient = lines[2] ?? undefined;
 
     return {
       success: true as const,
-      data: parsed,
+      data: [{ amount, identifier, recipient }],
     };
   }
 
@@ -97,7 +61,7 @@ export class CnyWechatStrategy extends CnyBaseStrategy {
     vendorId,
     rate,
     parsed,
-  }: CreateRequestParams & { parsed: CnyQrParsedInput }): Promise<FullRequestType> {
+  }: CreateRequestParams & { parsed: CnyWechatParsedInput }): Promise<FullRequestType> {
     const photo = this.extractPhotoOrThrow(ctx);
     const photoBuffer = await this.downloadPhotoBuffer(ctx, photo);
     const request = await this.deps.requestService.createGeneralRequest({
@@ -109,28 +73,26 @@ export class CnyWechatStrategy extends CnyBaseStrategy {
       method: {
         method: PaymentMethodEnum.CNY_WECHAT,
         qr: {
-          identifier: parsed.identifier,
-          comment: parsed.recipient || parsed.comment ? [parsed.recipient, parsed.comment]
-            .filter(Boolean)
-            .join('\n')
-            : null,
+          identifier: parsed.identifier || 'WeChat',
+          comment: parsed.recipient ?? null,
         },
       },
     });
 
-    // Save photo locally and store path in scene state
     const photoPath = await this.savePhotoForRequest(photoBuffer, request.id);
-    await this.savePhotoToDatabase(request.id, photoPath, ctx);
+    await this.savePhotoToSceneState(photoPath, ctx);
 
     return request as unknown as FullRequestType;
   }
 
-  protected buildDetails(data: CnyQrParsedInput): string {
+  protected buildDetails(data: CnyWechatParsedInput): string {
     const lines = [
-      'Тип: CNY Wechat',
-      `Идентификатор: ${data.identifier}`,
+      'Тип: CNY WeChat',
       `Сумма: ${data.amount} CNY`,
     ];
+    if (data.identifier) {
+      lines.push(`Идентификатор: ${data.identifier}`);
+    }
     if (data.recipient) {
       lines.push(`Получатель: ${data.recipient}`);
     }
@@ -148,43 +110,24 @@ export class CnyWechatStrategy extends CnyBaseStrategy {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  private getWizardPayload(ctx: CustomSceneContext) {
+  private extractPhotoOrThrow(ctx: CustomSceneContext): PhotoSize {
     const state = ctx.scene.state as {
-      cnyQrPayload?: {
-        text?: string;
-        photo?: PhotoSize;
-      };
+      cnyQrPayload?: { photo?: PhotoSize };
     };
 
-    if (!state.cnyQrPayload) {
-      state.cnyQrPayload = {};
+    if (state.cnyQrPayload?.photo) {
+      return state.cnyQrPayload.photo;
     }
 
-    return state.cnyQrPayload;
-  }
-
-  private extractPhotoOrThrow(ctx: CustomSceneContext): PhotoSize {
-    const payload = this.getWizardPayload(ctx);
     const message = ctx.message as { photo?: PhotoSize[] } | undefined;
-    const messagePhoto =
-      message && Array.isArray(message.photo) && message.photo.length > 0
-        ? message.photo[message.photo.length - 1]
-        : undefined;
-
-    if (messagePhoto) {
-      payload.photo = messagePhoto;
-      return messagePhoto;
-    }
-
-    if (payload.photo) {
-      return payload.photo;
+    if (message && Array.isArray(message.photo) && message.photo.length > 0) {
+      return message.photo[message.photo.length - 1];
     }
 
     throw new MissingAttachmentError(
-      'Пожалуйста, прикрепите фотографию QR-кода Wechat получателя.',
+      'Пожалуйста, отправьте фотографию WeChat.',
     );
   }
-
 
   private async savePhotoForRequest(buffer: Buffer, requestId: string): Promise<string> {
     const photoDir = path.join(process.cwd(), 'storage', 'request-photos');
@@ -217,31 +160,22 @@ export class CnyWechatStrategy extends CnyBaseStrategy {
 
       return Buffer.from(await response.arrayBuffer());
     } catch (error) {
-      console.error('[CnyWechatStrategy] Unable to download photo from message', error);
+      console.error('[CnyWechatStrategy] Unable to download photo', error);
       throw new MissingAttachmentError(
-        'Не удалось загрузить фотографию QR-кода Wechat. Попробуйте отправить заявку снова.',
+        'Не удалось загрузить фотографию. Попробуйте отправить заявку снова.',
       );
     }
   }
 
-  private async savePhotoToDatabase(
-    requestId: string,
+  private async savePhotoToSceneState(
     photoPath: string,
     ctx: CustomSceneContext,
   ): Promise<void> {
     try {
-      // Store the photo path in the scene state so it can be retrieved later
-      // when the actual message is sent and we have a real messageId
-      const state = ctx.scene.state as {
-        cnyQrPhotoPath?: string;
-      };
+      const state = ctx.scene.state as { cnyQrPhotoPath?: string };
       state.cnyQrPhotoPath = photoPath;
-      
-      console.log(`[CnyWechatStrategy] Photo path stored in scene state: ${photoPath}`);
     } catch (error) {
-      console.error('[CnyWechatStrategy] Failed to save photo path to scene state', error);
-      // Don't throw here as the request is already created successfully
+      console.error('[CnyWechatStrategy] Failed to save photo path', error);
     }
   }
-
 }

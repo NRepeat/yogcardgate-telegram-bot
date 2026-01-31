@@ -10,6 +10,8 @@ import {
   PhonePaymentRequestsMethod,
   PayoneerPaymentRequestsMethod,
   QrPaymentRequestsMethod,
+  WisePaymentRequestsMethod,
+  PayPalPaymentRequestsMethod,
   Message,
   PaymentMethod,
   PaymentRequests,
@@ -102,6 +104,8 @@ export type FullRequestType = PaymentRequests & {
     skrillDetails?: SkrillEmailPaymentRequestsMethod | null;
     payoneerDetails?: PayoneerPaymentRequestsMethod | null;
     qrDetails?: QrPaymentRequestsMethod | null;
+    wiseDetails?: WisePaymentRequestsMethod | null;
+    paypalDetails?: PayPalPaymentRequestsMethod | null;
   })[];
   message?: Message[];
   vendor?: Vendors;

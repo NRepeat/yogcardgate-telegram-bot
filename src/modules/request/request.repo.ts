@@ -51,6 +51,17 @@ export interface PaymentMethodDetailsInput {
     identifier: string;
     comment?: string | null;
   };
+  wise?: {
+    email: string;
+    fullName: string;
+    cardNumber?: string | null;
+    comment?: string | null;
+  };
+  paypal?: {
+    email: string;
+    fullName: string;
+    comment?: string | null;
+  };
 }
 
 export interface GeneralRequestCreateInput {
@@ -87,6 +98,8 @@ const PAYMENT_REQUEST_DEFAULT_INCLUDE = {
       skrillDetails: true,
       payoneerDetails: true,
       qrDetails: true,
+      wiseDetails: true,
+      paypalDetails: true,
     },
   },
 } as const;
@@ -135,7 +148,6 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
         },
       };
     case PaymentMethodEnum.WIRE:
-    case PaymentMethodEnum.WIZE:
       if (!details.wire) {
         throw new Error('Wire details are required for wire method');
       }
@@ -147,6 +159,35 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
             recipient: details.wire.recipient,
             bankName: details.wire.bankName ?? null,
             comment: details.wire.comment ?? null,
+          },
+        },
+      };
+    case PaymentMethodEnum.WIZE:
+      if (!details.wise) {
+        throw new Error('Wise details are required for WIZE method');
+      }
+      return {
+        method: details.method,
+        wiseDetails: {
+          create: {
+            email: details.wise.email,
+            fullName: details.wise.fullName,
+            cardNumber: details.wise.cardNumber ?? null,
+            comment: details.wise.comment ?? null,
+          },
+        },
+      };
+    case PaymentMethodEnum.PAYPAL:
+      if (!details.paypal) {
+        throw new Error('PayPal details are required for PAYPAL method');
+      }
+      return {
+        method: details.method,
+        paypalDetails: {
+          create: {
+            email: details.paypal.email,
+            fullName: details.paypal.fullName,
+            comment: details.paypal.comment ?? null,
           },
         },
       };
@@ -221,16 +262,17 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
         },
       };
     case PaymentMethodEnum.CNY_ACCOUNT:
-      if (!details.wire) {
-        throw new Error('Wire details are required for CNY_ACCOUNT method');
+      if (!details.bank) {
+        throw new Error('Bank details are required for CNY_ACCOUNT method');
       }
       return {
         method: details.method,
-        wireDetails: {
+        bankDetails: {
           create: {
-            account: details.wire.account,
-            recipient: details.wire.recipient,
-            comment: details.wire.comment ?? null,
+            account: details.bank.account,
+            recipient: details.bank.recipient,
+            bankName: details.bank.bankName ?? null,
+            comment: details.bank.comment ?? null,
           },
         },
       };

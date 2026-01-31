@@ -266,8 +266,9 @@ abstract class BaseRequestMenu {
       'QR': 'QR-код',
       'BANK': 'Банковская оплата',
       'PAYONEER': 'PAYONEER',
+      'PAYPAL': 'PayPal',
     };
-    
+
     return methodDisplayMap[methodName] || methodName;
   }
 
@@ -287,8 +288,13 @@ abstract class BaseRequestMenu {
       case PaymentMethodEnum.CNY_CARD:
         return this.buildCardLines(accessType, method);
       case PaymentMethodEnum.WIRE:
-      case PaymentMethodEnum.CNY_ACCOUNT:
         return this.buildWireLines(accessType, method);
+      case PaymentMethodEnum.WIZE:
+        return this.buildWiseLines(accessType, method);
+      case PaymentMethodEnum.PAYPAL:
+        return this.buildPayPalLines(accessType, method);
+      case PaymentMethodEnum.CNY_ACCOUNT:
+        return this.buildBankLines(accessType, method);
       case PaymentMethodEnum.IBAN:
         return this.buildIbanLines(accessType, method);
       case PaymentMethodEnum.PHONE:
@@ -368,8 +374,7 @@ abstract class BaseRequestMenu {
       details.bankName ? `🏦<b>Банк:</b> <i>${details.bankName}</i>` : null,
     ];
 
-    // Don't show comment for CNY_ACCOUNT as holder info is already displayed
-    if (method.method !== PaymentMethodEnum.CNY_ACCOUNT && details.comment) {
+    if (details.comment) {
       lines.push(`💬<b>Комментарий:</b> ${details.comment}`);
     }
 
@@ -450,6 +455,70 @@ abstract class BaseRequestMenu {
       details.identifier
         ? `💼<b>Идентификатор:</b> <code>${details.identifier}</code>`
         : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+    ];
+  }
+
+  private buildWiseLines(
+    accessType: AccessType,
+    method: RequestMethodWithDetails,
+  ): Array<string | null> {
+    const details = method.wiseDetails;
+    if (!details) {
+      return [];
+    }
+
+    const email = details.email
+      ? this.maskEmail(details.email, this.shouldMask(accessType))
+      : null;
+
+    return [
+      email ? `📧<b>Email:</b> <code>${email}</code>` : null,
+      details.fullName ? `👤<b>ФИО:</b> <code>${details.fullName}</code>` : null,
+      details.cardNumber ? `💳<b>Карта Wise:</b> <code>${details.cardNumber}</code>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+    ];
+  }
+
+  private buildPayPalLines(
+    accessType: AccessType,
+    method: RequestMethodWithDetails,
+  ): Array<string | null> {
+    const details = method.paypalDetails;
+    if (!details) {
+      return [];
+    }
+
+    const email = details.email
+      ? this.maskEmail(details.email, this.shouldMask(accessType))
+      : null;
+
+    return [
+      email ? `📧<b>Email:</b> <code>${email}</code>` : null,
+      details.fullName ? `👤<b>ФИО:</b> <code>${details.fullName}</code>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
+    ];
+  }
+
+  private buildBankLines(
+    accessType: AccessType,
+    method: RequestMethodWithDetails,
+  ): Array<string | null> {
+    const details = method.bankDetails;
+    if (!details) {
+      return [];
+    }
+
+    const account = details.account
+      ? this.maskDigits(details.account, this.shouldMask(accessType))
+      : null;
+
+    return [
+      account ? `🏦<b>Счёт:</b> <code>${account}</code>` : null,
+      details.recipient
+        ? `👤<b>Получатель:</b> <code>${details.recipient}</code>`
+        : null,
+      details.bankName ? `🏦<b>Банк:</b> <i>${details.bankName}</i>` : null,
       details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
     ];
   }

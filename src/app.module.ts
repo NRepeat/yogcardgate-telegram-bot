@@ -53,23 +53,53 @@ export class AppModule implements OnModuleInit {
     private readonly userService: UserService,
   ) {}
 
+  private async setCommandsWithRetry(
+    bot: any,
+    commands: { command: string; description: string }[],
+    options: any,
+    maxRetries = 3,
+  ) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        await bot.telegram.setMyCommands(commands, options);
+        return;
+      } catch (error: any) {
+        const retryAfter = error?.response?.parameters?.retry_after;
+        if (retryAfter && attempt < maxRetries - 1) {
+          console.warn(
+            `Rate limited by Telegram, retrying after ${retryAfter}s...`,
+          );
+          await new Promise((resolve) =>
+            setTimeout(resolve, retryAfter * 1000),
+          );
+        } else {
+          throw error;
+        }
+      }
+    }
+  }
+
   async onModuleInit() {
     const { Telegraf } = await import('telegraf');
     const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN') || '';
     if (!botToken) return;
     const bot = new Telegraf(botToken);
 
-    await bot.telegram.setMyCommands(
-      [
-        { command: 'start', description: 'Начать работу с ботом' },
-        { command: 'report', description: 'Отправить отчет' },
-        { command: 'pay', description: 'Создать заказ' },
-        { command: 'all_rates', description: 'Показать все курсы' },
-      ],
-      {
-        scope: { type: 'default' },
-      },
-    );
+    try {
+      await this.setCommandsWithRetry(
+        bot,
+        [
+          { command: 'start', description: 'Начать работу с ботом' },
+          { command: 'report', description: 'Отправить отчет' },
+          { command: 'pay', description: 'Создать заказ' },
+          { command: 'all_rates', description: 'Показать все курсы' },
+        ],
+        { scope: { type: 'default' } },
+      );
+    } catch (error) {
+      console.error('Error setting default commands:', error);
+    }
+
     const admin = await this.userService.getAdmins();
     const workers = await this.userService.getWorkers();
     if (!workers || workers.length === 0) {
@@ -78,7 +108,8 @@ export class AppModule implements OnModuleInit {
       for (const user of workers) {
         if (user.telegramId) {
           try {
-            await bot.telegram.setMyCommands(
+            await this.setCommandsWithRetry(
+              bot,
               [
                 { command: 'all_rates', description: 'Показать все курсы' },
                 {
@@ -104,7 +135,8 @@ export class AppModule implements OnModuleInit {
       for (const user of admin.users) {
         if (user.telegramId) {
           try {
-            await bot.telegram.setMyCommands(
+            await this.setCommandsWithRetry(
+              bot,
               [
                 {
                   command: 'report_all',
@@ -137,12 +169,18 @@ export class AppModule implements OnModuleInit {
       }
     }
     const chatId = this.configService.get<number>('WORK_GROUP_CHAT');
-    await bot.telegram.setMyCommands(
-      [
-        { command: 'start', description: 'Начать работу с ботом' },
-        { command: 'all_rates', description: 'Показать все курсы' },
-      ],
-      { scope: { type: 'chat', chat_id: Number(chatId) } },
-    );
+    try {
+      await this.setCommandsWithRetry(
+        bot,
+        [
+          { command: 'start', description: 'Начать работу с ботом' },
+          { command: 'pay', description: 'Создать заказ' },
+          { command: 'all_rates', description: 'Показать все курсы' },
+        ],
+        { scope: { type: 'chat', chat_id: Number(chatId) } },
+      );
+    } catch (error) {
+      console.error('Error setting group chat commands:', error);
+    }
   }
 }

@@ -53,6 +53,10 @@ export class AppModule implements OnModuleInit {
     private readonly userService: UserService,
   ) {}
 
+  private delay(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   private async setCommandsWithRetry(
     bot: any,
     commands: { command: string; description: string }[],
@@ -69,9 +73,7 @@ export class AppModule implements OnModuleInit {
           console.warn(
             `Rate limited by Telegram, retrying after ${retryAfter}s...`,
           );
-          await new Promise((resolve) =>
-            setTimeout(resolve, retryAfter * 1000),
-          );
+          await this.delay(retryAfter * 1000);
         } else {
           throw error;
         }
@@ -84,6 +86,8 @@ export class AppModule implements OnModuleInit {
     const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN') || '';
     if (!botToken) return;
     const bot = new Telegraf(botToken);
+
+    const DELAY_BETWEEN_CALLS = 200;
 
     try {
       await this.setCommandsWithRetry(
@@ -99,6 +103,8 @@ export class AppModule implements OnModuleInit {
     } catch (error) {
       console.error('Error setting default commands:', error);
     }
+
+    await this.delay(DELAY_BETWEEN_CALLS);
 
     const admin = await this.userService.getAdmins();
     const workers = await this.userService.getWorkers();
@@ -126,6 +132,7 @@ export class AppModule implements OnModuleInit {
             );
             continue;
           }
+          await this.delay(DELAY_BETWEEN_CALLS);
         }
       }
     }
@@ -165,6 +172,7 @@ export class AppModule implements OnModuleInit {
             );
             continue;
           }
+          await this.delay(DELAY_BETWEEN_CALLS);
         }
       }
     }
@@ -182,5 +190,7 @@ export class AppModule implements OnModuleInit {
     } catch (error) {
       console.error('Error setting group chat commands:', error);
     }
+
+    console.log('Bot commands registered successfully');
   }
 }

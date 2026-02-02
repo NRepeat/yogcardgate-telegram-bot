@@ -97,7 +97,7 @@ export class RequestTaskService {
     }
   }
 
-  @Cron(CronExpression.EVERY_10_MINUTES)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   async sendNotification() {
     const requests =
       (await this.requestService.getAllRequests()) as FullRequestType[];

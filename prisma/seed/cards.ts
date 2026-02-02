@@ -108,6 +108,11 @@ const paymentMethods = [
     descriptionEn: 'Skrill',
   },
   {
+    nameEn: PaymentMethodEnum.PAYPAL,
+    description: 'PAYPAL',
+    descriptionEn: 'PAYPAL',
+  },
+  {
     nameEn: PaymentMethodEnum.PAYONEER,
     description: 'Payoneer',
     descriptionEn: 'Payoneer',
@@ -156,6 +161,7 @@ const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
     PaymentMethodEnum.WISE,
     PaymentMethodEnum.SKRILL,
     PaymentMethodEnum.PAYONEER,
+    PaymentMethodEnum.PAYPAL,
   ],
   [CurrencyEnum.EUR]: [
     PaymentMethodEnum.CARD,
@@ -173,11 +179,9 @@ const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
   [CurrencyEnum.TRY]: [PaymentMethodEnum.IBAN],
   [CurrencyEnum.AZN]: [PaymentMethodEnum.CARD],
   [CurrencyEnum.CNY]: [
-    PaymentMethodEnum.QR,
     PaymentMethodEnum.CNY_ALIPAY,
     PaymentMethodEnum.CNY_WECHAT,
     PaymentMethodEnum.CNY_CARD,
-    PaymentMethodEnum.CNY_ACCOUNT,
   ],
   [CurrencyEnum.AED]: [PaymentMethodEnum.IBAN],
 };

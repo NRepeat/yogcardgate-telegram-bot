@@ -395,7 +395,7 @@ export class UserActions {
         const publicPayload = this.buildPublicCancelPayload(
           request as unknown as FullRequestType,
         );
-        publicPayload.text = (publicPayload.text ?? '') + '\n💳 Валютная карта';
+        publicPayload.text = (publicPayload.text ?? '') + '\n🚫 Ошибка выплаты';
         await this.telegramService.updateAllPublicMessagesWithRequestsId(
           publicPayload,
           request.id,

@@ -22,7 +22,7 @@ export class RequestMessageFactory {
         case PaymentMethodEnum.KZT_OTHER_BANKS:
         case PaymentMethodEnum.CNY_CARD:
           return this.buildCardMessage(accessType, request, method, options);
-        case PaymentMethodEnum.WIRE:
+        case PaymentMethodEnum.WISE:
         return this.buildWireMessage(accessType, request, method, options);
       case PaymentMethodEnum.WIZE:
         return this.buildWiseMessage(accessType, request, method, options);
@@ -514,7 +514,7 @@ export class RequestMessageFactory {
       [PaymentMethodEnum.CNY_ACCOUNT]: 'номер счета',
       [PaymentMethodEnum.CARD]: 'карта',
       [PaymentMethodEnum.IBAN]: 'IBAN',
-      [PaymentMethodEnum.WIRE]: 'ваер',
+      [PaymentMethodEnum.WISE]: 'ваер',
       [PaymentMethodEnum.PHONE]: 'телефон',
       [PaymentMethodEnum.WIZE]: 'Wise',
       [PaymentMethodEnum.SKRILL]: 'Skrill',

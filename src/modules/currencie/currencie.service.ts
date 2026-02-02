@@ -26,7 +26,7 @@ const POPULAR_CURRENCY_ORDER: CurrencyEnum[] = [
 const PAYMENT_METHOD_LABELS: Record<PaymentMethodEnum, string> = {
   [PaymentMethodEnum.CARD]: 'карта',
   [PaymentMethodEnum.IBAN]: 'IBAN',
-  [PaymentMethodEnum.WIRE]: 'ваер',
+  [PaymentMethodEnum.WISE]: 'ваер',
   [PaymentMethodEnum.PHONE]: 'телефон',
   [PaymentMethodEnum.WIZE]: 'Wise',
   [PaymentMethodEnum.SKRILL]: 'Skrill',

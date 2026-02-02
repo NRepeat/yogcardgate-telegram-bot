@@ -259,7 +259,7 @@ abstract class BaseRequestMenu {
       'CNY_ACCOUNT': 'номер счета',
       'CARD': 'карта',
       'IBAN': 'IBAN',
-      'WIRE': 'ваер',
+      'WISE': 'ваер',
       'PHONE': 'телефон',
       'WIZE': 'Wise',
       'SKRILL': 'Skrill',
@@ -287,7 +287,7 @@ abstract class BaseRequestMenu {
       case PaymentMethodEnum.KZT_OTHER_BANKS:
       case PaymentMethodEnum.CNY_CARD:
         return this.buildCardLines(accessType, method);
-      case PaymentMethodEnum.WIRE:
+      case PaymentMethodEnum.WISE:
         return this.buildWireLines(accessType, method);
       case PaymentMethodEnum.WIZE:
         return this.buildWiseLines(accessType, method);

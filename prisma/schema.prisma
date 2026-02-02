@@ -38,9 +38,8 @@ enum CurrencyEnum {
 enum PaymentMethodEnum {
   CARD
   IBAN
-  WIRE
   PHONE
-  WIZE
+  WISE
   BANK
   PAYONEER
   SKRILL

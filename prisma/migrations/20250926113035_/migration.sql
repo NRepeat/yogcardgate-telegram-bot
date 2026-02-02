@@ -6,7 +6,7 @@
 */
 -- AlterEnum
 BEGIN;
-CREATE TYPE "PaymentMethodEnum_new" AS ENUM ('CARD', 'IBAN', 'WIRE', 'PHONE', 'WIZE', 'BANK', 'PAYONEER', 'SKRILL', 'QR');
+CREATE TYPE "PaymentMethodEnum_new" AS ENUM ('CARD', 'IBAN', 'WISE', 'PHONE', 'WIZE', 'BANK', 'PAYONEER', 'SKRILL', 'QR');
 ALTER TABLE "PaymentRequestMethod" ALTER COLUMN "method" TYPE "PaymentMethodEnum_new" USING ("method"::text::"PaymentMethodEnum_new");
 ALTER TABLE "PaymentMethod" ALTER COLUMN "nameEn" TYPE "PaymentMethodEnum_new" USING ("nameEn"::text::"PaymentMethodEnum_new");
 ALTER TYPE "PaymentMethodEnum" RENAME TO "PaymentMethodEnum_old";

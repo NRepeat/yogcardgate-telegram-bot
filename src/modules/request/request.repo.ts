@@ -147,7 +147,7 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
           },
         },
       };
-    case PaymentMethodEnum.WIRE:
+    case PaymentMethodEnum.WISE:
       if (!details.wire) {
         throw new Error('Wire details are required for wire method');
       }

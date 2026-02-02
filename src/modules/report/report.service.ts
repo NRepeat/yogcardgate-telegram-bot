@@ -218,10 +218,10 @@ export default class ReportService {
           clientName: details?.name ?? '',
         };
       }
-      case PaymentMethodEnum.WIRE: {
+      case PaymentMethodEnum.WISE: {
         const details = method.wireDetails;
         return {
-          type: PaymentMethodEnum.WIRE,
+          type: PaymentMethodEnum.WISE,
           requisites: details?.account ?? '',
           bank: details?.bankName ?? '',
           comment: details?.comment ?? '',

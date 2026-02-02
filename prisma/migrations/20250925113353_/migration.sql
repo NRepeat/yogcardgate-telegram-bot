@@ -6,11 +6,11 @@
 */
 -- AlterEnum
 BEGIN;
-CREATE TYPE "PaymentMethodEnum_new" AS ENUM ('CARD', 'IBAN', 'WIRE', 'PHONE', 'SKRILL_EMAIL', 'QR');
+CREATE TYPE "PaymentMethodEnum_new" AS ENUM ('CARD', 'IBAN', 'WISE', 'PHONE', 'SKRILL_EMAIL', 'QR');
 ALTER TABLE "PaymentMethod" ALTER COLUMN "nameEn" TYPE "PaymentMethodEnum_new"
 USING (
   CASE
-    WHEN "nameEn"::text = 'BANK_ACCOUNT' THEN 'WIRE'
+    WHEN "nameEn"::text = 'BANK_ACCOUNT' THEN 'WISE'
     ELSE "nameEn"::text
   END::"PaymentMethodEnum_new"
 );

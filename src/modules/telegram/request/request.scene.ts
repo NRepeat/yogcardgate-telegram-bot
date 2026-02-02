@@ -225,7 +225,7 @@ export class CreateRequestWizard {
         const fallbackLabels: Partial<Record<PaymentMethodEnum, string>> = {
           [PaymentMethodEnum.CARD]: BUTTON_TEXTS.CARD,
           [PaymentMethodEnum.IBAN]: BUTTON_TEXTS.IBAN,
-          [PaymentMethodEnum.WIRE]: 'Bank transfer',
+          [PaymentMethodEnum.WISE]: 'Bank transfer',
           [PaymentMethodEnum.WIZE]: 'Wise',
           [PaymentMethodEnum.PAYPAL]: 'PayPal',
           [PaymentMethodEnum.PHONE]: 'Phone transfer',

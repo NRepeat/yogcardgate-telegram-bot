@@ -93,9 +93,9 @@ const paymentMethods = [
     descriptionEn: 'IBAN transfer',
   },
   {
-    nameEn: PaymentMethodEnum.WIRE,
+    nameEn: PaymentMethodEnum.WISE,
     description: 'Оплата по номеру счета / ваер',
-    descriptionEn: 'Wire transfer (bank account)',
+    descriptionEn: 'Wise transfer (bank account)',
   },
   {
     nameEn: PaymentMethodEnum.PHONE,
@@ -153,7 +153,7 @@ const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
   [CurrencyEnum.UAH]: [PaymentMethodEnum.CARD, PaymentMethodEnum.IBAN],
   [CurrencyEnum.USD]: [
     PaymentMethodEnum.CARD,
-    PaymentMethodEnum.WIRE,
+    PaymentMethodEnum.WISE,
     PaymentMethodEnum.SKRILL,
     PaymentMethodEnum.PAYONEER,
   ],
@@ -360,7 +360,7 @@ async function seedRates() {
           rate: 37.5,
         },
         {
-          method: PaymentMethodEnum.WIRE,
+          method: PaymentMethodEnum.WISE,
           minAmount: 500,
           maxAmount: 100000,
           rate: 37.2,

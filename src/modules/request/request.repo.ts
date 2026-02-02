@@ -22,12 +22,6 @@ export interface PaymentMethodDetailsInput {
     name?: string | null;
     comment?: string | null;
   };
-  wire?: {
-    account: string;
-    recipient: string;
-    bankName?: string | null;
-    comment?: string | null;
-  };
   bank?: {
     account: string;
     recipient: string;
@@ -92,7 +86,6 @@ const PAYMENT_REQUEST_DEFAULT_INCLUDE = {
         },
       },
       ibanDetails: true,
-      wireDetails: true,
       bankDetails: true,
       phoneDetails: true,
       skrillDetails: true,
@@ -148,23 +141,8 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
         },
       };
     case PaymentMethodEnum.WISE:
-      if (!details.wire) {
-        throw new Error('Wire details are required for wire method');
-      }
-      return {
-        method: details.method,
-        wireDetails: {
-          create: {
-            account: details.wire.account,
-            recipient: details.wire.recipient,
-            bankName: details.wire.bankName ?? null,
-            comment: details.wire.comment ?? null,
-          },
-        },
-      };
-    case PaymentMethodEnum.WIZE:
       if (!details.wise) {
-        throw new Error('Wise details are required for WIZE method');
+        throw new Error('Wise details are required for WISE method');
       }
       return {
         method: details.method,

@@ -1,7 +1,7 @@
 /*
   Warnings:
 
-  - The values [WIZE] on the enum `PaymentMethodEnum` will be removed. If these variants are still used in the database, this will fail.
+  - The values [WISE] on the enum `PaymentMethodEnum` will be removed. If these variants are still used in the database, this will fail.
 
 */
 -- AlterEnum

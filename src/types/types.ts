@@ -20,7 +20,6 @@ import {
   RoleEnum,
   CurrencyEnum as PrismaCurrencyEnum,
   PaymentMethodEnum as PrismaPaymentMethodEnum,
-  WirePaymentRequestsMethod,
   User,
   Vendors,
 } from '@prisma/client';
@@ -93,12 +92,13 @@ export type CardRequestType = {
 };
 export type FullRequestType = PaymentRequests & {
   methods?: (PaymentRequestMethod & {
-    cardDetails?: (CardPaymentRequestsMethod & {
-      blackList?: BlackList[];
-      bank?: CardBank;
-    }) | null;
+    cardDetails?:
+      | (CardPaymentRequestsMethod & {
+          blackList?: BlackList[];
+          bank?: CardBank;
+        })
+      | null;
     ibanDetails?: IbanPaymentRequestsMethod | null;
-    wireDetails?: WirePaymentRequestsMethod | null;
     bankDetails?: BankPaymentRequestsMethod | null;
     phoneDetails?: PhonePaymentRequestsMethod | null;
     skrillDetails?: SkrillEmailPaymentRequestsMethod | null;

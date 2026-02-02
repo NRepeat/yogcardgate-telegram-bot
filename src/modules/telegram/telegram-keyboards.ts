@@ -56,7 +56,7 @@ class MenuWithMedia extends Menu implements IMenuWithMedia {
   ) {
     super(caption, markup, request);
     this.url = url;
-    
+
     // Only create read stream for local file paths, not HTTP URLs
     if (source) {
       this.source = source;
@@ -177,8 +177,8 @@ abstract class BaseRequestMenu {
     const maskSensitive = this.shouldMask(currentAccessType);
     const payload = method
       ? RequestMessageFactory.create(currentAccessType, this.request, method, {
-        maskSensitive,
-      })
+          maskSensitive,
+        })
       : null;
 
     if (payload) {
@@ -241,7 +241,9 @@ abstract class BaseRequestMenu {
       return null;
     }
 
-    const methodDisplayName = methodName ? this.getMethodDisplayName(methodName) : '';
+    const methodDisplayName = methodName
+      ? this.getMethodDisplayName(methodName)
+      : '';
     const label = [currencyLabel, methodDisplayName]
       .filter((part): part is string => Boolean(part && part.length > 0))
       .join(' • ');
@@ -251,22 +253,21 @@ abstract class BaseRequestMenu {
 
   private getMethodDisplayName(methodName: string): string {
     const methodDisplayMap: Record<string, string> = {
-      'KZT_KASPI_BANK': 'Kaspi Bank',
-      'KZT_OTHER_BANKS': 'Остальные банки',
-      'CNY_ALIPAY': 'Alipay',
-      'CNY_WECHAT': 'WeChat Pay',
-      'CNY_CARD': 'карта',
-      'CNY_ACCOUNT': 'номер счета',
-      'CARD': 'карта',
-      'IBAN': 'IBAN',
-      'WISE': 'ваер',
-      'PHONE': 'телефон',
-      'WIZE': 'Wise',
-      'SKRILL': 'Skrill',
-      'QR': 'QR-код',
-      'BANK': 'Банковская оплата',
-      'PAYONEER': 'PAYONEER',
-      'PAYPAL': 'PayPal',
+      KZT_KASPI_BANK: 'Kaspi Bank',
+      KZT_OTHER_BANKS: 'Остальные банки',
+      CNY_ALIPAY: 'Alipay',
+      CNY_WECHAT: 'WeChat Pay',
+      CNY_CARD: 'карта',
+      CNY_ACCOUNT: 'номер счета',
+      CARD: 'карта',
+      IBAN: 'IBAN',
+      PHONE: 'телефон',
+      WISE: 'Wise',
+      SKRILL: 'Skrill',
+      QR: 'QR-код',
+      BANK: 'Банковская оплата',
+      PAYONEER: 'PAYONEER',
+      PAYPAL: 'PayPal',
     };
 
     return methodDisplayMap[methodName] || methodName;
@@ -288,8 +289,6 @@ abstract class BaseRequestMenu {
       case PaymentMethodEnum.CNY_CARD:
         return this.buildCardLines(accessType, method);
       case PaymentMethodEnum.WISE:
-        return this.buildWireLines(accessType, method);
-      case PaymentMethodEnum.WIZE:
         return this.buildWiseLines(accessType, method);
       case PaymentMethodEnum.PAYPAL:
         return this.buildPayPalLines(accessType, method);
@@ -348,34 +347,6 @@ abstract class BaseRequestMenu {
           ? `🚫Карта в чёрном списке: ${reason}`
           : '🚫Карта в чёрном списке',
       );
-    }
-
-    return lines;
-  }
-
-  private buildWireLines(
-    accessType: AccessType,
-    method: RequestMethodWithDetails,
-  ): Array<string | null> {
-    const details = method.wireDetails;
-    if (!details) {
-      return [];
-    }
-
-    const account = details.account
-      ? this.maskDigits(details.account, this.shouldMask(accessType))
-      : null;
-
-    const lines: Array<string | null> = [
-      account ? `🏦<b>Счёт:</b> <code>${account}</code>` : null,
-      details.recipient
-        ? `👤<b>Получатель:</b> <code>${details.recipient}</code>`
-        : null,
-      details.bankName ? `🏦<b>Банк:</b> <i>${details.bankName}</i>` : null,
-    ];
-
-    if (details.comment) {
-      lines.push(`💬<b>Комментарий:</b> ${details.comment}`);
     }
 
     return lines;
@@ -474,8 +445,12 @@ abstract class BaseRequestMenu {
 
     return [
       email ? `📧<b>Email:</b> <code>${email}</code>` : null,
-      details.fullName ? `👤<b>ФИО:</b> <code>${details.fullName}</code>` : null,
-      details.cardNumber ? `💳<b>Карта Wise:</b> <code>${details.cardNumber}</code>` : null,
+      details.fullName
+        ? `👤<b>ФИО:</b> <code>${details.fullName}</code>`
+        : null,
+      details.cardNumber
+        ? `💳<b>Карта Wise:</b> <code>${details.cardNumber}</code>`
+        : null,
       details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
     ];
   }
@@ -495,7 +470,9 @@ abstract class BaseRequestMenu {
 
     return [
       email ? `📧<b>Email:</b> <code>${email}</code>` : null,
-      details.fullName ? `👤<b>ФИО:</b> <code>${details.fullName}</code>` : null,
+      details.fullName
+        ? `👤<b>ФИО:</b> <code>${details.fullName}</code>`
+        : null,
       details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
     ];
   }
@@ -636,21 +613,23 @@ abstract class BaseRequestMenu {
 
   private shouldMask(accessType: AccessType): boolean {
     if (accessType === 'WORKER') {
-      if (
-        !this.isWorkGroup
-      ) {
-        return true
+      if (!this.isWorkGroup) {
+        return true;
       } else if (this.isHubGroup) {
-        return false
-      }else {
-        return false
+        return false;
+      } else {
+        return false;
       }
     } else {
-      return false
+      return false;
     }
   }
 
-  private maskDigits(value: string, shouldMask: boolean, visibleDigits = 4): string {
+  private maskDigits(
+    value: string,
+    shouldMask: boolean,
+    visibleDigits = 4,
+  ): string {
     if (!shouldMask) {
       return value;
     }
@@ -662,7 +641,8 @@ abstract class BaseRequestMenu {
 
     const safeVisible = Math.max(0, Math.min(visibleDigits, digits.length));
     const maskedDigits =
-      '*'.repeat(Math.max(0, digits.length - safeVisible)) + digits.slice(-safeVisible);
+      '*'.repeat(Math.max(0, digits.length - safeVisible)) +
+      digits.slice(-safeVisible);
 
     let maskedValue = '';
     let index = 0;
@@ -689,7 +669,8 @@ abstract class BaseRequestMenu {
     }
 
     const visible = alphanumeric.slice(-4);
-    const maskedSequence = '*'.repeat(Math.max(0, alphanumeric.length - 4)) + visible;
+    const maskedSequence =
+      '*'.repeat(Math.max(0, alphanumeric.length - 4)) + visible;
 
     let masked = '';
     let idx = 0;
@@ -715,9 +696,10 @@ abstract class BaseRequestMenu {
       return this.maskAlphaNumeric(value, true);
     }
 
-    const maskedLocal = local.length <= 2
-      ? '*'.repeat(local.length)
-      : `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}`;
+    const maskedLocal =
+      local.length <= 2
+        ? '*'.repeat(local.length)
+        : `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}`;
 
     return `${maskedLocal}@${domain}`;
   }

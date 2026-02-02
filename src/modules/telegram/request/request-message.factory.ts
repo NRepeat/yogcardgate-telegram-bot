@@ -16,15 +16,13 @@ export class RequestMessageFactory {
     method: RequestMethodWithDetails,
     options: RequestMessageFactoryOptions = {},
   ): ReplyPhotoMessage | null {
-      switch (method.method) {
-        case PaymentMethodEnum.CARD:
-        case PaymentMethodEnum.KZT_KASPI_BANK:
-        case PaymentMethodEnum.KZT_OTHER_BANKS:
-        case PaymentMethodEnum.CNY_CARD:
-          return this.buildCardMessage(accessType, request, method, options);
-        case PaymentMethodEnum.WISE:
-        return this.buildWireMessage(accessType, request, method, options);
-      case PaymentMethodEnum.WIZE:
+    switch (method.method) {
+      case PaymentMethodEnum.CARD:
+      case PaymentMethodEnum.KZT_KASPI_BANK:
+      case PaymentMethodEnum.KZT_OTHER_BANKS:
+      case PaymentMethodEnum.CNY_CARD:
+        return this.buildCardMessage(accessType, request, method, options);
+      case PaymentMethodEnum.WISE:
         return this.buildWiseMessage(accessType, request, method, options);
       case PaymentMethodEnum.PAYPAL:
         return this.buildPayPalMessage(accessType, request, method, options);
@@ -68,7 +66,9 @@ export class RequestMessageFactory {
     const lines = this.composeBaseLines(request, method.method, [
       cardNumber ? `💳<b>Номер карты:</b> <code>${cardNumber}</code>` : null,
       details.holder ? `👤<b>ФИО:</b> ${details.holder}` : null,
-      details.bank?.bankName ? `🏦<b>Банк:</b> <i>${details.bank.bankName}</i>` : null,
+      details.bank?.bankName
+        ? `🏦<b>Банк:</b> <i>${details.bank.bankName}</i>`
+        : null,
       this.partnerLine(request),
     ]);
 
@@ -80,36 +80,6 @@ export class RequestMessageFactory {
           : '🚫Карта в чёрном списке',
       );
     }
-
-    return this.wrapWithButtons(accessType, request.id, lines);
-  }
-
-  private static buildWireMessage(
-    accessType: AccessType,
-    request: FullRequestType,
-    method: RequestMethodWithDetails,
-    options: RequestMessageFactoryOptions,
-  ): ReplyPhotoMessage | null {
-    const details = method.wireDetails;
-    if (!details) {
-      return null;
-    }
-
-    const account = details.account
-      ? options.maskSensitive
-        ? this.maskDigits(details.account)
-        : details.account
-      : null;
-
-    const lines = this.composeBaseLines(request, method.method, [
-      account ? `🏦<b>Счёт:</b> <code>${account}</code>` : null,
-      details.recipient
-        ? `👤<b>Получатель:</b> <code>${details.recipient}</code>`
-        : null,
-      details.bankName ? `🏦<b>Банк:</b> <i>${details.bankName}</i>` : null,
-      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
-      this.partnerLine(request),
-    ]);
 
     return this.wrapWithButtons(accessType, request.id, lines);
   }
@@ -133,8 +103,12 @@ export class RequestMessageFactory {
 
     const lines = this.composeBaseLines(request, method.method, [
       email ? `📧<b>Email:</b> <code>${email}</code>` : null,
-      details.fullName ? `👤<b>ФИО:</b> <code>${details.fullName}</code>` : null,
-      details.cardNumber ? `💳<b>Карта Wise:</b> <code>${details.cardNumber}</code>` : null,
+      details.fullName
+        ? `👤<b>ФИО:</b> <code>${details.fullName}</code>`
+        : null,
+      details.cardNumber
+        ? `💳<b>Карта Wise:</b> <code>${details.cardNumber}</code>`
+        : null,
       details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
       this.partnerLine(request),
     ]);
@@ -161,7 +135,9 @@ export class RequestMessageFactory {
 
     const lines = this.composeBaseLines(request, method.method, [
       email ? `📧<b>Email:</b> <code>${email}</code>` : null,
-      details.fullName ? `👤<b>ФИО:</b> <code>${details.fullName}</code>` : null,
+      details.fullName
+        ? `👤<b>ФИО:</b> <code>${details.fullName}</code>`
+        : null,
       details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
       this.partnerLine(request),
     ]);
@@ -348,7 +324,8 @@ export class RequestMessageFactory {
     const rateLine = this.formatRateLine(request);
     const amountLine = this.formatAmountLine(request);
     const methodDisplayName = this.getMethodDisplayName(method);
-    const methodLabel = `${request.currency?.nameEn ?? request.currency?.name ?? ''} ${methodDisplayName}`.trim();
+    const methodLabel =
+      `${request.currency?.nameEn ?? request.currency?.name ?? ''} ${methodDisplayName}`.trim();
 
     const lines: Array<string | null> = [
       `✉️<b>Заявка номер:</b> <code>${request.id}</code>`,
@@ -357,7 +334,6 @@ export class RequestMessageFactory {
       rateLine,
       ...extraLines,
     ];
-
 
     if (request.activeUser?.username) {
       lines.push(`👤<b>Принята:</b> @${request.activeUser.username}`);
@@ -393,7 +369,10 @@ export class RequestMessageFactory {
     } else if (accessType === 'ADMIN') {
       inline_keyboard = Markup.inlineKeyboard([
         [
-          Markup.button.callback(BUTTON_TEXTS.ADMIN_IN_WORK, BUTTON_CALLBACKS.DUMMY),
+          Markup.button.callback(
+            BUTTON_TEXTS.ADMIN_IN_WORK,
+            BUTTON_CALLBACKS.DUMMY,
+          ),
           Markup.button.callback(
             BUTTON_TEXTS.ADMIN_CANCEL_REQUEST,
             BUTTON_CALLBACKS.ADMIN_CANCEL_REQUEST + requestId,
@@ -414,8 +393,9 @@ export class RequestMessageFactory {
     }
 
     const currency = request.currency?.nameEn ?? request.currency?.name ?? '';
-    return `💵<b>Сумма:</b> <code>${request.amount}</code>${currency ? ` ${currency}` : ''
-      }`;
+    return `💵<b>Сумма:</b> <code>${request.amount}</code>${
+      currency ? ` ${currency}` : ''
+    }`;
   }
 
   private static formatRateLine(request: FullRequestType): string | null {
@@ -447,7 +427,8 @@ export class RequestMessageFactory {
 
     const safeVisible = Math.max(0, Math.min(visibleDigits, digits.length));
     const maskedDigits =
-      '*'.repeat(Math.max(0, digits.length - safeVisible)) + digits.slice(-safeVisible);
+      '*'.repeat(Math.max(0, digits.length - safeVisible)) +
+      digits.slice(-safeVisible);
 
     let maskedValue = '';
     let index = 0;
@@ -470,7 +451,8 @@ export class RequestMessageFactory {
     }
 
     const visible = alphanumeric.slice(-4);
-    const maskedSequence = '*'.repeat(Math.max(0, alphanumeric.length - 4)) + visible;
+    const maskedSequence =
+      '*'.repeat(Math.max(0, alphanumeric.length - 4)) + visible;
 
     let masked = '';
     let idx = 0;
@@ -503,7 +485,6 @@ export class RequestMessageFactory {
     return `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
   }
 
-
   private static getMethodDisplayName(method: PaymentMethodEnum): string {
     const methodDisplayMap: Record<PaymentMethodEnum, string> = {
       [PaymentMethodEnum.KZT_KASPI_BANK]: 'Kaspi Bank',
@@ -514,9 +495,8 @@ export class RequestMessageFactory {
       [PaymentMethodEnum.CNY_ACCOUNT]: 'номер счета',
       [PaymentMethodEnum.CARD]: 'карта',
       [PaymentMethodEnum.IBAN]: 'IBAN',
-      [PaymentMethodEnum.WISE]: 'ваер',
       [PaymentMethodEnum.PHONE]: 'телефон',
-      [PaymentMethodEnum.WIZE]: 'Wise',
+      [PaymentMethodEnum.WISE]: 'Wise',
       [PaymentMethodEnum.SKRILL]: 'Skrill',
       [PaymentMethodEnum.QR]: 'QR-код',
       [PaymentMethodEnum.BANK]: 'Банковская оплата',

@@ -105,7 +105,10 @@ export class CreateRequestWizard {
       await this.currenciesService.getCurrencyKeyboard(ctx.from?.id);
     ctx.session.messagesToDelete = ctx.session.messagesToDelete || [];
     ctx.session.requestMenuMessageId = ctx.session.requestMenuMessageId || [];
-    if (ctx.session.customState !== 'select_currency' && !ctx.session.selectedCurrencyId) {
+    if (
+      ctx.session.customState !== 'select_currency' &&
+      !ctx.session.selectedCurrencyId
+    ) {
       const msg = await ctx.reply(availableCurrenciesKeyboard.caption, {
         reply_markup: availableCurrenciesKeyboard.markup,
         parse_mode: 'HTML',
@@ -119,7 +122,8 @@ export class CreateRequestWizard {
         ctx.session.requestMenuMessageId.length > 0
       ) {
         const messageId = ctx.session.requestMenuMessageId[0];
-        ctx.session.requestMenuMessageId = ctx.session.requestMenuMessageId || [];
+        ctx.session.requestMenuMessageId =
+          ctx.session.requestMenuMessageId || [];
         try {
           await ctx.telegram.editMessageText(
             ctx.chat?.id ?? 0,
@@ -137,18 +141,20 @@ export class CreateRequestWizard {
             'description' in error &&
             typeof (error as any).description === 'string' &&
             (error as any).description.includes('message is not modified');
-          
+
           const messageNotFound =
             error instanceof Error &&
             'description' in error &&
             typeof (error as any).description === 'string' &&
             (error as any).description.includes('message to edit not found');
-          
+
           if (!knownMessageNotModified && !messageNotFound) {
             console.error('Error editing message:', error);
             // Don't throw error, just log it and continue
           } else if (messageNotFound) {
-            console.warn('Message to edit not found, sending new message instead');
+            console.warn(
+              'Message to edit not found, sending new message instead',
+            );
             // Send a new message instead of editing
             await ctx.reply(availableCurrenciesKeyboard.caption, {
               reply_markup: availableCurrenciesKeyboard.markup,
@@ -157,8 +163,8 @@ export class CreateRequestWizard {
           }
         }
         ctx.session.customState = 'select_currency';
-        return 
-      }else{
+        return;
+      } else {
         await this.deleteSceneMessages(ctx);
         await this.deleteSceneMenuMessages(ctx);
         const msg = await ctx.reply(availableCurrenciesKeyboard.caption, {
@@ -168,7 +174,6 @@ export class CreateRequestWizard {
         ctx.session.requestMenuMessageId?.push(msg.message_id);
         ctx.session.customState = 'select_currency';
       }
-
     }
   }
 
@@ -180,22 +185,26 @@ export class CreateRequestWizard {
       return;
     }
     const username = ctx.from?.username || 'Unknown User';
-    const selectPaymentMenu =
-      MenuFactory.createSelectPaymentMethodMenu(username, ctx.from?.id);
+    const selectPaymentMenu = MenuFactory.createSelectPaymentMethodMenu(
+      username,
+      ctx.from?.id,
+    );
     let currencyId: string | undefined;
     if (callbackQuery.data.startsWith('select_currency_')) {
       // Extract currency ID and user ID from callback data
-      const parts = callbackQuery.data.replace('select_currency_', '').split('_');
+      const parts = callbackQuery.data
+        .replace('select_currency_', '')
+        .split('_');
       currencyId = parts[0];
       const callbackUserId = parts[1] ? parseInt(parts[1]) : null;
-      
+
       // Check if this callback is for the current user
       if (callbackUserId && callbackUserId !== ctx.from?.id) {
         await ctx.answerCbQuery('Это меню другого пользователя');
         return;
       }
     }
-    console.log(callbackQuery.data, 'callbackQuery.data')
+    console.log(callbackQuery.data, 'callbackQuery.data');
     switch (true) {
       case callbackQuery.data.startsWith('select_currency_'): {
         const currency = await this.currenciesService.findById(currencyId!);
@@ -205,17 +214,14 @@ export class CreateRequestWizard {
         }
 
         ctx.session.selectedCurrencyId = currency.id;
-        const currencyEnum = currency.name as CurrencyEnum;
+        const currencyEnum = currency.name;
         const availableMethodIds = new Set(
           (currency.Rates || []).map((rate) => rate.paymentMethodId),
         );
         const paymentMethods = currency.paymentMethod.filter((method) => {
-          return availableMethodIds.has(method.id)
-         
-        }
-      
-        );
-        console.log(paymentMethods,'paymentMethods')
+          return availableMethodIds.has(method.id);
+        });
+        console.log(paymentMethods, 'paymentMethods');
         if (!paymentMethods || paymentMethods.length === 0) {
           await ctx.answerCbQuery(
             'No payment methods available for this currency',
@@ -225,8 +231,7 @@ export class CreateRequestWizard {
         const fallbackLabels: Partial<Record<PaymentMethodEnum, string>> = {
           [PaymentMethodEnum.CARD]: BUTTON_TEXTS.CARD,
           [PaymentMethodEnum.IBAN]: BUTTON_TEXTS.IBAN,
-          [PaymentMethodEnum.WISE]: 'Bank transfer',
-          [PaymentMethodEnum.WIZE]: 'Wise',
+          [PaymentMethodEnum.WISE]: 'Wise',
           [PaymentMethodEnum.PAYPAL]: 'PayPal',
           [PaymentMethodEnum.PHONE]: 'Phone transfer',
           [PaymentMethodEnum.SKRILL]: 'Skrill / email',
@@ -266,14 +271,12 @@ export class CreateRequestWizard {
         });
         ctx.session.paymentMethodsMeta = paymentMethodsMeta;
 
-
         const keyboard = await this.buildPaymentMethodKeyboard(
           ctx,
           username,
           paymentMethodsMeta,
         );
         if (keyboard) {
-
           await ctx.editMessageText(keyboard.caption, {
             reply_markup: keyboard.markup,
             parse_mode: 'HTML',
@@ -288,14 +291,16 @@ export class CreateRequestWizard {
         const callbackData = callbackQuery.data.replace('select_method_', '');
         const lastUnderscoreIndex = callbackData.lastIndexOf('_');
         const methodName = callbackData.substring(0, lastUnderscoreIndex);
-        const callbackUserId = callbackData.substring(lastUnderscoreIndex + 1) ? parseInt(callbackData.substring(lastUnderscoreIndex + 1)) : null;
-        
+        const callbackUserId = callbackData.substring(lastUnderscoreIndex + 1)
+          ? parseInt(callbackData.substring(lastUnderscoreIndex + 1))
+          : null;
+
         // Check if this callback is for the current user
         if (callbackUserId && callbackUserId !== ctx.from?.id) {
           await ctx.answerCbQuery('Это меню другого пользователя');
           return;
         }
-        
+
         const methodKey = methodName.toUpperCase();
         if (!(methodKey in PaymentMethodEnum)) {
           await ctx.answerCbQuery('Unknown payment method');
@@ -303,14 +308,14 @@ export class CreateRequestWizard {
         }
         const methodEnum = methodKey as PaymentMethodEnum;
         ctx.session.requestType = methodEnum;
-        
+
         // Set custom state for KZT bank methods
         if (methodEnum === PaymentMethodEnum.KZT_KASPI_BANK) {
           ctx.session.customState = 'kzt_bank_kaspi';
         } else if (methodEnum === PaymentMethodEnum.KZT_OTHER_BANKS) {
           ctx.session.customState = 'kzt_bank_other';
         }
-        
+
         const instruction = this.getPaymentMethodInstruction(
           ctx,
           methodEnum,
@@ -321,18 +326,17 @@ export class CreateRequestWizard {
       }
       case callbackQuery.data.startsWith('return_to_request_menu'): {
         // Extract user ID from callback data
-        const parts = callbackQuery.data.replace('return_to_request_menu_', '').split('_');
+        const parts = callbackQuery.data
+          .replace('return_to_request_menu_', '')
+          .split('_');
         const callbackUserId = parts[0] ? parseInt(parts[0]) : null;
-        
+
         // Check if this callback is for the current user
         if (callbackUserId && callbackUserId !== ctx.from?.id) {
           await ctx.answerCbQuery('Это меню другого пользователя');
           return;
         }
-        const keyboard = await this.buildPaymentMethodKeyboard(
-          ctx,
-          username,
-        );
+        const keyboard = await this.buildPaymentMethodKeyboard(ctx, username);
         if (!keyboard) {
           await this.updateSceneMenuMessage(
             ctx,
@@ -353,9 +357,11 @@ export class CreateRequestWizard {
       }
       case callbackQuery.data.startsWith('cancel_request'): {
         // Extract user ID from callback data
-        const parts = callbackQuery.data.replace('cancel_request_', '').split('_');
+        const parts = callbackQuery.data
+          .replace('cancel_request_', '')
+          .split('_');
         const callbackUserId = parts[0] ? parseInt(parts[0]) : null;
-        
+
         // Check if this callback is for the current user
         if (callbackUserId && callbackUserId !== ctx.from?.id) {
           await ctx.answerCbQuery('Это меню другого пользователя');
@@ -367,11 +373,13 @@ export class CreateRequestWizard {
         await this.cancel(ctx);
         break;
       }
-      case callbackQuery.data.startsWith("return_to_select_currency"): {
+      case callbackQuery.data.startsWith('return_to_select_currency'): {
         // Extract user ID from callback data
-        const parts = callbackQuery.data.replace('return_to_select_currency_', '').split('_');
+        const parts = callbackQuery.data
+          .replace('return_to_select_currency_', '')
+          .split('_');
         const callbackUserId = parts[0] ? parseInt(parts[0]) : null;
-        
+
         // Check if this callback is for the current user
         if (callbackUserId && callbackUserId !== ctx.from?.id) {
           await ctx.answerCbQuery('Это меню другого пользователя');
@@ -383,7 +391,7 @@ export class CreateRequestWizard {
         // ctx.session.requestType = undefined;
         // ctx.session.paymentMethodsMeta = undefined;
         // ctx.session.customState = '';
-        await this.selectMethod(ctx)
+        await this.selectMethod(ctx);
         break;
       }
       default: {
@@ -452,7 +460,9 @@ export class CreateRequestWizard {
       ctx.wizard.selectStep(0);
       return;
     }
-    const isCnyPhoto = methodEnum === PaymentMethodEnum.CNY_ALIPAY || methodEnum === PaymentMethodEnum.CNY_WECHAT;
+    const isCnyPhoto =
+      methodEnum === PaymentMethodEnum.CNY_ALIPAY ||
+      methodEnum === PaymentMethodEnum.CNY_WECHAT;
     if (isCnyPhoto) {
       const photos = (message as { photo?: PhotoSize[] }).photo;
       if (!Array.isArray(photos) || photos.length === 0) {
@@ -525,8 +535,6 @@ export class CreateRequestWizard {
     });
   }
 
-
-
   async cancel(ctx: CustomSceneContext) {
     await ctx.scene.leave();
   }
@@ -543,11 +551,17 @@ export class CreateRequestWizard {
     try {
       const messagesToDelete = ctx.session.messagesToDelete || [];
       const chatId = ctx.chat?.id;
-      
-      console.log(`[RequestScene] Attempting to delete ${messagesToDelete.length} messages from chat ${chatId}`);
-      console.log(`[RequestScene] Messages to delete: ${JSON.stringify(messagesToDelete)}`);
-      console.log(`[RequestScene] Messages to pass: ${JSON.stringify(msgIdToPass)}`);
-      
+
+      console.log(
+        `[RequestScene] Attempting to delete ${messagesToDelete.length} messages from chat ${chatId}`,
+      );
+      console.log(
+        `[RequestScene] Messages to delete: ${JSON.stringify(messagesToDelete)}`,
+      );
+      console.log(
+        `[RequestScene] Messages to pass: ${JSON.stringify(msgIdToPass)}`,
+      );
+
       await this.telegramService.deleteAllTelegramMessages(
         messagesToDelete,
         chatId,
@@ -579,21 +593,30 @@ export class CreateRequestWizard {
         if (!ctx.session.messagesToDelete) {
           ctx.session.messagesToDelete = [];
         }
-        
+
         // Check if message ID is already in the deletion list
         if (ctx.session.messagesToDelete.includes(message.message_id)) {
-          console.log(`[RequestScene] Photo message ${message.message_id} already in deletion list, skipping`);
+          console.log(
+            `[RequestScene] Photo message ${message.message_id} already in deletion list, skipping`,
+          );
           return;
         }
-        
+
         // Add the photo message ID to the deletion list
         ctx.session.messagesToDelete.push(message.message_id);
-        console.log(`[RequestScene] Photo message ${message.message_id} added to deletion list. Total messages to delete: ${ctx.session.messagesToDelete.length}`);
+        console.log(
+          `[RequestScene] Photo message ${message.message_id} added to deletion list. Total messages to delete: ${ctx.session.messagesToDelete.length}`,
+        );
       } else {
-        console.warn('[RequestScene] No valid message found to add to deletion list');
+        console.warn(
+          '[RequestScene] No valid message found to add to deletion list',
+        );
       }
     } catch (error) {
-      console.error('[RequestScene] Failed to add photo message to deletion list:', error);
+      console.error(
+        '[RequestScene] Failed to add photo message to deletion list:',
+        error,
+      );
       // Don't throw here as this is not critical
     }
   }
@@ -704,8 +727,10 @@ export class CreateRequestWizard {
       rows.push(methodButtons.slice(i, i + perRow));
     }
 
-    const selectPaymentMenu =
-      MenuFactory.createSelectPaymentMethodMenu(username, ctx.from?.id);
+    const selectPaymentMenu = MenuFactory.createSelectPaymentMethodMenu(
+      username,
+      ctx.from?.id,
+    );
     const cancelButton = Markup.button.callback(
       BUTTON_TEXTS.BACK,
       `return_to_select_currency_${ctx.from?.id || ''}`,
@@ -748,7 +773,6 @@ export class CreateRequestWizard {
 
     await this.updateSceneMenuMessage(ctx, caption, markup);
 
-
     ctx.wizard.selectStep(1);
   }
 
@@ -766,11 +790,9 @@ export class CreateRequestWizard {
     return baseCaption.replace('@username', `@${username}`).trim();
   }
 
- 
-
   private getPaymentMethodMeta(
     ctx: CustomSceneContext,
-    method: PaymentMethodEnum | string,
+    method: PaymentMethodEnum,
   ) {
     const methodName =
       typeof method === 'string' ? method.toUpperCase() : method;
@@ -850,11 +872,10 @@ export class CreateRequestWizard {
     currency: CurrencyEnum,
     method: PaymentMethodEnum,
   ): PaymentRequestStrategy | undefined {
-    return this.paymentStrategies.find((strategy) =>{
+    return this.paymentStrategies.find((strategy) => {
       console.log('strategy', currency, method);
-      return strategy.supports(currency, method); 
-    }
-    );
+      return strategy.supports(currency, method);
+    });
   }
 
   private async replyEphemeral(ctx: CustomSceneContext, text: string) {
@@ -911,7 +932,7 @@ export class CreateRequestWizard {
         const attachment = payload.attachments?.find(
           (item) => item.requestId === request.id,
         );
-        
+
         // Check scene state for photo path (for new CNY QR requests)
         let photoUrl = attachment?.photoPath ?? defaultPhotoUrl;
         if (ctx) {
@@ -920,13 +941,16 @@ export class CreateRequestWizard {
           };
           if (state.cnyQrPhotoPath) {
             photoUrl = state.cnyQrPhotoPath;
-            console.log(`[RequestScene] Using photo path from scene state: ${photoUrl}`);
+            console.log(
+              `[RequestScene] Using photo path from scene state: ${photoUrl}`,
+            );
           }
         }
-        
-        const photoBuffer = photoUrl !== defaultPhotoUrl
-          ? await this.loadPhotoBuffer(photoUrl)
-          : undefined;
+
+        const photoBuffer =
+          photoUrl !== defaultPhotoUrl
+            ? await this.loadPhotoBuffer(photoUrl)
+            : undefined;
         const publicMenu = MenuFactory.createPublicMenu(
           request as unknown as FullRequestType,
           photoUrl,
@@ -934,7 +958,7 @@ export class CreateRequestWizard {
         );
 
         const publicPayload = publicMenu.inWork();
-        
+
         // Handle HTTP URLs vs local files/buffers
         let photoSource;
         if (publicPayload.url && publicPayload.url.startsWith('http')) {
@@ -947,24 +971,23 @@ export class CreateRequestWizard {
           // Fallback to URL as file path
           photoSource = { source: createReadStream(publicPayload.url) };
         }
-        
-        const menuMessage = await ctx.replyWithPhoto(
-          photoSource,
+
+        const menuMessage = await ctx.replyWithPhoto(photoSource, {
+          caption: publicPayload.caption,
+          reply_markup: publicPayload.markup,
+          parse_mode: 'HTML',
+        });
+
+        await this.persistMessageSafely(
+          request.id,
           {
-            caption: publicPayload.caption,
-            reply_markup: publicPayload.markup,
-            parse_mode: 'HTML',
+            chatId,
+            messageId: menuMessage.message_id,
+            text: publicPayload.caption,
+            photoUrl,
           },
+          ctx,
         );
-
-        await this.persistMessageSafely(request.id, {
-          chatId,
-          messageId: menuMessage.message_id,
-          text: publicPayload.caption,
-          photoUrl,
-        }, ctx);
-
-    
       }
     } catch (error) {
       console.error('Failed to finalize request flow:', error);
@@ -1010,7 +1033,12 @@ export class CreateRequestWizard {
 
   private async persistMessageSafely(
     requestId: string,
-    payload: { chatId: number; messageId: number; text: string; photoUrl?: string },
+    payload: {
+      chatId: number;
+      messageId: number;
+      text: string;
+      photoUrl?: string;
+    },
     ctx?: CustomSceneContext,
   ) {
     try {
@@ -1022,7 +1050,9 @@ export class CreateRequestWizard {
         };
         if (state.cnyQrPhotoPath) {
           finalPhotoUrl = state.cnyQrPhotoPath;
-          console.log(`[RequestScene] Using photo path from scene state: ${finalPhotoUrl}`);
+          console.log(
+            `[RequestScene] Using photo path from scene state: ${finalPhotoUrl}`,
+          );
         }
       }
 
@@ -1099,11 +1129,20 @@ export class CreateRequestWizard {
       ibanIndex < lines.length - 1 ? lines[ibanIndex + 1] : '';
     const isAmount = (value: string) =>
       amountRegex.test(value.replace(',', '.').replace(/[^\d.]/g, ''));
-    const isInnValue = (value: string) => innRegex.test(value.replace(/\D/g, ''));
+    const isInnValue = (value: string) =>
+      innRegex.test(value.replace(/\D/g, ''));
 
-    if (candidateBefore && !isAmount(candidateBefore) && !isInnValue(candidateBefore)) {
+    if (
+      candidateBefore &&
+      !isAmount(candidateBefore) &&
+      !isInnValue(candidateBefore)
+    ) {
       name = candidateBefore;
-    } else if (candidateAfter && !isAmount(candidateAfter) && !isInnValue(candidateAfter)) {
+    } else if (
+      candidateAfter &&
+      !isAmount(candidateAfter) &&
+      !isInnValue(candidateAfter)
+    ) {
       name = candidateAfter;
     }
 

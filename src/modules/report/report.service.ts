@@ -52,7 +52,9 @@ export default class ReportService {
       'Имя клиента',
       'Комментарий',
     ];
-    isForProvider && headerRow.splice(9, 0, 'Пользователь');
+    if (isForProvider) {
+      headerRow.splice(9, 0, 'Пользователь');
+    }
 
     sheet.addRow(headerRow);
     // Style header
@@ -75,8 +77,7 @@ export default class ReportService {
         rateValue && rateValue !== 0 ? amount / rateValue : null;
       const provider = request.vendor?.title ?? '';
       const worker = request.payedByUser?.username ?? '';
-      const currency =
-        request.currency?.code ?? request.currency?.nameEn ?? '';
+      const currency = request.currency?.code ?? request.currency?.nameEn ?? '';
       const methodData = this.resolveMethodReportData(request);
       const row = [
         request.id ?? '',
@@ -193,7 +194,7 @@ export default class ReportService {
       (preferred && methods.find((item) => item.method === preferred)) ??
       methods[0];
 
-    switch (method.method as PaymentMethodEnum) {
+    switch (method.method) {
       case PaymentMethodEnum.CARD: {
         const details = method.cardDetails;
         const cardNumber = details?.card ?? '';
@@ -219,14 +220,14 @@ export default class ReportService {
         };
       }
       case PaymentMethodEnum.WISE: {
-        const details = method.wireDetails;
+        const details = method.wiseDetails;
         return {
           type: PaymentMethodEnum.WISE,
-          requisites: details?.account ?? '',
-          bank: details?.bankName ?? '',
+          requisites: details?.email ?? '',
+          bank: '',
           comment: details?.comment ?? '',
           inn: '',
-          clientName: details?.recipient ?? '',
+          clientName: details?.fullName ?? '',
         };
       }
       case PaymentMethodEnum.PHONE: {
@@ -331,17 +332,6 @@ export default class ReportService {
           clientName: details?.holder ?? '',
         };
       }
-      case PaymentMethodEnum.CNY_ACCOUNT: {
-        const details = method.wireDetails;
-        return {
-          type: 'CNY Счет',
-          requisites: details?.account ?? '',
-          bank: 'Китайский банк',
-          comment: details?.comment ?? '',
-          inn: '',
-          clientName: details?.recipient ?? '',
-        };
-      }
       default:
         return {
           ...defaultData,
@@ -369,9 +359,7 @@ export default class ReportService {
     return Math.round(value * factor) / factor;
   }
 
-  private formatDateTime(
-    date: Date | string | null | undefined,
-  ): string {
+  private formatDateTime(date: Date | string | null | undefined): string {
     if (!date) {
       return '';
     }

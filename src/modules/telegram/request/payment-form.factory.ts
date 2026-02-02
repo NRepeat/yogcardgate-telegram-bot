@@ -77,7 +77,6 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           label: 'Сумма',
           description: 'например 1000.00',
         },
-     
       ],
       sample: 'JOHN DOE\nDE00000000000000000000\n1000.00',
     },
@@ -111,7 +110,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       ],
       sample: 'payonner@mail.com\n1112',
     },
-    [PaymentMethodEnum.WIZE]: {
+    [PaymentMethodEnum.WISE]: {
       title: 'Wise',
       intro: DEFAULT_INTRO,
       fields: [
@@ -156,9 +155,9 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           description: 'Обязательно для AED',
         },
         {
-          label: "Сумма",
-          description: "например 10000.00",
-        }
+          label: 'Сумма',
+          description: 'например 10000.00',
+        },
       ],
       sample: 'AE1111111111111111111111111\nMOHAMMED ALI\nBank Name\n10000.00',
     },
@@ -175,7 +174,6 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           label: 'ФИО латиницей',
           description: 'точно как на карте',
         },
-    
       ],
       sample: '4000000012345678 1111 JOHN DOE',
     },
@@ -209,7 +207,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       ],
       sample: 'payoneer@mail.com\n1111',
     },
-    [PaymentMethodEnum.WIZE]: {
+    [PaymentMethodEnum.WISE]: {
       title: 'Wise',
       intro: DEFAULT_INTRO,
       fields: [
@@ -273,7 +271,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
     },
   },
   [CurrencyEnum.THB]: {
-     [PaymentMethodEnum.BANK]:{
+    [PaymentMethodEnum.BANK]: {
       title: 'Bank payment',
       intro: DEFAULT_INTRO,
       fields: [
@@ -281,24 +279,24 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           label: 'ФИО',
           description: 'Например NAME SURNAME',
         },
-  
+
         {
           label: 'Сумма',
           description: 'Например 10000',
         },
         {
-          label:"Номер счета",
-          description:"0123456789"
+          label: 'Номер счета',
+          description: '0123456789',
         },
         {
-          label:"Название банка",
-        }
+          label: 'Название банка',
+        },
       ],
       sample: 'NAME SURNAME\n10000\n00000000\nBank Name',
-    }
+    },
   },
   [CurrencyEnum.CZK]: {
-    [PaymentMethodEnum.BANK]:{
+    [PaymentMethodEnum.BANK]: {
       title: 'Bank payment',
       intro: DEFAULT_INTRO,
       fields: [
@@ -306,22 +304,22 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           label: 'ФИО',
           description: 'Например NAME SURNAME',
         },
-  
+
         {
           label: 'Сумма и валюта',
           description: 'Например 10000',
         },
         {
-          label:"Номер счета",
-          description:"12345678/2200"
+          label: 'Номер счета',
+          description: '12345678/2200',
         },
         {
-          label:"Название банка",
-          description:"Обязательно для CZK"
-        }
+          label: 'Название банка',
+          description: 'Обязательно для CZK',
+        },
       ],
       sample: 'NAME SURNAME\n10000\n00000000/0000\nBank Name',
-    }
+    },
   },
   [CurrencyEnum.KZT]: {
     [PaymentMethodEnum.CARD]: {
@@ -363,7 +361,6 @@ const FORM_REGISTRY: PaymentFormRegistry = {
         {
           label: 'ФИО латиницей Номер телефона Сумма',
         },
-     
       ],
       sample: 'NAME SURNAME 77000000000',
     },

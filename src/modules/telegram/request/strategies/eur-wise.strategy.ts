@@ -21,7 +21,7 @@ export class EurWiseStrategy extends EurBaseStrategy {
   }
 
   protected supportsMethod(method: PaymentMethodEnum): boolean {
-    return method === PaymentMethodEnum.WIZE;
+    return method === PaymentMethodEnum.WISE;
   }
 
   protected parseInput(message: string) {
@@ -33,8 +33,7 @@ export class EurWiseStrategy extends EurBaseStrategy {
     if (lines.length < 3) {
       return {
         success: false as const,
-        error:
-          'Ожидались минимум три строки: email, ФИО и сумма.',
+        error: 'Ожидались минимум три строки: email, ФИО и сумма.',
       };
     }
 
@@ -76,7 +75,10 @@ export class EurWiseStrategy extends EurBaseStrategy {
       };
     }
 
-    const comment = lines.slice(amountLineIndex + 1).join('\n').trim();
+    const comment = lines
+      .slice(amountLineIndex + 1)
+      .join('\n')
+      .trim();
 
     return {
       success: true as const,
@@ -98,7 +100,9 @@ export class EurWiseStrategy extends EurBaseStrategy {
     vendorId,
     rate,
     parsed,
-  }: CreateRequestParams & { parsed: EurWiseParsedInput }): Promise<FullRequestType> {
+  }: CreateRequestParams & {
+    parsed: EurWiseParsedInput;
+  }): Promise<FullRequestType> {
     const request = await this.deps.requestService.createGeneralRequest({
       amount: parsed.amount,
       vendorId,
@@ -106,7 +110,7 @@ export class EurWiseStrategy extends EurBaseStrategy {
       rateId: rate.id,
       rate: String(rate.rate ?? ''),
       method: {
-        method: PaymentMethodEnum.WIZE,
+        method: PaymentMethodEnum.WISE,
         wise: {
           email: parsed.email,
           fullName: parsed.fullName,
@@ -141,9 +145,7 @@ export class EurWiseStrategy extends EurBaseStrategy {
   }
 
   private tryParseAmount(value: string): number | null {
-    const normalized = value
-      .replace(/[^0-9,\.]/g, '')
-      .replace(/,/g, '.');
+    const normalized = value.replace(/[^0-9,\.]/g, '').replace(/,/g, '.');
     if (!normalized) {
       return null;
     }

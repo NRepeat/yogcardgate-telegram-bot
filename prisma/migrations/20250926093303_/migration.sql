@@ -6,7 +6,7 @@
 -- the enum.
 
 
-ALTER TYPE "PaymentMethodEnum" ADD VALUE 'WIZE';
+ALTER TYPE "PaymentMethodEnum" ADD VALUE 'WISE';
 ALTER TYPE "PaymentMethodEnum" ADD VALUE 'BANK';
 
 -- DropIndex

@@ -157,14 +157,28 @@ const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
     PaymentMethodEnum.SKRILL,
     PaymentMethodEnum.PAYONEER,
   ],
-  [CurrencyEnum.EUR]: [PaymentMethodEnum.CARD, PaymentMethodEnum.IBAN, PaymentMethodEnum.SKRILL],
+  [CurrencyEnum.EUR]: [
+    PaymentMethodEnum.CARD,
+    PaymentMethodEnum.IBAN,
+    PaymentMethodEnum.SKRILL,
+  ],
   [CurrencyEnum.PLN]: [PaymentMethodEnum.IBAN],
   [CurrencyEnum.THB]: [PaymentMethodEnum.BANK],
   [CurrencyEnum.CZK]: [PaymentMethodEnum.BANK],
-  [CurrencyEnum.KZT]: [PaymentMethodEnum.CARD, PaymentMethodEnum.KZT_KASPI_BANK, PaymentMethodEnum.KZT_OTHER_BANKS],
+  [CurrencyEnum.KZT]: [
+    PaymentMethodEnum.CARD,
+    PaymentMethodEnum.KZT_KASPI_BANK,
+    PaymentMethodEnum.KZT_OTHER_BANKS,
+  ],
   [CurrencyEnum.TRY]: [PaymentMethodEnum.IBAN],
   [CurrencyEnum.AZN]: [PaymentMethodEnum.CARD],
-  [CurrencyEnum.CNY]: [PaymentMethodEnum.QR, PaymentMethodEnum.CNY_ALIPAY, PaymentMethodEnum.CNY_WECHAT, PaymentMethodEnum.CNY_CARD, PaymentMethodEnum.CNY_ACCOUNT],
+  [CurrencyEnum.CNY]: [
+    PaymentMethodEnum.QR,
+    PaymentMethodEnum.CNY_ALIPAY,
+    PaymentMethodEnum.CNY_WECHAT,
+    PaymentMethodEnum.CNY_CARD,
+    PaymentMethodEnum.CNY_ACCOUNT,
+  ],
   [CurrencyEnum.AED]: [PaymentMethodEnum.IBAN],
 };
 
@@ -329,10 +343,10 @@ async function seedRates() {
     }
 
     const currencyMap = new Map(
-      currenciesInDb.map((currency) => [currency.name as CurrencyEnum, currency.id]),
+      currenciesInDb.map((currency) => [currency.name, currency.id]),
     );
     const paymentMethodMap = new Map(
-      paymentMethodsInDb.map((method) => [method.nameEn as PaymentMethodEnum, method.id]),
+      paymentMethodsInDb.map((method) => [method.nameEn, method.id]),
     );
 
     const rateConfig: Record<
@@ -372,7 +386,7 @@ async function seedRates() {
           rate: 37.2,
         },
         {
-          method: PaymentMethodEnum.PAYONEER,
+          method: PaymentMethodEnum.PAYPAL,
           minAmount: 500,
           maxAmount: 100000,
           rate: 37.2,
@@ -397,7 +411,6 @@ async function seedRates() {
           maxAmount: 100000,
           rate: 41.5,
         },
-      
       ],
       [CurrencyEnum.AED]: [
         {
@@ -468,12 +481,12 @@ async function seedRates() {
         },
       ],
       [CurrencyEnum.CNY]: [
-        {
-          method: PaymentMethodEnum.QR,
-          minAmount: 500,
-          maxAmount: 100000,
-          rate: 5.25,
-        },
+        // {
+        //   method: PaymentMethodEnum.QR,
+        //   minAmount: 500,
+        //   maxAmount: 100000,
+        //   rate: 5.25,
+        // },
         {
           method: PaymentMethodEnum.CNY_ALIPAY,
           minAmount: 500,
@@ -490,14 +503,14 @@ async function seedRates() {
           method: PaymentMethodEnum.CNY_CARD,
           minAmount: 500,
           maxAmount: 100000,
-          rate: 5.30,
+          rate: 5.3,
         },
-        {
-          method: PaymentMethodEnum.CNY_ACCOUNT,
-          minAmount: 500,
-          maxAmount: 100000,
-          rate: 5.30,
-        },
+        // {
+        //   method: PaymentMethodEnum.CNY_ACCOUNT,
+        //   minAmount: 500,
+        //   maxAmount: 100000,
+        //   rate: 5.30,
+        // },
       ],
     };
 

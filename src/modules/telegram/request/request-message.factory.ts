@@ -400,17 +400,21 @@ export class RequestMessageFactory {
 
   private static formatRateLine(request: FullRequestType): string | null {
     const rateValue =
-      typeof request.rates?.rate === 'number'
-        ? request.rates.rate
-        : request.rate
-          ? Number(request.rate)
+      request.rate
+        ? Number(request.rate)
+        : typeof request.rates?.rate === 'number'
+          ? request.rates.rate
           : null;
 
     if (!rateValue || Number.isNaN(rateValue)) {
       return null;
     }
 
-    return `💱<b>Курс:</b> <code>${rateValue.toFixed(2)}</code>`;
+    // Use 3 decimal places for USD/EUR/GBP, 2 for others
+    const currencyCode = request.currency?.nameEn?.toUpperCase();
+    const decimals = ['USD', 'EUR', 'GBP'].includes(currencyCode || '') ? 3 : 2;
+
+    return `💱<b>Курс:</b> <code>${rateValue.toFixed(decimals)}</code>`;
   }
 
   private static partnerLine(request: FullRequestType): string | null {

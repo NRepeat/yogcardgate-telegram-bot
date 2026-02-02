@@ -129,7 +129,45 @@ export abstract class EurBaseStrategy implements PaymentRequestStrategy {
 
 export interface ParsedStrategyInput {
   amount: number;
+  extraChargePercent?: number;
   [key: string]: any;
+}
+
+export function tryParseExtraChargePercent(token: string): number | null {
+  // Check if token contains percent sign
+  if (!token.includes('%')) {
+    return null;
+  }
+
+  // Extract numeric part
+  const normalized = token
+    .replace(/%/g, '')
+    .replace(/[^0-9,\.]/g, '')
+    .replace(/,/g, '.');
+
+  if (!normalized) {
+    return null;
+  }
+
+  const value = Number(normalized);
+  if (!Number.isFinite(value) || value < 0) {
+    return null;
+  }
+
+  // Return as decimal (10% -> 0.10, 1% -> 0.01, 0.1% -> 0.001)
+  return value / 100;
+}
+
+export function applyExtraCharge(baseRate: number, extraChargePercent?: number): number {
+  if (!extraChargePercent || extraChargePercent <= 0) {
+    return baseRate;
+  }
+  return baseRate * (1 + extraChargePercent);
+}
+
+export function formatRateForStorage(rate: number): string {
+  // EUR rates need 3 decimal places to preserve precision (e.g., 0.841)
+  return rate.toFixed(3);
 }
 
 export interface CreateRequestParams {

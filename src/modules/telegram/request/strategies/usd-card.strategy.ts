@@ -6,11 +6,15 @@ import {
   ParsedStrategyInput,
   UsdBaseStrategy,
   UsdStrategyDependencies,
+  tryParseExtraChargePercent,
+  applyExtraCharge,
+  formatRateForStorage,
 } from './usd-base.strategy';
 
 interface UsdCardParsedInput extends ParsedStrategyInput {
   cardNumber: string;
   holderName?: string;
+  extraChargePercent?: number;
 }
 
 export class UsdCardStrategy extends UsdBaseStrategy {
@@ -76,12 +80,15 @@ export class UsdCardStrategy extends UsdBaseStrategy {
     const blackListEntry =
       await this.deps.requestService.isInBlackList(parsed.cardNumber);
 
+    // Apply extra charge if provided
+    const finalRate = applyExtraCharge(rate.rate ?? 0, parsed.extraChargePercent);
+
     const request = await this.deps.requestService.createGeneralRequest({
       amount: parsed.amount,
       vendorId,
       currencyId,
       rateId: rate.id,
-      rate: String(rate.rate ?? ''),
+      rate: formatRateForStorage(finalRate),
       method: {
         method: PaymentMethodEnum.CARD,
         card: {
@@ -180,9 +187,19 @@ export class UsdCardStrategy extends UsdBaseStrategy {
       };
     }
 
+    // Look for extra charge percent (10%, 1%, 0.1%)
+    let extraChargePercent: number | undefined;
+    const percentTokenIndex = remaining.findIndex((token) => token.includes('%'));
+    if (percentTokenIndex !== -1) {
+      const percentValue = tryParseExtraChargePercent(remaining[percentTokenIndex]);
+      if (percentValue !== null && percentValue > 0) {
+        extraChargePercent = percentValue;
+      }
+    }
+
     const holderTokens = remaining
-      .filter((_, index) => index !== amountTokenIndex)
-      .filter((token) => !/^USD$/i.test(token));
+      .filter((_, index) => index !== amountTokenIndex && index !== percentTokenIndex)
+      .filter((token) => !/^USD$/i.test(token) && !token.includes('%'));
     const holderName = holderTokens.join(' ').trim() || undefined;
 
     return {
@@ -191,6 +208,7 @@ export class UsdCardStrategy extends UsdBaseStrategy {
         amount,
         cardNumber,
         holderName,
+        extraChargePercent,
       },
     };
   }

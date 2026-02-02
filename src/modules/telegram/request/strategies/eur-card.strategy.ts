@@ -7,6 +7,7 @@ import {
   EurBaseStrategy,
   EurStrategyDependencies,
 } from './eur-base.strategy';
+import { tryParseExtraChargePercent, applyExtraCharge, formatRateForStorage } from './eur-base.strategy';
 
 interface EurCardParsedInput extends ParsedStrategyInput {
   cardNumber: string;
@@ -81,7 +82,7 @@ export class EurCardStrategy extends EurBaseStrategy {
       vendorId,
       currencyId,
       rateId: rate.id,
-      rate: String(rate.rate ?? ''),
+      rate: formatRateForStorage(applyExtraCharge(rate.rate ?? 0, parsed.extraChargePercent)),
       method: {
         method: PaymentMethodEnum.CARD,
         card: {

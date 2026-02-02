@@ -198,11 +198,15 @@ abstract class BaseRequestMenu {
     const currencyLabel =
       this.request.currency?.nameEn ?? this.request.currency?.name ?? '';
     const rateValue =
-      typeof this.request.rates?.rate === 'number'
-        ? this.request.rates.rate
-        : this.request.rate
-          ? Number(this.request.rate)
+      this.request.rate
+        ? Number(this.request.rate)
+        : typeof this.request.rates?.rate === 'number'
+          ? this.request.rates.rate
           : null;
+
+    // Use 3 decimal places for USD/EUR/GBP, 2 for others
+    const currencyCode = this.request.currency?.nameEn?.toUpperCase();
+    const decimals = ['USD', 'EUR', 'GBP'].includes(currencyCode || '') ? 3 : 2;
 
     const lines: Array<string | null> = [
       `✉️<b>Заявка номер:</b> <code>${this.request.id}</code>`,
@@ -210,7 +214,7 @@ abstract class BaseRequestMenu {
       typeof amount === 'number'
         ? `💵<b>Сумма:</b> <code>${amount}</code>${currencyLabel ? ` ${currencyLabel}` : ''}`
         : null,
-      rateValue ? `💱<b>Курс:</b> <code>${rateValue.toFixed(2)}</code>` : null,
+      rateValue ? `💱<b>Курс:</b> <code>${rateValue.toFixed(decimals)}</code>` : null,
     ];
 
     lines.push(

@@ -3,38 +3,32 @@ import { FullRequestType } from 'src/types/types';
 import {
   CreateRequestParams,
   ParsedStrategyInput,
-  EurBaseStrategy,
-  EurStrategyDependencies,
-} from './eur-base.strategy';
-import { tryParseExtraChargePercent, applyExtraCharge, formatRateForStorage } from './eur-base.strategy';
+  UsdBaseStrategy,
+} from './usd-base.strategy';
 
-interface EurWiseParsedInput extends ParsedStrategyInput {
+interface UsdPayPalParsedInput extends ParsedStrategyInput {
   email: string;
   fullName: string;
-  cardNumber?: string;
   rawAmountToken: string;
   comment?: string;
 }
 
-export class EurWiseStrategy extends EurBaseStrategy {
-  constructor(deps: EurStrategyDependencies) {
-    super(deps);
-  }
-
+export class UsdPayPalStrategy extends UsdBaseStrategy {
   protected supportsMethod(method: PaymentMethodEnum): boolean {
-    return method === PaymentMethodEnum.WISE;
+    return method === PaymentMethodEnum.PAYPAL;
   }
 
   protected parseInput(message: string) {
     const lines = message
-      .split(/\r?\n/)
+      .split('\n')
       .map((line) => line.trim())
       .filter(Boolean);
 
     if (lines.length < 3) {
       return {
         success: false as const,
-        error: 'Ожидались минимум три строки: email, ФИО и сумма.',
+        error:
+          'Ожидались минимум три строки: email, ФИО и сумма.',
       };
     }
 
@@ -54,19 +48,7 @@ export class EurWiseStrategy extends EurBaseStrategy {
       };
     }
 
-    // Check if line 2 is a card number (16+ digits) or amount
-    let cardNumber: string | undefined;
-    let amountLineIndex: number;
-
-    const potentialCard = lines[2].replace(/[\s-]/g, '');
-    if (/^\d{13,19}$/.test(potentialCard) && lines.length >= 4) {
-      cardNumber = potentialCard;
-      amountLineIndex = 3;
-    } else {
-      amountLineIndex = 2;
-    }
-
-    const rawAmountToken = lines[amountLineIndex];
+    const rawAmountToken = lines[2];
     const amount = this.tryParseAmount(rawAmountToken);
 
     if (!amount || amount <= 0) {
@@ -76,10 +58,7 @@ export class EurWiseStrategy extends EurBaseStrategy {
       };
     }
 
-    const comment = lines
-      .slice(amountLineIndex + 1)
-      .join('\n')
-      .trim();
+    const comment = lines.slice(3).join('\n').trim();
 
     return {
       success: true as const,
@@ -88,7 +67,6 @@ export class EurWiseStrategy extends EurBaseStrategy {
           amount,
           email,
           fullName,
-          cardNumber,
           rawAmountToken,
           comment: comment || undefined,
         },
@@ -101,21 +79,18 @@ export class EurWiseStrategy extends EurBaseStrategy {
     vendorId,
     rate,
     parsed,
-  }: CreateRequestParams & {
-    parsed: EurWiseParsedInput;
-  }): Promise<FullRequestType> {
+  }: CreateRequestParams & { parsed: UsdPayPalParsedInput }): Promise<FullRequestType> {
     const request = await this.deps.requestService.createGeneralRequest({
       amount: parsed.amount,
       vendorId,
       currencyId,
       rateId: rate.id,
-      rate: formatRateForStorage(applyExtraCharge(rate.rate ?? 0, parsed.extraChargePercent)),
+      rate: String(rate.rate ?? ''),
       method: {
-        method: PaymentMethodEnum.WISE,
-        wise: {
+        method: PaymentMethodEnum.PAYPAL,
+        paypal: {
           email: parsed.email,
           fullName: parsed.fullName,
-          cardNumber: parsed.cardNumber ?? null,
           comment: parsed.comment ?? null,
         },
       },
@@ -124,17 +99,14 @@ export class EurWiseStrategy extends EurBaseStrategy {
     return request as unknown as FullRequestType;
   }
 
-  protected buildDetails(data: EurWiseParsedInput): string {
+  protected buildDetails(data: UsdPayPalParsedInput): string {
     const lines = [
-      'Тип: EUR WISE',
+      'Тип: USD PAYPAL',
       `Email: ${data.email}`,
       `ФИО: ${data.fullName}`,
       `Сумма (ввод): ${data.rawAmountToken}`,
-      `Сумма (число): ${data.amount} EUR`,
+      `Сумма (число): ${data.amount} USD`,
     ];
-    if (data.cardNumber) {
-      lines.push(`Номер карты: ${data.cardNumber}`);
-    }
     if (data.comment) {
       lines.push(`Комментарий: ${data.comment}`);
     }
@@ -146,7 +118,9 @@ export class EurWiseStrategy extends EurBaseStrategy {
   }
 
   private tryParseAmount(value: string): number | null {
-    const normalized = value.replace(/[^0-9,\.]/g, '').replace(/,/g, '.');
+    const normalized = value
+      .replace(/[^0-9,\.]/g, '')
+      .replace(/,/g, '.');
     if (!normalized) {
       return null;
     }

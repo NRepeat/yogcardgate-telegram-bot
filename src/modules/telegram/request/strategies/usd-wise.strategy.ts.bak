@@ -3,12 +3,10 @@ import { FullRequestType } from 'src/types/types';
 import {
   CreateRequestParams,
   ParsedStrategyInput,
-  EurBaseStrategy,
-  EurStrategyDependencies,
-} from './eur-base.strategy';
-import { tryParseExtraChargePercent, applyExtraCharge, formatRateForStorage } from './eur-base.strategy';
+  UsdBaseStrategy,
+} from './usd-base.strategy';
 
-interface EurWiseParsedInput extends ParsedStrategyInput {
+interface UsdWiseParsedInput extends ParsedStrategyInput {
   email: string;
   fullName: string;
   cardNumber?: string;
@@ -16,18 +14,14 @@ interface EurWiseParsedInput extends ParsedStrategyInput {
   comment?: string;
 }
 
-export class EurWiseStrategy extends EurBaseStrategy {
-  constructor(deps: EurStrategyDependencies) {
-    super(deps);
-  }
-
+export class UsdWiseStrategy extends UsdBaseStrategy {
   protected supportsMethod(method: PaymentMethodEnum): boolean {
     return method === PaymentMethodEnum.WISE;
   }
 
   protected parseInput(message: string) {
     const lines = message
-      .split(/\r?\n/)
+      .split('\n')
       .map((line) => line.trim())
       .filter(Boolean);
 
@@ -102,14 +96,14 @@ export class EurWiseStrategy extends EurBaseStrategy {
     rate,
     parsed,
   }: CreateRequestParams & {
-    parsed: EurWiseParsedInput;
+    parsed: UsdWiseParsedInput;
   }): Promise<FullRequestType> {
     const request = await this.deps.requestService.createGeneralRequest({
       amount: parsed.amount,
       vendorId,
       currencyId,
       rateId: rate.id,
-      rate: formatRateForStorage(applyExtraCharge(rate.rate ?? 0, parsed.extraChargePercent)),
+      rate: String(rate.rate ?? ''),
       method: {
         method: PaymentMethodEnum.WISE,
         wise: {
@@ -124,13 +118,13 @@ export class EurWiseStrategy extends EurBaseStrategy {
     return request as unknown as FullRequestType;
   }
 
-  protected buildDetails(data: EurWiseParsedInput): string {
+  protected buildDetails(data: UsdWiseParsedInput): string {
     const lines = [
-      'Тип: EUR WISE',
+      'Тип: USD WISE',
       `Email: ${data.email}`,
       `ФИО: ${data.fullName}`,
       `Сумма (ввод): ${data.rawAmountToken}`,
-      `Сумма (число): ${data.amount} EUR`,
+      `Сумма (число): ${data.amount} USD`,
     ];
     if (data.cardNumber) {
       lines.push(`Номер карты: ${data.cardNumber}`);

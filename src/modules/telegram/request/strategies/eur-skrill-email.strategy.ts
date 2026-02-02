@@ -6,6 +6,7 @@ import {
   EurBaseStrategy,
   EurStrategyDependencies,
 } from './eur-base.strategy';
+import { tryParseExtraChargePercent, applyExtraCharge, formatRateForStorage } from './eur-base.strategy';
 
 interface EurSkrillParsedInput extends ParsedStrategyInput {
   email: string;
@@ -77,7 +78,7 @@ export class EurSkrillEmailStrategy extends EurBaseStrategy {
       vendorId,
       currencyId,
       rateId: rate.id,
-      rate: String(rate.rate ?? ''),
+      rate: formatRateForStorage(applyExtraCharge(rate.rate ?? 0, parsed.extraChargePercent)),
       method: {
         method: PaymentMethodEnum.SKRILL,
         skrill: {

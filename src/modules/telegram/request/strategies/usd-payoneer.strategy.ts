@@ -5,6 +5,7 @@ import {
   ParsedStrategyInput,
   UsdBaseStrategy,
 } from './usd-base.strategy';
+import { tryParseExtraChargePercent, applyExtraCharge, formatRateForStorage } from './usd-base.strategy';
 
 interface UsdPayoneerParsedInput extends ParsedStrategyInput {
   email: string;
@@ -78,7 +79,7 @@ export class UsdPayoneerStrategy extends UsdBaseStrategy {
       vendorId,
       currencyId,
       rateId: rate.id,
-      rate: String(rate.rate ?? ''),
+      rate: formatRateForStorage(applyExtraCharge(rate.rate ?? 0, parsed.extraChargePercent)),
       method: {
         method: PaymentMethodEnum.PAYONEER,
         payoneer: {

@@ -28,19 +28,18 @@ const POPULAR_CURRENCY_ORDER = [
   'THB',
 ];
 
-
 const CURRENCY_TO_SKIP_RANGE = [
-  'USD',
-  'EUR',
+  // 'USD',
+  // 'EUR',
   'KZT',
   'AZN',
   'AED',
-  'CNY',
+  // 'CNY',
   'PLN',
   'TRY',
   'CZK',
   'THB',
-]
+];
 
 @Injectable()
 export class UtilsService {
@@ -50,7 +49,7 @@ export class UtilsService {
     @Inject(forwardRef(() => RatesService))
     private readonly ratesService: RatesService,
     private readonly prismaService: PrismaService, // Assuming you have a PrismaService to inject
-  ) { }
+  ) {}
   async getBankNameByCardNumber(cardNumber: string) {
     // console.log(`Fetching bank name for card number: ${cardNumber}`);
     // Try exact match first
@@ -81,7 +80,6 @@ export class UtilsService {
   }
 
   async getAllPublicRatesMarkupMessage() {
-
     const allRates = await this.ratesService.getAllRates();
     if (!allRates.length) return 'Нет доступных курсов.';
     // Сортируем: сначала Card, затем остальные, внутри Card — сначала + (maxAmount === null/0), потом по minAmount по убыванию
@@ -175,17 +173,16 @@ export class UtilsService {
         symbol.trim().toUpperCase() !== currencyCode.toUpperCase() &&
         symbol.trim().toUpperCase() !== group.displayName.trim().toUpperCase();
 
+      const currencyLabel = shouldShowSymbol
+        ? `${symbol} ${group.displayName}`
+        : group.displayName;
 
-      const      currencyLabel = shouldShowSymbol
-      ? `${symbol} ${group.displayName}`
-      : group.displayName;
-  
       for (let [method, lines] of group.methods) {
-          if (method === "KZT_KASPI_BANK") {
-            method = "Kaspi Bank"
-          } else if(method === "KZT_OTHER_BANKS") {
-            method = "Остальные банки"
-          }
+        if (method === 'KZT_KASPI_BANK') {
+          method = 'Kaspi Bank';
+        } else if (method === 'KZT_OTHER_BANKS') {
+          method = 'Остальные банки';
+        }
         if (CURRENCY_TO_SKIP_RANGE.includes(currencyCode)) {
           message.push(
             `${currencyLabel} ${method.toUpperCase()} ${lines.join('\n')}`,
@@ -293,6 +290,10 @@ export class UtilsService {
       ? 'Принята:@' + request.activeUser.username
       : '';
 
+    // Use 3 decimal places for USD/EUR/GBP, 2 for others
+    const currencyCode = request.currency?.nameEn?.toUpperCase();
+    const decimals = ['USD', 'EUR', 'GBP'].includes(currencyCode || '') ? 3 : 2;
+
     let message = '';
     let inline_keyboard: InlineKeyboardMarkup = {
       inline_keyboard: [],
@@ -305,7 +306,7 @@ export class UtilsService {
           `💵Сумма: ${amount}\n` +
           `💎USDT: ${usdt} \n` +
           `💳Номер карты: ${card}\n` +
-          `💱Курс: ${typeof rate === 'number' ? rate.toFixed(2) : '-'}\n`;
+          `💱Курс: ${typeof rate === 'number' ? rate.toFixed(decimals) : '-'}\n`;
         inline_keyboard = Markup.inlineKeyboard([
           [Markup.button.callback('В работе', 'dummy')],
         ]).reply_markup;
@@ -319,7 +320,7 @@ export class UtilsService {
             `💵Сумма: ${amount}\n` +
             `💎USDT: ${usdt} \n` +
             `💳Номер карты: ${card}\n` +
-            `💱Курс: ${typeof rate === 'number' ? rate.toFixed(2) : '-'}\n` +
+            `💱Курс: ${typeof rate === 'number' ? rate.toFixed(decimals) : '-'}\n` +
             acceptedBy +
             (isBlacklisted ? '🚫Карта в чёрном списке: ' + blacklist : '');
         }
@@ -335,7 +336,7 @@ export class UtilsService {
           `💵Сумма: ${amount}\n` +
           `💎USDT: ${usdt} \n` +
           `💳Номер карты: ${card}\n` +
-          `💱Курс: ${typeof rate === 'number' ? rate.toFixed(2) : '-'}\n` +
+          `💱Курс: ${typeof rate === 'number' ? rate.toFixed(decimals) : '-'}\n` +
           (isBlacklisted ? '🚫Карта в чёрном списке: ' + blacklist : '');
         inline_keyboard = Markup.inlineKeyboard([
           [Markup.button.callback('Отказаться', 'cancel_request')],

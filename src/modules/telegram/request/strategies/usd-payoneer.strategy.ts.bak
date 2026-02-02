@@ -5,18 +5,16 @@ import {
   ParsedStrategyInput,
   UsdBaseStrategy,
 } from './usd-base.strategy';
-import { tryParseExtraChargePercent, applyExtraCharge, formatRateForStorage } from './usd-base.strategy';
 
-interface UsdPayPalParsedInput extends ParsedStrategyInput {
+interface UsdPayoneerParsedInput extends ParsedStrategyInput {
   email: string;
-  fullName: string;
   rawAmountToken: string;
   comment?: string;
 }
 
-export class UsdPayPalStrategy extends UsdBaseStrategy {
+export class UsdPayoneerStrategy extends UsdBaseStrategy {
   protected supportsMethod(method: PaymentMethodEnum): boolean {
-    return method === PaymentMethodEnum.PAYPAL;
+    return method === PaymentMethodEnum.PAYONEER;
   }
 
   protected parseInput(message: string) {
@@ -25,11 +23,16 @@ export class UsdPayPalStrategy extends UsdBaseStrategy {
       .map((line) => line.trim())
       .filter(Boolean);
 
-    if (lines.length < 3) {
+    // Check if it's a single line format: "user@example.com 5000"
+    if (lines.length === 1) {
+      return this.parseSingleLine(lines[0]);
+    }
+
+    // Multi-line format (existing logic)
+    if (lines.length < 2) {
       return {
         success: false as const,
-        error:
-          'Ожидались минимум три строки: email, ФИО и сумма.',
+        error: 'Ожидались две строки: email Payoneer и сумма перевода.',
       };
     }
 
@@ -41,17 +44,7 @@ export class UsdPayPalStrategy extends UsdBaseStrategy {
       };
     }
 
-    const fullName = lines[1];
-    if (!fullName || fullName.length < 3) {
-      return {
-        success: false as const,
-        error: 'Укажите корректное ФИО.',
-      };
-    }
-
-    const rawAmountToken = lines[2];
-    const amount = this.tryParseAmount(rawAmountToken);
-
+    const amount = this.tryParseAmount(lines[1]);
     if (!amount || amount <= 0) {
       return {
         success: false as const,
@@ -59,7 +52,7 @@ export class UsdPayPalStrategy extends UsdBaseStrategy {
       };
     }
 
-    const comment = lines.slice(3).join('\n').trim();
+    const comment = lines.slice(2).join('\n').trim();
 
     return {
       success: true as const,
@@ -67,8 +60,7 @@ export class UsdPayPalStrategy extends UsdBaseStrategy {
         {
           amount,
           email,
-          fullName,
-          rawAmountToken,
+          rawAmountToken: lines[1],
           comment: comment || undefined,
         },
       ],
@@ -80,18 +72,17 @@ export class UsdPayPalStrategy extends UsdBaseStrategy {
     vendorId,
     rate,
     parsed,
-  }: CreateRequestParams & { parsed: UsdPayPalParsedInput }): Promise<FullRequestType> {
+  }: CreateRequestParams & { parsed: UsdPayoneerParsedInput }): Promise<FullRequestType> {
     const request = await this.deps.requestService.createGeneralRequest({
       amount: parsed.amount,
       vendorId,
       currencyId,
       rateId: rate.id,
-      rate: formatRateForStorage(applyExtraCharge(rate.rate ?? 0, parsed.extraChargePercent)),
+      rate: String(rate.rate ?? ''),
       method: {
-        method: PaymentMethodEnum.PAYPAL,
-        paypal: {
+        method: PaymentMethodEnum.PAYONEER,
+        payoneer: {
           email: parsed.email,
-          fullName: parsed.fullName,
           comment: parsed.comment ?? null,
         },
       },
@@ -100,11 +91,10 @@ export class UsdPayPalStrategy extends UsdBaseStrategy {
     return request as unknown as FullRequestType;
   }
 
-  protected buildDetails(data: UsdPayPalParsedInput): string {
+  protected buildDetails(data: UsdPayoneerParsedInput): string {
     const lines = [
-      'Тип: USD PAYPAL',
+      'Тип: USD PAYONEER',
       `Email: ${data.email}`,
-      `ФИО: ${data.fullName}`,
       `Сумма (ввод): ${data.rawAmountToken}`,
       `Сумма (число): ${data.amount} USD`,
     ];
@@ -116,6 +106,51 @@ export class UsdPayPalStrategy extends UsdBaseStrategy {
 
   private isValidEmail(value: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  private parseSingleLine(line: string) {
+    // Parse format: "user@example.com 5000"
+    const parts = line.trim().split(/\s+/);
+    
+    if (parts.length < 2) {
+      return {
+        success: false as const,
+        error: 'Ожидался формат: EMAIL СУММА (например: user@example.com 5000)',
+      };
+    }
+
+    // Last part should be the amount
+    const rawAmountToken = parts[parts.length - 1];
+    const amount = this.tryParseAmount(rawAmountToken);
+    
+    if (!amount || amount <= 0) {
+      return {
+        success: false as const,
+        error: 'Сумма должна быть положительным числом.',
+      };
+    }
+
+    // Everything before amount is the email
+    const email = parts.slice(0, parts.length - 1).join(' ');
+    
+    if (!this.isValidEmail(email)) {
+      return {
+        success: false as const,
+        error: 'Некорректный email. Проверьте формат.',
+      };
+    }
+
+    return {
+      success: true as const,
+      data: [
+        {
+          amount,
+          email,
+          rawAmountToken,
+          comment: undefined,
+        },
+      ],
+    };
   }
 
   private tryParseAmount(value: string): number | null {

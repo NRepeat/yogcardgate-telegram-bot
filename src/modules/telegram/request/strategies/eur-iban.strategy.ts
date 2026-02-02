@@ -5,12 +5,16 @@ import {
   ParsedStrategyInput,
   EurBaseStrategy,
   EurStrategyDependencies,
+  tryParseExtraChargePercent,
+  applyExtraCharge,
+  formatRateForStorage,
 } from './eur-base.strategy';
 
 interface EurIbanParsedInput extends ParsedStrategyInput {
   iban: string;
   name: string;
   comment?: string;
+  extraChargePercent?: number;
 }
 
 export class EurIbanStrategy extends EurBaseStrategy {
@@ -68,12 +72,15 @@ export class EurIbanStrategy extends EurBaseStrategy {
     rate,
     parsed,
   }: CreateRequestParams & { parsed: EurIbanParsedInput }): Promise<FullRequestType> {
+    // Apply extra charge if provided
+    const finalRate = applyExtraCharge(rate.rate ?? 0, parsed.extraChargePercent);
+
     const request = await this.deps.requestService.createGeneralRequest({
       amount: parsed.amount,
       vendorId,
       currencyId,
       rateId: rate.id,
-      rate: String(rate.rate ?? ''),
+      rate: formatRateForStorage(finalRate),
       method: {
         method: PaymentMethodEnum.IBAN,
         iban: {
@@ -139,7 +146,21 @@ export class EurIbanStrategy extends EurBaseStrategy {
       };
     }
 
-    const comment = rest.join(' ').trim() || undefined;
+    // Look for extra charge percent in the rest
+    let extraChargePercent: number | undefined;
+    const restWithoutPercent: string[] = [];
+    for (const token of rest) {
+      if (token.includes('%')) {
+        const percentValue = tryParseExtraChargePercent(token);
+        if (percentValue !== null && percentValue > 0) {
+          extraChargePercent = percentValue;
+        }
+      } else {
+        restWithoutPercent.push(token);
+      }
+    }
+
+    const comment = restWithoutPercent.join(' ').trim() || undefined;
 
     return {
       success: true,
@@ -148,8 +169,9 @@ export class EurIbanStrategy extends EurBaseStrategy {
         iban,
         name,
         comment,
+        extraChargePercent,
       },
-      consumed: comment ? 4 : 3,
+      consumed: rest.length > 0 ? 4 + rest.length - restWithoutPercent.length : 3,
     };
   }
 

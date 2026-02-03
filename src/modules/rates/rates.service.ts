@@ -220,13 +220,14 @@ export class RatesService {
     try {
       const processedCount = await this.prisma.$transaction(async (client) => {
         const currencyCache = new Map<CurrencyEnum, { id: string }>();
-        const paymentMethodCache = new Map<
-          PaymentMethodEnum,
-          { id: string }
-        >();
+        const paymentMethodCache = new Map<PaymentMethodEnum, { id: string }>();
         let affected = 0;
 
-        for (const { currencyKey, paymentMethodKey, rates } of grouped.values()) {
+        for (const {
+          currencyKey,
+          paymentMethodKey,
+          rates,
+        } of grouped.values()) {
           if (!currencyCache.has(currencyKey)) {
             const currency = await client.currency.findUnique({
               where: { name: currencyKey },

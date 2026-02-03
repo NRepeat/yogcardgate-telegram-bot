@@ -31,14 +31,14 @@ const POPULAR_CURRENCY_ORDER = [
 const CURRENCY_TO_SKIP_RANGE = [
   // 'USD',
   // 'EUR',
-  'KZT',
-  'AZN',
-  'AED',
+  // 'KZT',
+  // 'AZN',
+  // 'AED',
   // 'CNY',
-  'PLN',
-  'TRY',
-  'CZK',
-  'THB',
+  // 'PLN',
+  // 'TRY',
+  // 'CZK',
+  // 'THB',
 ];
 
 @Injectable()

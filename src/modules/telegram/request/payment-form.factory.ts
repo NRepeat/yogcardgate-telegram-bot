@@ -395,21 +395,14 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       intro: DEFAULT_INTRO,
       fields: [
         {
-          label: 'Номер карты - Сумма',
-        },
-        {
-          label: 'Сумма',
-          description: 'например 10000.00',
-        },
-        {
-          label: 'ФИО латиницей',
+          label: 'Номер карты - Сумма - ФИО латиницей',
           description: 'точно как на карте',
         },
         {
           label: 'Название банка',
         },
       ],
-      sample: '4000000012345678 1111 JOHN DOE',
+      sample: '4000000012345678 1111 JOHN DOE\nBank Name',
     },
   },
   [CurrencyEnum.CNY]: {

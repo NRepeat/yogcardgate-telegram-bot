@@ -42,7 +42,7 @@ export default class ReportService {
       'Тип заявки',
       'Сумма',
       'Курс',
-      'Сумма по курсу',
+      'Сумма по USDT',
       'Валюта',
       'Реквизиты',
       'Банк',
@@ -160,7 +160,7 @@ export default class ReportService {
     const now = new Date();
     const captionParts = [
       `Количество заявок: ${requests.length}`,
-      `Сумма: ${this.roundNumber(totalAmount)}`,
+      // `Сумма: ${this.roundNumber(totalAmount)}`,
     ];
     if (totalConverted > 0) {
       captionParts.push(`Сумма по курсу: ${this.roundNumber(totalConverted)}`);

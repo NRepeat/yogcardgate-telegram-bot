@@ -214,7 +214,7 @@ abstract class BaseRequestMenu {
       typeof amount === 'number'
         ? `💵<b>Сумма:</b> <code>${amount}</code>${currencyLabel ? ` ${currencyLabel}` : ''}`
         : null,
-      rateValue ? `💱<b>Курс:</b> <code>${rateValue.toFixed(decimals)}</code>` : null,
+      rateValue ? `💱<b>Курс:</b> <code>${rateValue}</code>` : null,
     ];
 
     lines.push(

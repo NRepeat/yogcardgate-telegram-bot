@@ -414,7 +414,7 @@ export class RequestMessageFactory {
     const currencyCode = request.currency?.nameEn?.toUpperCase();
     const decimals = ['USD', 'EUR', 'GBP'].includes(currencyCode || '') ? 3 : 2;
 
-    return `💱<b>Курс:</b> <code>${rateValue.toFixed(decimals)}</code>`;
+    return `💱<b>Курс:</b> <code>${rateValue}</code>`;
   }
 
   private static partnerLine(request: FullRequestType): string | null {

@@ -171,7 +171,7 @@ export class RatesService {
 
     const parsedRates = this.parseAllRatesMarkupMessage(message);
 
-    const newRates: (SerializedRate & { enabled: boolean })[] = [];
+    const newRates: SerializedRate[] = [];
     for (const parsedRate of parsedRates) {
       // Check if entire direction is disabled (header starts with #)
       const headerTrimmed = parsedRate.header.trim();
@@ -256,8 +256,9 @@ export class RatesService {
           maxAmount ?? 0,
           currencyId,
           paymentMethodId,
+          enabled,
         );
-        newRates.push({ ...newRate, enabled });
+        newRates.push(newRate);
       }
     }
     if (newRates.length === 0) {
@@ -271,7 +272,7 @@ export class RatesService {
       {
         currencyKey: CurrencyEnum;
         paymentMethodKey: PaymentMethodEnum;
-        rates: (SerializedRate & { enabled: boolean })[];
+        rates: SerializedRate[];
       }
     >();
 

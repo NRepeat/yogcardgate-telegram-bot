@@ -179,17 +179,25 @@ export class UtilsService {
         : group.displayName;
 
       for (let [method, lines] of group.methods) {
+        let methodLabel = method;
+        let headerLabel = currencyLabel;
+
         if (method === 'KZT_KASPI_BANK') {
-          method = 'Kaspi Bank';
+          methodLabel = 'Kaspi Bank';
         } else if (method === 'KZT_OTHER_BANKS') {
-          method = 'Остальные банки';
+          methodLabel = 'Остальные банки';
+        } else if (method.startsWith('CNY_')) {
+          // For CNY methods, strip prefix and use only symbol
+          methodLabel = method.replace('CNY_', '');
+          headerLabel = symbol ?? currencyLabel;
         }
+
         if (CURRENCY_TO_SKIP_RANGE.includes(currencyCode)) {
           message.push(
-            `${currencyLabel} ${method.toUpperCase()} ${lines.join('\n')}`,
+            `${headerLabel} ${methodLabel.toUpperCase()} ${lines.join('\n')}`,
           );
         } else {
-          message.push(`${currencyLabel} ${method.toUpperCase()}`);
+          message.push(`${headerLabel} ${methodLabel.toUpperCase()}`);
           message.push(...lines);
         }
       }

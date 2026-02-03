@@ -163,12 +163,12 @@ export default class ReportService {
       // `Сумма: ${this.roundNumber(totalAmount)}`,
     ];
     if (totalConverted > 0) {
-      captionParts.push(`Сумма по USDT: ${this.roundNumber(totalConverted)}`);
+      captionParts.push(`Сумма USDT: ${this.roundNumber(totalConverted)}`);
     }
     captionParts.push(
       `Время: ${now.toLocaleString('sv-SE', { hour12: false })}`,
     );
-    const caption = captionParts.join(', \n ');
+    const caption = captionParts.join(',\n');
     // Buffer
     const buffer = await workbook.xlsx.writeBuffer();
     return { buffer: Buffer.from(buffer), caption };

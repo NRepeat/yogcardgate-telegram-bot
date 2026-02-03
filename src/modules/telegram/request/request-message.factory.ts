@@ -69,6 +69,7 @@ export class RequestMessageFactory {
       details.bank?.bankName
         ? `🏦<b>Банк:</b> <i>${details.bank.bankName}</i>`
         : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
       this.partnerLine(request),
     ]);
 

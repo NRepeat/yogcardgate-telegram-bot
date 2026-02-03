@@ -113,4 +113,38 @@ export default class RatesRepository implements Repository<SerializedRate> {
       include: { currency: true, paymentMethod: true },
     });
   }
+
+  async getAllEnabled() {
+    return this.prisma.rates.findMany({
+      where: { enabled: true },
+      include: { currency: true, paymentMethod: true },
+    });
+  }
+
+  async toggleEnabled(id: string, enabled: boolean) {
+    return this.prisma.rates.update({
+      where: { id },
+      data: { enabled },
+    });
+  }
+
+  async enableByCurrencyAndMethod(
+    currencyId: string,
+    paymentMethodId: string,
+  ) {
+    return this.prisma.rates.updateMany({
+      where: { currencyId, paymentMethodId },
+      data: { enabled: true },
+    });
+  }
+
+  async disableByCurrencyAndMethod(
+    currencyId: string,
+    paymentMethodId: string,
+  ) {
+    return this.prisma.rates.updateMany({
+      where: { currencyId, paymentMethodId },
+      data: { enabled: false },
+    });
+  }
 }

@@ -38,12 +38,17 @@ export class RatesService {
     return this.rateRepository.getAll();
   }
 
+  async getAllEnabledRates() {
+    return this.rateRepository.getAllEnabled();
+  }
+
   async getAllRatesMarkupMessage() {
     const allRates = await this.getAllRates();
     type MethodRates = {
       minAmount: number;
       maxAmount: number | null;
       rate: number;
+      enabled: boolean;
     };
 
     const currencyPopularityIndex = (code: string | null | undefined) => {
@@ -85,6 +90,7 @@ export class RatesService {
         minAmount: rate.minAmount,
         maxAmount: rate.maxAmount,
         rate: rate.rate,
+        enabled: rate.enabled,
       });
     }
 
@@ -123,7 +129,8 @@ export class RatesService {
             r.maxAmount !== null && r.maxAmount > 0
               ? `${r.minAmount}-${r.maxAmount}`
               : `${r.minAmount}+`;
-          message.push(`${amount} ${r.rate}`);
+          const prefix = r.enabled ? '' : '#';
+          message.push(`${prefix}${amount} ${r.rate}`);
         }
       }
     }
@@ -160,7 +167,7 @@ export class RatesService {
 
     const parsedRates = this.parseAllRatesMarkupMessage(message);
 
-    const newRates: SerializedRate[] = [];
+    const newRates: (SerializedRate & { enabled: boolean })[] = [];
     for (const parsedRate of parsedRates) {
       const method = parsedRate.header.split(':')[1].trim();
       const paymentMethodId =
@@ -172,7 +179,17 @@ export class RatesService {
         let minAmount = 0;
         let maxAmount: number | null = null;
         let rate = 0;
-        const [amountPart, ratePart] = line.split(' ');
+        let enabled = true;
+
+        // Check if line starts with # (disabled)
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith('#')) {
+          enabled = false;
+        }
+
+        // Remove # prefix if present
+        const cleanedLine = trimmedLine.replace(/^#/, '');
+        const [amountPart, ratePart] = cleanedLine.split(' ');
         rate = Number(ratePart);
         if (amountPart.includes('+')) {
           minAmount = Number(amountPart.replace('+', ''));
@@ -189,7 +206,7 @@ export class RatesService {
           currencyId,
           paymentMethodId,
         );
-        newRates.push(newRate);
+        newRates.push({ ...newRate, enabled });
       }
     }
     if (newRates.length === 0) {
@@ -203,7 +220,7 @@ export class RatesService {
       {
         currencyKey: CurrencyEnum;
         paymentMethodKey: PaymentMethodEnum;
-        rates: SerializedRate[];
+        rates: (SerializedRate & { enabled: boolean })[];
       }
     >();
 
@@ -276,6 +293,7 @@ export class RatesService {
                 maxAmount: rate.maxAmount ?? 0,
                 currencyId: currency.id,
                 paymentMethodId: paymentMethod.id,
+                enabled: rate.enabled,
               },
             });
             affected += 1;

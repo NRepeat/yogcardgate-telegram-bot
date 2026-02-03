@@ -47,7 +47,7 @@ export abstract class EurBaseStrategy implements PaymentRequestStrategy {
       }
 
       const availableRates =
-        (await this.deps.ratesService.getAllRates()) as RateWithRelations[];
+        (await this.deps.ratesService.getAllEnabledRates()) as RateWithRelations[];
 
       const requests: FullRequestType[] = [];
       const details: string[] = [];

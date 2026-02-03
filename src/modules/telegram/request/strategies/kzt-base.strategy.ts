@@ -46,7 +46,7 @@ export abstract class KztBaseStrategy implements PaymentRequestStrategy {
         };
       }
 
-      const rates = (await this.deps.ratesService.getAllRates()) as RateWithRelations[];
+      const rates = (await this.deps.ratesService.getAllEnabledRates()) as RateWithRelations[];
       const requests: FullRequestType[] = [];
       const details: string[] = [];
 

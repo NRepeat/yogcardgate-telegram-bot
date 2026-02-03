@@ -288,6 +288,7 @@ model Rates {
   minAmount       Float
   maxAmount       Float
   rate            Float
+  enabled         Boolean           @default(true)
   updatedAt       DateTime          @updatedAt
   createdAt       DateTime          @default(now())
   paymentMethodId String

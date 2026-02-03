@@ -29,6 +29,7 @@ import {
 import { CurrencyService } from 'src/modules/currencie/currencie.service';
 import { Markup } from 'telegraf';
 import { AccessType, CurrencyEnum, PaymentMethodEnum } from '@prisma/client';
+import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { PaymentFormFactory } from './payment-form.factory';
 import {
   PaymentRequestStrategy,
@@ -94,12 +95,25 @@ export class CreateRequestWizard {
     private readonly utilsService: UtilsService,
     private readonly telegramService: TelegramService,
     private readonly currenciesService: CurrencyService,
+    private readonly prismaService: PrismaService,
   ) {
     this.paymentStrategies = this.registerStrategies();
   }
 
   @WizardStep(0)
   async selectMethod(@Ctx() ctx: CustomSceneContext) {
+    // Check if bot is on pause
+    const settings = await this.prismaService.settings.findUnique({
+      where: { name: 'default' },
+    });
+
+    if (settings?.onPause) {
+      await ctx.reply(
+        'В данный момент мы не принимаем заявки, вы получите уведомление как только мы возобновим работу.',
+      );
+      return ctx.scene.leave();
+    }
+
     const username = ctx.from?.username || 'Unknown User';
     const availableCurrenciesKeyboard =
       await this.currenciesService.getCurrencyKeyboard(ctx.from?.id);

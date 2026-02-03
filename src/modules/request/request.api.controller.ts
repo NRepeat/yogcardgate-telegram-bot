@@ -14,6 +14,7 @@ import { CardRequestType, IbanRequestType } from 'src/types/types';
 import { VendorService } from '../vendor/vendor.service';
 import { ApiToken } from './api-token.decorator';
 import { PaymentMethodEnum } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
 // Utility to convert BigInt to string in all responses
 function replacerBigInt(key: string, value: any) {
@@ -29,7 +30,8 @@ export class RequestApiController {
   constructor(
     private readonly requestService: RequestService,
     private readonly ratesService: RatesService,
-    private readonly vendorService: VendorService, // Assuming you have a VendorService
+    private readonly vendorService: VendorService,
+    private readonly prismaService: PrismaService,
   ) {}
 
   @Post('add_lead')
@@ -37,6 +39,18 @@ export class RequestApiController {
     @Body() requests: CardRequestType[],
     @ApiToken() apiToken: string,
   ) {
+    // Check if bot is on pause
+    const settings = await this.prismaService.settings.findUnique({
+      where: { name: 'default' },
+    });
+
+    if (settings?.onPause) {
+      return {
+        error: 'В данный момент мы не принимаем заявки, вы получите уведомление как только мы возобновим работу.',
+        status: 2215,
+      };
+    }
+
     // console.log('Received requests:', requests);
     const responses: any[] = [];
     for (const req of requests) {
@@ -60,7 +74,7 @@ export class RequestApiController {
         continue;
       }
       // Rate lookup
-      const allRates = await this.ratesService.getAllRates();
+      const allRates = await this.ratesService.getAllEnabledRates();
       const amount = req.amount;
       let rate: number | null = null;
       for (const r of allRates) {
@@ -118,6 +132,18 @@ export class RequestApiController {
     @Body() requests: IbanRequestType[],
     @ApiToken() apiToken: string,
   ) {
+    // Check if bot is on pause
+    const settings = await this.prismaService.settings.findUnique({
+      where: { name: 'default' },
+    });
+
+    if (settings?.onPause) {
+      return {
+        error: 'В данный момент мы не принимаем заявки, вы получите уведомление как только мы возобновим работу.',
+        status: 2215,
+      };
+    }
+
     const responses: any[] = [];
     for (let i = 0; i < requests.length; i++) {
       const req = requests[i];
@@ -146,7 +172,7 @@ export class RequestApiController {
         continue;
       }
       // Rate lookup
-      const allRates = await this.ratesService.getAllRates();
+      const allRates = await this.ratesService.getAllEnabledRates();
       const amount = req.amount;
       let rate: number | null = null;
       for (const r of allRates) {
@@ -303,7 +329,7 @@ export class RequestApiController {
 
   @Get('rates')
   async getRates() {
-    const allRates = await this.ratesService.getAllRates();
+    const allRates = await this.ratesService.getAllEnabledRates();
     const cardRates = allRates.filter(
       (r) => r.paymentMethod.nameEn.toLowerCase() === 'card',
     );

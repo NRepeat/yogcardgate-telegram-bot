@@ -46,7 +46,7 @@ export abstract class UsdBaseStrategy implements PaymentRequestStrategy {
         };
       }
 
-      const availableRates = (await this.deps.ratesService.getAllRates()) as RateWithRelations[];
+      const availableRates = (await this.deps.ratesService.getAllEnabledRates()) as RateWithRelations[];
       const requests: FullRequestType[] = [];
       const details: string[] = [];
 

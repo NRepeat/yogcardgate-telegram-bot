@@ -95,7 +95,7 @@ export class UtilsService {
   }
 
   async getAllPublicRatesMarkupMessage() {
-    const allRates = await this.ratesService.getAllRates();
+    const allRates = await this.ratesService.getAllEnabledRates();
     if (!allRates.length) return 'Нет доступных курсов.';
     // Сортируем: сначала Card, затем остальные, внутри Card — сначала + (maxAmount === null/0), потом по minAmount по убыванию
     type Rate = (typeof allRates)[number];

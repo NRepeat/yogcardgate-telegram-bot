@@ -116,7 +116,11 @@ export class RatesService {
       );
 
       for (const [methodKey, rates] of methods) {
-        const header = `${group.displayName}:${methodKey}`;
+        // Check if all rates in this direction are disabled
+        const allDisabled = rates.every((r) => !r.enabled);
+        const headerPrefix = allDisabled ? '#' : '';
+        const header = `${headerPrefix}${group.displayName}:${methodKey}`;
+
         rates.sort((a, b) => {
           if (a.maxAmount === null && b.maxAmount !== null) return 1;
           if (a.maxAmount !== null && b.maxAmount === null) return -1;
@@ -169,28 +173,61 @@ export class RatesService {
 
     const newRates: (SerializedRate & { enabled: boolean })[] = [];
     for (const parsedRate of parsedRates) {
-      const method = parsedRate.header.split(':')[1].trim();
+      // Check if entire direction is disabled (header starts with #)
+      const headerTrimmed = parsedRate.header.trim();
+      const directionDisabled = headerTrimmed.startsWith('#');
+      const cleanHeader = headerTrimmed.replace(/^#/, '').trim();
+
+      const method = cleanHeader.split(':')[1]?.trim();
+      const currencyName = cleanHeader.split(':')[0]?.trim();
+
+      if (!method || !currencyName) {
+        console.warn(`Invalid header format: ${parsedRate.header}`);
+        continue;
+      }
+
       const paymentMethodId =
         PaymentMethodEnum[method as keyof typeof PaymentMethodEnum];
-      const currencyName = parsedRate.header.split(':')[0].trim();
       const currencyId =
         CurrencyEnum[currencyName as keyof typeof CurrencyEnum];
+
+      if (!paymentMethodId || !currencyId) {
+        console.warn(
+          `Invalid currency or payment method: ${currencyName}:${method}`,
+        );
+        continue;
+      }
+
       for (const line of parsedRate.lines) {
         let minAmount = 0;
         let maxAmount: number | null = null;
         let rate = 0;
-        let enabled = true;
+        let enabled = !directionDisabled; // If direction disabled, all rates disabled
 
-        // Check if line starts with # (disabled)
+        // Check if individual line starts with # (disabled)
         const trimmedLine = line.trim();
         if (trimmedLine.startsWith('#')) {
           enabled = false;
         }
 
-        // Remove # prefix if present
-        const cleanedLine = trimmedLine.replace(/^#/, '');
-        const [amountPart, ratePart] = cleanedLine.split(' ');
+        // Remove # prefix if present and trim
+        const cleanedLine = trimmedLine.replace(/^#/, '').trim();
+        const parts = cleanedLine.split(/\s+/); // Split by any whitespace
+
+        if (parts.length < 2) {
+          console.warn(`Invalid line format: ${line}`);
+          continue;
+        }
+
+        const amountPart = parts[0];
+        const ratePart = parts[1];
+
         rate = Number(ratePart);
+        if (isNaN(rate) || rate <= 0) {
+          console.warn(`Invalid rate in line: ${line}`);
+          continue;
+        }
+
         if (amountPart.includes('+')) {
           minAmount = Number(amountPart.replace('+', ''));
           maxAmount = null;
@@ -198,7 +235,21 @@ export class RatesService {
           const [min, max] = amountPart.split('-');
           minAmount = Number(min);
           maxAmount = Number(max);
+        } else {
+          minAmount = Number(amountPart);
+          maxAmount = null;
         }
+
+        if (isNaN(minAmount) || minAmount < 0) {
+          console.warn(`Invalid minAmount in line: ${line}`);
+          continue;
+        }
+
+        if (maxAmount !== null && (isNaN(maxAmount) || maxAmount < minAmount)) {
+          console.warn(`Invalid maxAmount in line: ${line}`);
+          continue;
+        }
+
         const newRate = new Rate(
           rate,
           minAmount,

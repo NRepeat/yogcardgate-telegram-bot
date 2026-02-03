@@ -95,8 +95,9 @@ export class UtilsService {
   }
 
   async getAllPublicRatesMarkupMessage() {
-    const allRates = await this.ratesService.getAllEnabledRates();
+    const allRates = await this.ratesService.getAllRates();
     if (!allRates.length) return 'Нет доступных курсов.';
+
     // Сортируем: сначала Card, затем остальные, внутри Card — сначала + (maxAmount === null/0), потом по minAmount по убыванию
     type Rate = (typeof allRates)[number];
     function plusFirstSort(a: Rate, b: Rate) {
@@ -127,7 +128,7 @@ export class UtilsService {
       string,
       {
         displayName: string;
-        methods: Map<string, string[]>;
+        methods: Map<string, { lines: string[]; hasEnabled: boolean }>;
         popularityIndex: number;
         symbol: string | null;
       }
@@ -152,19 +153,28 @@ export class UtilsService {
 
       const currencyGroup = groupedByCurrency.get(currencyCode)!;
       const methodKey = rate.paymentMethod.nameEn;
-      const amountLabel =
-        rate.maxAmount !== null && rate.maxAmount > 0
-          ? `${rate.minAmount} - ${rate.maxAmount}`
-          : `${rate.minAmount}+`;
-      const line = `•[${amountLabel}] — ${rate.rate}`;
-      const lineWithoutAmount = `— ${rate.rate}`;
+
       if (!currencyGroup.methods.has(methodKey)) {
-        currencyGroup.methods.set(methodKey, []);
+        currencyGroup.methods.set(methodKey, { lines: [], hasEnabled: false });
       }
-      if (!CURRENCY_TO_SKIP_RANGE.includes(currencyCode)) {
-        currencyGroup.methods.get(methodKey)!.push(line);
-      } else {
-        currencyGroup.methods.get(methodKey)!.push(lineWithoutAmount);
+
+      const methodData = currencyGroup.methods.get(methodKey)!;
+
+      // Only add lines for enabled rates
+      if (rate.enabled) {
+        methodData.hasEnabled = true;
+        const amountLabel =
+          rate.maxAmount !== null && rate.maxAmount > 0
+            ? `${rate.minAmount} - ${rate.maxAmount}`
+            : `${rate.minAmount}+`;
+        const line = `•[${amountLabel}] — ${rate.rate}`;
+        const lineWithoutAmount = `— ${rate.rate}`;
+
+        if (!CURRENCY_TO_SKIP_RANGE.includes(currencyCode)) {
+          methodData.lines.push(line);
+        } else {
+          methodData.lines.push(lineWithoutAmount);
+        }
       }
     }
 
@@ -193,7 +203,7 @@ export class UtilsService {
         ? `${flag} ${symbol} ${group.displayName}`.trim()
         : `${flag} ${group.displayName}`.trim();
 
-      for (let [method, lines] of group.methods) {
+      for (let [method, methodData] of group.methods) {
         let methodLabel = method;
         let headerLabel = currencyLabel;
 
@@ -207,13 +217,20 @@ export class UtilsService {
           headerLabel = symbol ? `${flag} ${symbol}`.trim() : currencyLabel;
         }
 
-        if (CURRENCY_TO_SKIP_RANGE.includes(currencyCode)) {
+        // If no enabled rates in this direction, show "temporarily unavailable"
+        if (!methodData.hasEnabled) {
           message.push(
-            `${headerLabel} ${methodLabel.toUpperCase()} ${lines.join('\n')}`,
+            `${headerLabel} ${methodLabel.toUpperCase()} - временно не доступен`,
           );
         } else {
-          message.push(`${headerLabel} ${methodLabel.toUpperCase()}`);
-          message.push(...lines);
+          if (CURRENCY_TO_SKIP_RANGE.includes(currencyCode)) {
+            message.push(
+              `${headerLabel} ${methodLabel.toUpperCase()} ${methodData.lines.join('\n')}`,
+            );
+          } else {
+            message.push(`${headerLabel} ${methodLabel.toUpperCase()}`);
+            message.push(...methodData.lines);
+          }
         }
       }
 

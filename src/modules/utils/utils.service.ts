@@ -42,6 +42,20 @@ const CURRENCY_TO_SKIP_RANGE = [
   // 'THB',
 ];
 
+const CURRENCY_FLAGS: Record<string, string> = {
+  UAH: '🇺🇦',
+  USD: '🇺🇸',
+  EUR: '🇪🇺',
+  KZT: '🇰🇿',
+  AZN: '🇦🇿',
+  AED: '🇦🇪',
+  CNY: '🇨🇳',
+  PLN: '🇵🇱',
+  TRY: '🇹🇷',
+  CZK: '🇨🇿',
+  THB: '🇹🇭',
+};
+
 @Injectable()
 export class UtilsService {
   constructor(
@@ -167,6 +181,7 @@ export class UtilsService {
 
     for (const [currencyCode, group] of sortedCurrencies) {
       const symbol = group.symbol ?? null;
+      const flag = CURRENCY_FLAGS[currencyCode.toUpperCase()] ?? '';
       const shouldShowSymbol =
         symbol !== null &&
         symbol.trim().length > 0 &&
@@ -175,8 +190,8 @@ export class UtilsService {
         symbol.trim().toUpperCase() !== group.displayName.trim().toUpperCase();
 
       const currencyLabel = shouldShowSymbol
-        ? `${symbol} ${group.displayName}`
-        : group.displayName;
+        ? `${flag} ${symbol} ${group.displayName}`.trim()
+        : `${flag} ${group.displayName}`.trim();
 
       for (let [method, lines] of group.methods) {
         let methodLabel = method;
@@ -187,9 +202,9 @@ export class UtilsService {
         } else if (method === 'KZT_OTHER_BANKS') {
           methodLabel = 'Остальные банки';
         } else if (method.startsWith('CNY_')) {
-          // For CNY methods, strip prefix and use only symbol
+          // For CNY methods, strip prefix and use only symbol with flag
           methodLabel = method.replace('CNY_', '');
-          headerLabel = symbol ?? currencyLabel;
+          headerLabel = symbol ? `${flag} ${symbol}`.trim() : currencyLabel;
         }
 
         if (CURRENCY_TO_SKIP_RANGE.includes(currencyCode)) {

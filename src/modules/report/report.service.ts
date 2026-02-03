@@ -120,7 +120,7 @@ export default class ReportService {
     const totalRow = [
       'Итого:',
       '',
-      this.roundNumber(totalAmount),
+      '',
       averageRate !== null ? this.roundNumber(averageRate) : '',
       rateCount > 0 ? this.roundNumber(totalConverted) : '',
       '',
@@ -163,7 +163,7 @@ export default class ReportService {
       // `Сумма: ${this.roundNumber(totalAmount)}`,
     ];
     if (totalConverted > 0) {
-      captionParts.push(`Сумма по курсу: ${this.roundNumber(totalConverted)}`);
+      captionParts.push(`Сумма по USDT: ${this.roundNumber(totalConverted)}`);
     }
     captionParts.push(
       `Время: ${now.toLocaleString('sv-SE', { hour12: false })}`,

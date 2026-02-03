@@ -350,9 +350,12 @@ const FORM_REGISTRY: PaymentFormRegistry = {
         {
           label: 'Номер карты - Сумма',
         },
+        {
+          label: 'Название банка',
+        },
       ],
       sample: '0000000000000000 100000',
-      notes: ['Оплата через другие банки'],
+      notes: [''],
     },
     [PaymentMethodEnum.PHONE]: {
       title: 'TEL-NUMBER',

@@ -8,7 +8,10 @@ import {
   ParsedStrategyInput,
   RateWithRelations,
 } from './kzt-base.strategy';
-import { StrategyExecuteContext, StrategyResult } from './payment-request.strategy';
+import {
+  StrategyExecuteContext,
+  StrategyResult,
+} from './payment-request.strategy';
 
 export enum KztBankType {
   KASPI_BANK = 'Kaspi Bank',
@@ -24,9 +27,7 @@ export class KztBankCardStrategy extends KztBaseStrategy {
   private readonly cardRegex = /^(?:\d{12,19})$/;
   private readonly bankTypeRegex = /^(Kaspi Bank|Остальные банки)$/i;
 
-  constructor(
-    deps: KztStrategyDependencies & { utilsService: UtilsService },
-  ) {
+  constructor(deps: KztStrategyDependencies & { utilsService: UtilsService }) {
     super(deps);
     this.utilsService = deps.utilsService;
   }
@@ -34,11 +35,12 @@ export class KztBankCardStrategy extends KztBaseStrategy {
   private readonly utilsService: UtilsService;
 
   protected supportsMethod(method: PaymentMethodEnum): boolean {
-    return method === PaymentMethodEnum.CARD || 
-           method === PaymentMethodEnum.KZT_KASPI_BANK || 
-           method === PaymentMethodEnum.KZT_OTHER_BANKS;
+    return (
+      method === PaymentMethodEnum.CARD ||
+      method === PaymentMethodEnum.KZT_KASPI_BANK ||
+      method === PaymentMethodEnum.KZT_OTHER_BANKS
+    );
   }
-
 
   async execute(
     method: PaymentMethodEnum,
@@ -62,7 +64,8 @@ export class KztBankCardStrategy extends KztBaseStrategy {
         };
       }
 
-      const rates = (await this.deps.ratesService.getAllRates()) as RateWithRelations[];
+      const rates =
+        (await this.deps.ratesService.getAllRates()) as RateWithRelations[];
       const requests: FullRequestType[] = [];
       const details: string[] = [];
 
@@ -126,7 +129,8 @@ export class KztBankCardStrategy extends KztBaseStrategy {
     if (cardIndex === -1) {
       return {
         success: false as const,
-        error: 'Не удалось найти номер карты. Убедитесь, что указали его полностью.',
+        error:
+          'Не удалось найти номер карты. Убедитесь, что указали его полностью.',
       };
     }
 
@@ -163,7 +167,9 @@ export class KztBankCardStrategy extends KztBaseStrategy {
       };
     }
 
-    const holderTokens = remaining.filter((_, index) => index !== amountTokenIndex);
+    const holderTokens = remaining.filter(
+      (_, index) => index !== amountTokenIndex,
+    );
     const holderName = holderTokens.join(' ').trim() || undefined;
 
     return {
@@ -178,14 +184,18 @@ export class KztBankCardStrategy extends KztBaseStrategy {
     rate,
     parsed,
     method,
-  }: CreateRequestParams & { parsed: KztBankCardParsedInput }): Promise<FullRequestType> {
+  }: CreateRequestParams & {
+    parsed: KztBankCardParsedInput;
+  }): Promise<FullRequestType> {
     // Determine bank type based on method
-    const bankType = method === PaymentMethodEnum.KZT_KASPI_BANK 
-      ? KztBankType.KASPI_BANK 
-      : KztBankType.OTHER_BANKS;
+    const bankType =
+      method === PaymentMethodEnum.KZT_KASPI_BANK
+        ? KztBankType.KASPI_BANK
+        : KztBankType.OTHER_BANKS;
 
-    const blackListEntry =
-      await this.deps.requestService.isInBlackList(parsed.cardNumber);
+    const blackListEntry = await this.deps.requestService.isInBlackList(
+      parsed.cardNumber,
+    );
 
     const request = await this.deps.requestService.createGeneralRequest({
       amount: parsed.amount,
@@ -197,8 +207,8 @@ export class KztBankCardStrategy extends KztBaseStrategy {
         method: method,
         card: {
           card: parsed.cardNumber,
-          comment: parsed.holderName 
-            ? `Holder: ${parsed.holderName}, Bank: ${bankType}` 
+          comment: parsed.holderName
+            ? `Holder: ${parsed.holderName}, Bank: ${bankType}`
             : `Bank: ${bankType}`,
           bankId: null,
           blackListId: blackListEntry?.id ?? null,
@@ -209,11 +219,15 @@ export class KztBankCardStrategy extends KztBaseStrategy {
     return request as unknown as FullRequestType;
   }
 
-  protected buildDetails(data: KztBankCardParsedInput, method?: PaymentMethodEnum): string {
-    const bankType = method === PaymentMethodEnum.KZT_KASPI_BANK 
-      ? KztBankType.KASPI_BANK 
-      : KztBankType.OTHER_BANKS;
-      
+  protected buildDetails(
+    data: KztBankCardParsedInput,
+    method?: PaymentMethodEnum,
+  ): string {
+    const bankType =
+      method === PaymentMethodEnum.KZT_KASPI_BANK
+        ? KztBankType.KASPI_BANK
+        : KztBankType.OTHER_BANKS;
+
     const lines = [
       'Тип: KZT CARD',
       `Банк: ${bankType}`,
@@ -227,9 +241,7 @@ export class KztBankCardStrategy extends KztBaseStrategy {
   }
 
   private tryParseAmount(token: string): number | null {
-    const normalized = token
-      .replace(/[^0-9,\.]/g, '')
-      .replace(/,/g, '.');
+    const normalized = token.replace(/[^0-9,\.]/g, '').replace(/,/g, '.');
     if (!normalized) {
       return null;
     }

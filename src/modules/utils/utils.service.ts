@@ -29,6 +29,7 @@ const POPULAR_CURRENCY_ORDER = [
 ];
 
 const CURRENCY_TO_SKIP_RANGE = [
+  '',
   // 'USD',
   // 'EUR',
   // 'KZT',

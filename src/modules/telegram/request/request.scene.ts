@@ -107,11 +107,36 @@ export class CreateRequestWizard {
       where: { name: 'default' },
     });
 
+    console.log('Bot pause status:', settings?.onPause);
+
     if (settings?.onPause) {
-      await ctx.reply(
-        'В данный момент мы не принимаем заявки, вы получите уведомление как только мы возобновим работу.',
-      );
-      return ctx.scene.leave();
+      console.log('Bot is on pause, sending notification to chat:', ctx.chat?.id);
+      try {
+        const chatId = ctx.chat?.id;
+        if (chatId) {
+          const sentMessage = await ctx.telegram.sendMessage(
+            chatId,
+            'В данный момент мы не принимаем заявки, вы получите уведомление как только мы возобновим работу.',
+          );
+          console.log('Pause message sent successfully, ID:', sentMessage.message_id);
+
+          // Save message ID to pass to deleteSceneMessages so it won't be deleted
+          const pauseMessageId = sentMessage.message_id;
+
+          // Delete scene messages but keep the pause notification
+          await this.deleteSceneMessages(ctx, [pauseMessageId]);
+          await this.deleteSceneMenuMessages(ctx);
+          ctx.session.messagesToDelete = [];
+          ctx.session.customState = '';
+          ctx.session.requestMenuMessageId = undefined;
+        } else {
+          console.warn('No chat ID available to send pause message');
+        }
+      } catch (error) {
+        console.error('Error sending pause message:', error);
+      }
+      // Leave scene without triggering @SceneLeave hook
+      return;
     }
 
     const username = ctx.from?.username || 'Unknown User';

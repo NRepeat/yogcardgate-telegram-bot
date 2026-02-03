@@ -306,7 +306,7 @@ export class UtilsService {
           `💵Сумма: ${amount}\n` +
           `💎USDT: ${usdt} \n` +
           `💳Номер карты: ${card}\n` +
-          `💱Курс: ${typeof rate === 'number' ? rate.toFixed(decimals) : '-'}\n`;
+          `💱Курс: ${typeof rate === 'number' ? String(rate) : '-'}\n`;
         inline_keyboard = Markup.inlineKeyboard([
           [Markup.button.callback('В работе', 'dummy')],
         ]).reply_markup;

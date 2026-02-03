@@ -396,8 +396,15 @@ const FORM_REGISTRY: PaymentFormRegistry = {
           label: 'Номер карты - Сумма',
         },
         {
+          label: 'Сумма',
+          description: 'например 10000.00',
+        },
+        {
           label: 'ФИО латиницей',
           description: 'точно как на карте',
+        },
+        {
+          label: 'Название банка',
         },
       ],
       sample: '4000000012345678 1111 JOHN DOE',

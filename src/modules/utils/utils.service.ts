@@ -292,7 +292,7 @@ export class UtilsService {
 
     // Use 3 decimal places for USD/EUR/GBP, 2 for others
     const currencyCode = request.currency?.nameEn?.toUpperCase();
-    const decimals = ['USD', 'EUR', 'GBP'].includes(currencyCode || '') ? 3 : 2;
+    const decimals = ['USD', 'EUR', 'GBP'].includes(currencyCode || '') ? 4 : 4;
 
     let message = '';
     let inline_keyboard: InlineKeyboardMarkup = {

@@ -11,14 +11,13 @@ import {
 interface AznCardParsedInput extends ParsedStrategyInput {
   cardNumber: string;
   holderName?: string;
+  bank?: string;
 }
 
 export class AznCardStrategy extends AznBaseStrategy {
   private readonly cardRegex = /^(?:\d{12,19})$/;
 
-  constructor(
-    deps: AznStrategyDependencies & { utilsService: UtilsService },
-  ) {
+  constructor(deps: AznStrategyDependencies & { utilsService: UtilsService }) {
     super(deps);
     this.utilsService = deps.utilsService;
   }
@@ -58,7 +57,8 @@ export class AznCardStrategy extends AznBaseStrategy {
       if (cardIndex === -1) {
         return {
           success: false as const,
-          error: 'Не удалось найти номер карты. Убедитесь, что указали его полностью.',
+          error:
+            'Не удалось найти номер карты. Убедитесь, что указали его полностью.',
         };
       }
 
@@ -95,7 +95,9 @@ export class AznCardStrategy extends AznBaseStrategy {
         };
       }
 
-      const holderTokens = remaining.filter((_, index) => index !== amountTokenIndex);
+      const holderTokens = remaining.filter(
+        (_, index) => index !== amountTokenIndex,
+      );
       const holderName = holderTokens.join(' ').trim() || undefined;
 
       parsed.push({ amount, cardNumber, holderName });
@@ -112,10 +114,16 @@ export class AznCardStrategy extends AznBaseStrategy {
     vendorId,
     rate,
     parsed,
-  }: CreateRequestParams & { parsed: AznCardParsedInput }): Promise<FullRequestType> {
-    const bank = await this.utilsService.getBankNameByCardNumber(parsed.cardNumber);
-    const blackListEntry =
-      await this.deps.requestService.isInBlackList(parsed.cardNumber);
+  }: CreateRequestParams & {
+    parsed: AznCardParsedInput;
+  }): Promise<FullRequestType> {
+    let bank;
+    if (parsed.bank) {
+      bank = 'Bank:' + parsed.bank;
+    }
+    const blackListEntry = await this.deps.requestService.isInBlackList(
+      parsed.cardNumber,
+    );
 
     const request = await this.deps.requestService.createGeneralRequest({
       amount: parsed.amount,
@@ -127,8 +135,10 @@ export class AznCardStrategy extends AznBaseStrategy {
         method: PaymentMethodEnum.CARD,
         card: {
           card: parsed.cardNumber,
-          comment: parsed.holderName ? `Holder: ${parsed.holderName}` : null,
-          bankId: bank?.id ?? null,
+          comment: parsed.holderName
+            ? `Holder: ${parsed.holderName}\n${bank}`
+            : null,
+          bankId: null,
           blackListId: blackListEntry?.id ?? null,
         },
       },
@@ -150,9 +160,7 @@ export class AznCardStrategy extends AznBaseStrategy {
   }
 
   private tryParseAmount(token: string): number | null {
-    const normalized = token
-      .replace(/[^0-9,\.]/g, '')
-      .replace(/,/g, '.');
+    const normalized = token.replace(/[^0-9,\.]/g, '').replace(/,/g, '.');
     if (!normalized) {
       return null;
     }

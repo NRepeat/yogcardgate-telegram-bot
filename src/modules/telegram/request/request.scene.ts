@@ -114,28 +114,31 @@ export class CreateRequestWizard {
       try {
         const chatId = ctx.chat?.id;
         if (chatId) {
+          // Clear all message tracking BEFORE sending pause message
+          const oldMessagesToDelete = ctx.session.messagesToDelete || [];
+          const oldMenuMessages = ctx.session.requestMenuMessageId || [];
+
+          ctx.session.messagesToDelete = [];
+          ctx.session.requestMenuMessageId = [];
+          ctx.session.customState = '';
+
+          // Delete any old messages from previous attempts
+          await this.deleteSceneMessages({ ...ctx, session: { ...ctx.session, messagesToDelete: oldMessagesToDelete } } as any);
+          await this.deleteSceneMenuMessages({ ...ctx, session: { ...ctx.session, requestMenuMessageId: oldMenuMessages } } as any);
+
+          // Now send the pause notification
           const sentMessage = await ctx.telegram.sendMessage(
             chatId,
             'В данный момент мы не принимаем заявки, вы получите уведомление как только мы возобновим работу.',
           );
           console.log('Pause message sent successfully, ID:', sentMessage.message_id);
-
-          // Save message ID to pass to deleteSceneMessages so it won't be deleted
-          const pauseMessageId = sentMessage.message_id;
-
-          // Delete scene messages but keep the pause notification
-          await this.deleteSceneMessages(ctx, [pauseMessageId]);
-          await this.deleteSceneMenuMessages(ctx);
-          ctx.session.messagesToDelete = [];
-          ctx.session.customState = '';
-          ctx.session.requestMenuMessageId = undefined;
         } else {
           console.warn('No chat ID available to send pause message');
         }
       } catch (error) {
         console.error('Error sending pause message:', error);
       }
-      // Leave scene without triggering @SceneLeave hook
+      // Exit without calling scene.leave() to avoid triggering @SceneLeave hook
       return;
     }
 

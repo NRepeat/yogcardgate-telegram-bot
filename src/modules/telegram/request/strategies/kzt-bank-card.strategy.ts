@@ -21,6 +21,7 @@ export enum KztBankType {
 interface KztBankCardParsedInput extends ParsedStrategyInput {
   cardNumber: string;
   holderName?: string;
+  bankName?: string;
 }
 
 export class KztBankCardStrategy extends KztBaseStrategy {
@@ -56,7 +57,7 @@ export class KztBankCardStrategy extends KztBaseStrategy {
         };
       }
 
-      const parsed = this.parseInput(context.message, context.ctx);
+      const parsed = this.parseInput(context.message, context.ctx, method);
       if (!parsed.success) {
         return {
           status: 'error',
@@ -107,7 +108,11 @@ export class KztBankCardStrategy extends KztBaseStrategy {
     }
   }
 
-  protected parseInput(message: string, context?: any) {
+  protected parseInput(
+    message: string,
+    context?: any,
+    method?: PaymentMethodEnum,
+  ) {
     // Parse card data from message
     const cardDataLine = message;
     const tokens = cardDataLine
@@ -167,14 +172,24 @@ export class KztBankCardStrategy extends KztBaseStrategy {
       };
     }
 
-    const holderTokens = remaining.filter(
+    const remainingTokens = remaining.filter(
       (_, index) => index !== amountTokenIndex,
     );
-    const holderName = holderTokens.join(' ').trim() || undefined;
+    const remainingText = remainingTokens.join(' ').trim() || undefined;
+
+    // For KZT_OTHER_BANKS, remaining text is bank name; otherwise it's holder name
+    const isOtherBanks = method === PaymentMethodEnum.KZT_OTHER_BANKS;
 
     return {
       success: true as const,
-      data: [{ amount, cardNumber, holderName }],
+      data: [
+        {
+          amount,
+          cardNumber,
+          holderName: isOtherBanks ? undefined : remainingText,
+          bankName: isOtherBanks ? remainingText : undefined,
+        },
+      ],
     };
   }
 
@@ -187,15 +202,27 @@ export class KztBankCardStrategy extends KztBaseStrategy {
   }: CreateRequestParams & {
     parsed: KztBankCardParsedInput;
   }): Promise<FullRequestType> {
-    // Determine bank type based on method
-    const bankType =
-      method === PaymentMethodEnum.KZT_KASPI_BANK
-        ? KztBankType.KASPI_BANK
-        : KztBankType.OTHER_BANKS;
+    // Determine bank display name
+    let bankDisplay: string;
+    if (method === PaymentMethodEnum.KZT_KASPI_BANK) {
+      bankDisplay = KztBankType.KASPI_BANK;
+    } else if (parsed.bankName) {
+      // Use user-provided bank name for OTHER_BANKS
+      bankDisplay = parsed.bankName;
+    } else {
+      bankDisplay = KztBankType.OTHER_BANKS;
+    }
 
     const blackListEntry = await this.deps.requestService.isInBlackList(
       parsed.cardNumber,
     );
+
+    // Build comment
+    const commentParts: string[] = [];
+    if (parsed.holderName) {
+      commentParts.push(`Holder: ${parsed.holderName}`);
+    }
+    commentParts.push(`Bank: ${bankDisplay}`);
 
     const request = await this.deps.requestService.createGeneralRequest({
       amount: parsed.amount,
@@ -207,9 +234,7 @@ export class KztBankCardStrategy extends KztBaseStrategy {
         method: method,
         card: {
           card: parsed.cardNumber,
-          comment: parsed.holderName
-            ? `Holder: ${parsed.holderName}, Bank: ${bankType}`
-            : `Bank: ${bankType}`,
+          comment: commentParts.join(', '),
           bankId: null,
           blackListId: blackListEntry?.id ?? null,
         },
@@ -223,14 +248,18 @@ export class KztBankCardStrategy extends KztBaseStrategy {
     data: KztBankCardParsedInput,
     method?: PaymentMethodEnum,
   ): string {
-    const bankType =
-      method === PaymentMethodEnum.KZT_KASPI_BANK
-        ? KztBankType.KASPI_BANK
-        : KztBankType.OTHER_BANKS;
+    let bankDisplay: string;
+    if (method === PaymentMethodEnum.KZT_KASPI_BANK) {
+      bankDisplay = KztBankType.KASPI_BANK;
+    } else if (data.bankName) {
+      bankDisplay = data.bankName;
+    } else {
+      bankDisplay = KztBankType.OTHER_BANKS;
+    }
 
     const lines = [
       'Тип: KZT CARD',
-      `Банк: ${bankType}`,
+      `Банк: ${bankDisplay}`,
       `Карта: <code>${data.cardNumber}</code>`,
       `Сумма: ${data.amount} KZT`,
     ];

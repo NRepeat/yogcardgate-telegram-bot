@@ -21,6 +21,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "setup": "npx prisma migrate dev",
     "seed": "cd prisma/seed && npx tsx cards.ts",
+    "seed:vendors": "cd prisma/seed && npx tsx vendors.ts",
     "postinstall": "npx -y prisma generate"
   },
   "dependencies": {

@@ -70,6 +70,9 @@ up-app: check-env
 seed: check-env
 	$(docker_compose_bin) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) --profile seed up seed
 
+seed-vendors: check-env
+	$(docker_compose_bin) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) --profile seed up seed-vendor
+
 # Restart app service
 restart-app:
 	$(docker_compose_bin) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) restart app

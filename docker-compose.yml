@@ -49,6 +49,20 @@ services:
     entrypoint: sh -c "npx prisma migrate deploy && npm run seed"
     profiles:
       - seed
+  seed-vendor:
+    build:
+      context: .
+    container_name: klim-bot-seed
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://${DATABASE_USER:-user}:${DATABASE_PASS:-password}@db:5432/${DATABASE_NAME:-new-yog-bot}?schema=public"
+    env_file:
+      - .env
+    entrypoint: sh -c "npx prisma migrate deploy && npm run seed:vendors"
+    profiles:
+      - seed
 
 volumes:
   postgres_data:

@@ -374,7 +374,9 @@ export class RatesService {
       });
 
       // Notify External API outside the transaction
+      console.log(processedGroups,"processedGroups")
       if (processedCount > 0) {
+
         for (const group of processedGroups) {
           await this.externalApiService.notifyRateUpdate(group.type, group.rate);
         }

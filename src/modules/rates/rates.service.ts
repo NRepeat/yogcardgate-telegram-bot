@@ -8,6 +8,7 @@ import { VendorService } from '../vendor/vendor.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrencyEnum, PaymentMethodEnum } from '@prisma/client';
 import { UtilsService } from '../utils/utils.service';
+import { ExternalApiService } from '../external-api/external-api.service';
 
 const POPULAR_CURRENCY_ORDER: string[] = [
   CurrencyEnum.UAH,
@@ -33,6 +34,7 @@ export class RatesService {
     @Inject(forwardRef(() => UtilsService))
     private readonly utilsService: UtilsService,
     private readonly prisma: PrismaService,
+    private readonly externalApiService: ExternalApiService,
   ) {}
   async getAllRates() {
     return this.rateRepository.getAll();
@@ -287,6 +289,8 @@ export class RatesService {
     }
 
     try {
+      const processedGroups: { type: string; rate: number }[] = [];
+
       const processedCount = await this.prisma.$transaction(async (client) => {
         const currencyCache = new Map<CurrencyEnum, { id: string }>();
         const paymentMethodCache = new Map<PaymentMethodEnum, { id: string }>();
@@ -337,6 +341,19 @@ export class RatesService {
             },
           });
 
+          // Sort rates to ensure consistent "middle" selection
+          // We'll sort by minAmount descending (highest amounts first, same as displayed)
+          const sortedRates = [...rates].sort((a, b) => b.minAmount - a.minAmount);
+          const middleIndex = Math.floor(sortedRates.length / 2);
+          const middleRate = sortedRates[middleIndex];
+
+          if (middleRate) {
+            processedGroups.push({
+              type: `${paymentMethodKey}_${currencyKey}`,
+              rate: middleRate.rate,
+            });
+          }
+
           for (const rate of rates) {
             await client.rates.create({
               data: {
@@ -355,6 +372,13 @@ export class RatesService {
         console.log(`Rates processed: ${affected}`);
         return affected;
       });
+
+      // Notify External API outside the transaction
+      if (processedCount > 0) {
+        for (const group of processedGroups) {
+          await this.externalApiService.notifyRateUpdate(group.type, group.rate);
+        }
+      }
 
       return processedCount > 0;
     } catch (error) {

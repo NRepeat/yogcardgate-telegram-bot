@@ -23,8 +23,8 @@ export class ExternalApiService {
   private readonly apiKey: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.apiUrl = this.configService.get<string>('EXTERNAL_API_URL');
-    this.apiKey = this.configService.get<string>('EXTERNAL_API_KEY');
+    this.apiUrl = this.configService.get<string>('EXTERNAL_API_URL') || '';
+    this.apiKey = this.configService.get<string>('EXTERNAL_API_KEY') || '';
   }
 
   async notifyRateUpdate(botType: string, rateValue: number) {

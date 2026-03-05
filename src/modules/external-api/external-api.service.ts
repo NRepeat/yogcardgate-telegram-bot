@@ -2,19 +2,37 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 const GROUPS_MAP: Record<string, string> = {
-  'IBAN_UAH': 'iban_uah',
+  // UAH
   'CARD_UAH': 'card_uah',
+  'IBAN_UAH': 'iban_uah',
+
+  // USD
   'CARD_USD': 'usdt_trc20_usd',
-  'CARD_KZT': 'usdt_trc20_kzt',
+  'PAYPAL_USD': 'usdt_trc20_usd',
+  'SKRILL_USD': 'usdt_trc20_usd',
+  'WISE_USD': 'usdt_trc20_usd',
+
+  // EUR
   'CARD_EUR': 'usdt_trc20_eur',
-  'CARD_AED': 'usdt_trc20_aed',
-  'CARD_PLN': 'usdt_trc20_pln',
-  'CNY_WECHAT_CNY': 'usdt_trc20_cny_wechat',
-  'CNY_ALIPAY_CNY': 'usdt_trc20_cny_alipay',
-  'CNY_CARD_CNY': 'usdt_trc20_cny_card',
+  'IBAN_EUR': 'usdt_trc20_eur',
+  'SKRILL_EUR': 'usdt_trc20_eur',
+
+  // KZT
+  'KZT_KASPI_BANK_KZT': 'usdt_trc20_kzt',
+  'KZT_OTHER_BANKS_KZT': 'usdt_trc20_kzt',
+
+  // Other Currencies
   'CARD_AZN': 'usdt_trc20_azn',
-  'CARD_TRY': 'usdt_trc20_try',
+  'IBAN_AED': 'usdt_trc20_aed',
+  'IBAN_PLN': 'usdt_trc20_pln',
+  'IBAN_TRY': 'usdt_trc20_try',
+
+  // CNY
+  'CNY_CARD_CNY': 'usdt_trc20_cny_card',
+  'CNY_ALIPAY_CNY': 'usdt_trc20_cny_alipay',
+  'CNY_WECHAT_CNY': 'usdt_trc20_cny_wechat',
 };
+
 
 @Injectable()
 export class ExternalApiService {

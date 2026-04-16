@@ -7,6 +7,7 @@ export default class Rate implements SerializedRate {
   currencyId: string;
   paymentMethodId: string;
   enabled: boolean;
+  xml: string | null;
 
   constructor(
     rate: number,
@@ -15,6 +16,7 @@ export default class Rate implements SerializedRate {
     currencyId: string,
     paymentMethodId: string,
     enabled: boolean = true,
+    xml: string | null = null,
   ) {
     this.rate = rate;
     this.minAmount = minAmount;
@@ -22,5 +24,6 @@ export default class Rate implements SerializedRate {
     this.currencyId = currencyId;
     this.paymentMethodId = paymentMethodId;
     this.enabled = enabled;
+    this.xml = xml;
   }
 }

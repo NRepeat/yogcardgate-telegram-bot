@@ -341,4 +341,16 @@ export class RequestApiController {
       ibanRates,
     });
   }
+
+  @Get('rates/all')
+  async getAllRates() {
+    const allRates = await this.ratesService.getAllEnabledRates();
+    const grouped: Record<string, any[]> = {};
+    for (const r of allRates) {
+      const method = r.paymentMethod.nameEn.toUpperCase();
+      if (!grouped[method]) grouped[method] = [];
+      grouped[method].push(r);
+    }
+    return toJSONSafe(grouped);
+  }
 }

@@ -353,6 +353,33 @@ async function seedRates() {
       paymentMethodsInDb.map((method) => [method.nameEn, method.id]),
     );
 
+    const xmlMap: Record<string, string> = {
+      'CARD_UAH': 'CARDUAH',
+      'CARD_USD': 'CARDUSD',
+      'CARD_EUR': 'CARDEUR',
+      'CARD_KZT': 'CARDKZT',
+      'CARD_AZN': 'WIREAZN',
+      'CARD_CNY': 'CARDCNY',
+      'IBAN_UAH': 'WIREUAH',
+      'IBAN_EUR': 'SEPAEUR',
+      'IBAN_AED': 'WIREAED',
+      'IBAN_PLN': 'WIREPLN',
+      'IBAN_TRY': 'WIRETRY',
+      'WISE_USD': 'WISEUSD',
+      'SKRILL_USD': 'SKLUSD',
+      'SKRILL_EUR': 'SKLEUR',
+      'PAYPAL_USD': 'PPUSD',
+      'KZT_KASPI_BANK_KZT': 'KSPBKZT',
+      'KZT_OTHER_BANKS_KZT': 'CARDKZT',
+      'CNY_ALIPAY_CNY': 'ALPCNY',
+      'CNY_WECHAT_CNY': 'WCTCNY',
+      'CNY_CARD_CNY': 'CARDCNY',
+    };
+
+    function getXml(method: PaymentMethodEnum, currency: CurrencyEnum): string | null {
+      return xmlMap[`${method}_${currency}`] || null;
+    }
+
     const rateConfig: Record<
       CurrencyEnum,
       {
@@ -449,23 +476,17 @@ async function seedRates() {
         },
       ],
       [CurrencyEnum.KZT]: [
-        // {
-        //   method: PaymentMethodEnum.CARD,
-        //   minAmount: 5000,
-        //   maxAmount: 200000,
-        //   rate: 0.092, // Base rate for Kaspi Bank
-        // },
         {
           method: PaymentMethodEnum.KZT_KASPI_BANK,
           minAmount: 5000,
           maxAmount: 200000,
-          rate: 0.092, // Kaspi Bank rate
+          rate: 0.092,
         },
         {
           method: PaymentMethodEnum.KZT_OTHER_BANKS,
           minAmount: 5000,
           maxAmount: 200000,
-          rate: 0.0966, // Other banks rate (5% higher)
+          rate: 0.0966,
         },
       ],
       [CurrencyEnum.TRY]: [
@@ -485,12 +506,6 @@ async function seedRates() {
         },
       ],
       [CurrencyEnum.CNY]: [
-        // {
-        //   method: PaymentMethodEnum.QR,
-        //   minAmount: 500,
-        //   maxAmount: 100000,
-        //   rate: 5.25,
-        // },
         {
           method: PaymentMethodEnum.CNY_ALIPAY,
           minAmount: 500,
@@ -509,12 +524,6 @@ async function seedRates() {
           maxAmount: 100000,
           rate: 5.3,
         },
-        // {
-        //   method: PaymentMethodEnum.CNY_ACCOUNT,
-        //   minAmount: 500,
-        //   maxAmount: 100000,
-        //   rate: 5.30,
-        // },
       ],
     };
 
@@ -524,6 +533,7 @@ async function seedRates() {
       minAmount: number;
       maxAmount: number;
       rate: number;
+      xml: string | null;
     }[];
 
     for (const [currency, configs] of Object.entries(rateConfig) as [
@@ -550,6 +560,7 @@ async function seedRates() {
           minAmount: config.minAmount,
           maxAmount: config.maxAmount,
           rate: config.rate,
+          xml: getXml(config.method, currency),
         });
       }
     }

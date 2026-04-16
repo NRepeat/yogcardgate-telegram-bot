@@ -289,6 +289,7 @@ model Rates {
   maxAmount       Float
   rate            Float
   enabled         Boolean           @default(true)
+  xml             String?
   updatedAt       DateTime          @updatedAt
   createdAt       DateTime          @default(now())
   paymentMethodId String

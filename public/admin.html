@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>User Roles Admin</title>
+<title>Admin Panel</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; padding: 20px; }
@@ -12,14 +12,15 @@
   .auth input { width: 100%; padding: 12px; background: #1c1f26; border: 1px solid #333; border-radius: 8px; color: #e1e4e8; font-size: 16px; margin-bottom: 12px; }
   .auth button { width: 100%; padding: 12px; background: #3b82f6; border: none; border-radius: 8px; color: #fff; font-size: 16px; cursor: pointer; }
   .auth button:hover { background: #2563eb; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+  .tab { padding: 10px 24px; border-radius: 8px 8px 0 0; border: none; background: #1c1f26; color: #8b949e; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .tab.active { background: #21262d; color: #e1e4e8; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
   table { width: 100%; border-collapse: collapse; }
   th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #1c1f26; }
   th { background: #1c1f26; color: #8b949e; font-weight: 500; font-size: 13px; text-transform: uppercase; }
   tr:hover { background: #161b22; }
-  .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; margin: 2px; }
-  .badge-admin { background: #1f6feb33; color: #58a6ff; }
-  .badge-worker { background: #23863633; color: #3fb950; }
-  .badge-guest { background: #6e768133; color: #8b949e; }
   .role-btn { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; margin: 2px; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; }
   .role-btn.active { border-color: currentColor; }
   .role-btn.ADMIN { color: #58a6ff; background: #1f6feb33; }
@@ -28,13 +29,14 @@
   .role-btn.WORKER.active { background: #23863666; }
   .role-btn.GUEST { color: #8b949e; background: #6e768133; }
   .role-btn.GUEST.active { background: #6e768166; }
-  .pause-btn { padding: 6px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; }
-  .pause-btn.paused { background: #da363333; color: #f85149; }
-  .pause-btn.active { background: #23863633; color: #3fb950; }
+  .toggle-btn { padding: 6px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; }
+  .toggle-btn.on { background: #23863633; color: #3fb950; }
+  .toggle-btn.off { background: #da363333; color: #f85149; }
   .status { margin: 10px 0; padding: 10px; border-radius: 8px; display: none; font-size: 14px; }
   .status.success { display: block; background: #23863633; color: #3fb950; }
   .status.error { display: block; background: #da363333; color: #f85149; }
   .tg-id { color: #8b949e; font-size: 13px; }
+  .token { color: #8b949e; font-size: 12px; font-family: monospace; }
 </style>
 </head>
 <body>
@@ -46,19 +48,29 @@
 </div>
 
 <div id="app" style="display:none">
-  <h1>User Roles</h1>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('users')">Users</button>
+    <button class="tab" onclick="switchTab('vendors')">Vendors</button>
+  </div>
   <div id="status" class="status"></div>
-  <table>
-    <thead>
-      <tr>
-        <th>User</th>
-        <th>Telegram ID</th>
-        <th>Roles</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody id="users-body"></tbody>
-  </table>
+
+  <div id="tab-users" class="tab-content active">
+    <table>
+      <thead>
+        <tr><th>User</th><th>Telegram ID</th><th>Roles</th><th>Status</th></tr>
+      </thead>
+      <tbody id="users-body"></tbody>
+    </table>
+  </div>
+
+  <div id="tab-vendors" class="tab-content">
+    <table>
+      <thead>
+        <tr><th>Vendor</th><th>Chat ID</th><th>Token</th><th>Work</th><th>Receipt</th></tr>
+      </thead>
+      <tbody id="vendors-body"></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
@@ -69,11 +81,7 @@ let ALL_ROLES = [];
 async function api(path, opts = {}) {
   const res = await fetch(API_BASE + path, {
     ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-TOKEN': TOKEN,
-      ...opts.headers,
-    },
+    headers: { 'Content-Type': 'application/json', 'X-API-TOKEN': TOKEN, ...opts.headers },
   });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json();
@@ -84,6 +92,15 @@ function showStatus(msg, type) {
   el.textContent = msg;
   el.className = 'status ' + type;
   setTimeout(() => el.className = 'status', 3000);
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab-content#tab-${name}`).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'vendors') loadVendors();
+  if (name === 'users') loadUsers();
 }
 
 async function login() {
@@ -98,6 +115,7 @@ async function login() {
   }
 }
 
+// === USERS ===
 async function loadUsers() {
   const users = await api('/api/users');
   const tbody = document.getElementById('users-body');
@@ -107,8 +125,8 @@ async function loadUsers() {
     tr.innerHTML = `
       <td><strong>@${u.username}</strong></td>
       <td class="tg-id">${u.telegramId}</td>
-      <td id="roles-${u.id}">${renderRoles(u)}</td>
-      <td><button class="pause-btn ${u.onPause ? 'paused' : 'active'}" onclick="togglePause('${u.id}', ${!u.onPause})">${u.onPause ? 'Paused' : 'Active'}</button></td>
+      <td>${renderRoles(u)}</td>
+      <td><button class="toggle-btn ${u.onPause ? 'off' : 'on'}" onclick="togglePause('${u.id}', ${!u.onPause})">${u.onPause ? 'Paused' : 'Active'}</button></td>
     `;
     tbody.appendChild(tr);
   }
@@ -128,28 +146,52 @@ async function toggleRole(userId, role, add) {
     let roles = [...user.roles];
     if (add && !roles.includes(role)) roles.push(role);
     if (!add) roles = roles.filter(r => r !== role);
-    const updated = await api(`/api/users/${userId}/roles`, {
-      method: 'PUT',
-      body: JSON.stringify({ roles }),
-    });
-    showStatus(`Updated @${updated.username}: ${updated.roles.join(', ')}`, 'success');
+    const updated = await api(`/api/users/${userId}/roles`, { method: 'PUT', body: JSON.stringify({ roles }) });
+    showStatus(`@${updated.username}: ${updated.roles.join(', ')}`, 'success');
     loadUsers();
-  } catch (e) {
-    showStatus('Error: ' + e.message, 'error');
-  }
+  } catch (e) { showStatus('Error: ' + e.message, 'error'); }
 }
 
 async function togglePause(userId, pause) {
   try {
-    const updated = await api(`/api/users/${userId}/pause`, {
-      method: 'PUT',
-      body: JSON.stringify({ onPause: pause }),
-    });
-    showStatus(`@${updated.username} is now ${updated.onPause ? 'paused' : 'active'}`, 'success');
+    const updated = await api(`/api/users/${userId}/pause`, { method: 'PUT', body: JSON.stringify({ onPause: pause }) });
+    showStatus(`@${updated.username} ${updated.onPause ? 'paused' : 'active'}`, 'success');
     loadUsers();
-  } catch (e) {
-    showStatus('Error: ' + e.message, 'error');
+  } catch (e) { showStatus('Error: ' + e.message, 'error'); }
+}
+
+// === VENDORS ===
+async function loadVendors() {
+  const vendors = await api('/api/vendors');
+  const tbody = document.getElementById('vendors-body');
+  tbody.innerHTML = '';
+  for (const v of vendors) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${v.title}</strong></td>
+      <td class="tg-id">${v.chatId}</td>
+      <td class="token">${v.token || '-'}</td>
+      <td><button class="toggle-btn ${v.work ? 'on' : 'off'}" onclick="toggleWork('${v.id}', ${!v.work})">${v.work ? 'ON' : 'OFF'}</button></td>
+      <td><button class="toggle-btn ${v.showReceipt ? 'on' : 'off'}" onclick="toggleReceipt('${v.id}', ${!v.showReceipt})">${v.showReceipt ? 'ON' : 'OFF'}</button></td>
+    `;
+    tbody.appendChild(tr);
   }
+}
+
+async function toggleWork(vendorId, work) {
+  try {
+    const updated = await api(`/api/vendors/${vendorId}/work`, { method: 'PUT', body: JSON.stringify({ work }) });
+    showStatus(`${updated.title} work: ${updated.work ? 'ON' : 'OFF'}`, 'success');
+    loadVendors();
+  } catch (e) { showStatus('Error: ' + e.message, 'error'); }
+}
+
+async function toggleReceipt(vendorId, show) {
+  try {
+    const updated = await api(`/api/vendors/${vendorId}/receipt`, { method: 'PUT', body: JSON.stringify({ showReceipt: show }) });
+    showStatus(`${updated.title} receipt: ${updated.showReceipt ? 'ON' : 'OFF'}`, 'success');
+    loadVendors();
+  } catch (e) { showStatus('Error: ' + e.message, 'error'); }
 }
 </script>
 </body>

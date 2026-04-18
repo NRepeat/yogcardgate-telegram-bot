@@ -193,35 +193,6 @@ export class AppModule implements OnModuleInit {
       console.error('Error setting group chat commands:', error);
     }
 
-    // Register commands for all vendor groups
-    await this.delay(DELAY_BETWEEN_CALLS);
-    try {
-      const { PrismaClient } = await import('@prisma/client');
-      const prisma = new PrismaClient();
-      const vendors = await prisma.vendors.findMany({ where: { work: true } });
-      for (const vendor of vendors) {
-        if (vendor.chatId) {
-          try {
-            await this.setCommandsWithRetry(
-              bot,
-              [
-                { command: 'rateup', description: 'Обновить курсы' },
-                { command: 'all_rates', description: 'Показать все курсы' },
-                { command: 'chatid', description: 'Показать ID чата' },
-              ],
-              { scope: { type: 'chat', chat_id: Number(vendor.chatId) } },
-            );
-          } catch (error) {
-            console.error(`Error setting commands for vendor ${vendor.title}:`, error);
-          }
-          await this.delay(DELAY_BETWEEN_CALLS);
-        }
-      }
-      await prisma.$disconnect();
-    } catch (error) {
-      console.error('Error setting vendor group commands:', error);
-    }
-
     console.log('Bot commands registered successfully');
   }
 }

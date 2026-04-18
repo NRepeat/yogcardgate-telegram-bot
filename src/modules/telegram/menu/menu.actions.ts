@@ -50,6 +50,10 @@ export class MenuActions {
       );
     }
   }
+  @Command('chatid')
+  async getChatId(@Ctx() ctx: Context) {
+    await ctx.reply(`Chat ID: ${ctx.chat?.id}`);
+  }
   @Command('start_work_group')
   async startWorkGroup(@Ctx() ctx: Context) {
     const userId = ctx.from?.id;

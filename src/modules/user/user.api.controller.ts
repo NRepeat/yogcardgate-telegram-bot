@@ -17,7 +17,7 @@ export class UserApiController {
   @Get()
   async getUsers() {
     const users = await this.prisma.user.findMany({
-      include: { roles: true },
+      include: { Role: true },
       orderBy: { username: 'asc' },
     });
     return users.map((u) => ({
@@ -25,7 +25,7 @@ export class UserApiController {
       username: u.username,
       telegramId: u.telegramId.toString(),
       onPause: u.onPause,
-      roles: u.roles.map((r) => r.name),
+      roles: u.Role.map((r) => r.name),
     }));
   }
 
@@ -46,14 +46,14 @@ export class UserApiController {
 
     const updated = await this.prisma.user.update({
       where: { id },
-      data: { roles: { set: roleIds } },
-      include: { roles: true },
+      data: { Role: { set: roleIds } },
+      include: { Role: true },
     });
 
     return {
       id: updated.id,
       username: updated.username,
-      roles: updated.roles.map((r) => r.name),
+      roles: updated.Role.map((r) => r.name),
     };
   }
 

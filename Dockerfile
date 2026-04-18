@@ -31,6 +31,7 @@ COPY --from=builder /app/dist ./dist
 
 # Copy static assets
 COPY --from=builder /app/src/assets ./src/assets
+COPY --from=builder /app/public ./public
 
 EXPOSE ${PORT:-3005}
 

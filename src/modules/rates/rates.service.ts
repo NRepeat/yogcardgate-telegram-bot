@@ -8,7 +8,7 @@ import { VendorService } from '../vendor/vendor.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrencyEnum, PaymentMethodEnum } from '@prisma/client';
 import { UtilsService } from '../utils/utils.service';
-import { ExternalApiService } from '../external-api/external-api.service';
+
 
 const XML_MAP: Record<string, string> = {
   'CARD_UAH': 'CARDUAH',
@@ -57,7 +57,6 @@ export class RatesService {
     @Inject(forwardRef(() => UtilsService))
     private readonly utilsService: UtilsService,
     private readonly prisma: PrismaService,
-    private readonly externalApiService: ExternalApiService,
   ) {}
   async getAllRates() {
     return this.rateRepository.getAll();
@@ -398,15 +397,6 @@ export class RatesService {
         console.log(`Rates processed: ${affected}`);
         return affected;
       });
-
-      // Notify External API outside the transaction
-      console.log(processedGroups,"processedGroups")
-      if (processedCount > 0) {
-
-        for (const group of processedGroups) {
-          await this.externalApiService.notifyRateUpdate(group.type, group.rate);
-        }
-      }
 
       return processedCount > 0;
     } catch (error) {

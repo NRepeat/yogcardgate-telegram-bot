@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Roles Admin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; padding: 20px; }
+  h1 { margin-bottom: 20px; font-size: 22px; }
+  .auth { max-width: 400px; margin: 100px auto; }
+  .auth input { width: 100%; padding: 12px; background: #1c1f26; border: 1px solid #333; border-radius: 8px; color: #e1e4e8; font-size: 16px; margin-bottom: 12px; }
+  .auth button { width: 100%; padding: 12px; background: #3b82f6; border: none; border-radius: 8px; color: #fff; font-size: 16px; cursor: pointer; }
+  .auth button:hover { background: #2563eb; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #1c1f26; }
+  th { background: #1c1f26; color: #8b949e; font-weight: 500; font-size: 13px; text-transform: uppercase; }
+  tr:hover { background: #161b22; }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; margin: 2px; }
+  .badge-admin { background: #1f6feb33; color: #58a6ff; }
+  .badge-worker { background: #23863633; color: #3fb950; }
+  .badge-guest { background: #6e768133; color: #8b949e; }
+  .role-btn { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; margin: 2px; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; }
+  .role-btn.active { border-color: currentColor; }
+  .role-btn.ADMIN { color: #58a6ff; background: #1f6feb33; }
+  .role-btn.ADMIN.active { background: #1f6feb66; }
+  .role-btn.WORKER { color: #3fb950; background: #23863633; }
+  .role-btn.WORKER.active { background: #23863666; }
+  .role-btn.GUEST { color: #8b949e; background: #6e768133; }
+  .role-btn.GUEST.active { background: #6e768166; }
+  .pause-btn { padding: 6px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; }
+  .pause-btn.paused { background: #da363333; color: #f85149; }
+  .pause-btn.active { background: #23863633; color: #3fb950; }
+  .status { margin: 10px 0; padding: 10px; border-radius: 8px; display: none; font-size: 14px; }
+  .status.success { display: block; background: #23863633; color: #3fb950; }
+  .status.error { display: block; background: #da363333; color: #f85149; }
+  .tg-id { color: #8b949e; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div id="auth-screen" class="auth">
+  <h1>Admin Panel</h1>
+  <input type="password" id="token-input" placeholder="API Token" />
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="app" style="display:none">
+  <h1>User Roles</h1>
+  <div id="status" class="status"></div>
+  <table>
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Telegram ID</th>
+        <th>Roles</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="users-body"></tbody>
+  </table>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+let TOKEN = '';
+let ALL_ROLES = [];
+
+async function api(path, opts = {}) {
+  const res = await fetch(API_BASE + path, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-TOKEN': TOKEN,
+      ...opts.headers,
+    },
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + type;
+  setTimeout(() => el.className = 'status', 3000);
+}
+
+async function login() {
+  TOKEN = document.getElementById('token-input').value;
+  try {
+    ALL_ROLES = await api('/api/users/roles');
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadUsers();
+  } catch (e) {
+    alert('Invalid token');
+  }
+}
+
+async function loadUsers() {
+  const users = await api('/api/users');
+  const tbody = document.getElementById('users-body');
+  tbody.innerHTML = '';
+  for (const u of users) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>@${u.username}</strong></td>
+      <td class="tg-id">${u.telegramId}</td>
+      <td id="roles-${u.id}">${renderRoles(u)}</td>
+      <td><button class="pause-btn ${u.onPause ? 'paused' : 'active'}" onclick="togglePause('${u.id}', ${!u.onPause})">${u.onPause ? 'Paused' : 'Active'}</button></td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+function renderRoles(user) {
+  return ALL_ROLES.map(r => {
+    const active = user.roles.includes(r.name);
+    return `<button class="role-btn ${r.name} ${active ? 'active' : ''}" onclick="toggleRole('${user.id}', '${r.name}', ${!active})">${r.name}</button>`;
+  }).join('');
+}
+
+async function toggleRole(userId, role, add) {
+  try {
+    const users = await api('/api/users');
+    const user = users.find(u => u.id === userId);
+    let roles = [...user.roles];
+    if (add && !roles.includes(role)) roles.push(role);
+    if (!add) roles = roles.filter(r => r !== role);
+    const updated = await api(`/api/users/${userId}/roles`, {
+      method: 'PUT',
+      body: JSON.stringify({ roles }),
+    });
+    showStatus(`Updated @${updated.username}: ${updated.roles.join(', ')}`, 'success');
+    loadUsers();
+  } catch (e) {
+    showStatus('Error: ' + e.message, 'error');
+  }
+}
+
+async function togglePause(userId, pause) {
+  try {
+    const updated = await api(`/api/users/${userId}/pause`, {
+      method: 'PUT',
+      body: JSON.stringify({ onPause: pause }),
+    });
+    showStatus(`@${updated.username} is now ${updated.onPause ? 'paused' : 'active'}`, 'success');
+    loadUsers();
+  } catch (e) {
+    showStatus('Error: ' + e.message, 'error');
+  }
+}
+</script>
+</body>
+</html>

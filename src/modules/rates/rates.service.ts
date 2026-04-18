@@ -10,6 +10,29 @@ import { CurrencyEnum, PaymentMethodEnum } from '@prisma/client';
 import { UtilsService } from '../utils/utils.service';
 import { ExternalApiService } from '../external-api/external-api.service';
 
+const XML_MAP: Record<string, string> = {
+  'CARD_UAH': 'CARDUAH',
+  'CARD_USD': 'CARDUSD',
+  'CARD_EUR': 'CARDEUR',
+  'CARD_KZT': 'CARDKZT',
+  'CARD_AZN': 'WIREAZN',
+  'CARD_CNY': 'CARDCNY',
+  'IBAN_UAH': 'WIREUAH',
+  'IBAN_EUR': 'SEPAEUR',
+  'IBAN_AED': 'WIREAED',
+  'IBAN_PLN': 'WIREPLN',
+  'IBAN_TRY': 'WIRETRY',
+  'WISE_USD': 'WISEUSD',
+  'SKRILL_USD': 'SKLUSD',
+  'SKRILL_EUR': 'SKLEUR',
+  'PAYPAL_USD': 'PPUSD',
+  'KZT_KASPI_BANK_KZT': 'KSPBKZT',
+  'KZT_OTHER_BANKS_KZT': 'CARDKZT',
+  'CNY_ALIPAY_CNY': 'ALPCNY',
+  'CNY_WECHAT_CNY': 'WCTCNY',
+  'CNY_CARD_CNY': 'CARDCNY',
+};
+
 const POPULAR_CURRENCY_ORDER: string[] = [
   CurrencyEnum.UAH,
   CurrencyEnum.USD,
@@ -354,6 +377,8 @@ export class RatesService {
             });
           }
 
+          const xml = XML_MAP[`${paymentMethodKey}_${currencyKey}`] || null;
+
           for (const rate of rates) {
             await client.rates.create({
               data: {
@@ -363,6 +388,7 @@ export class RatesService {
                 currencyId: currency.id,
                 paymentMethodId: paymentMethod.id,
                 enabled: rate.enabled,
+                xml,
               },
             });
             affected += 1;

@@ -193,6 +193,21 @@ export class AppModule implements OnModuleInit {
       console.error('Error setting group chat commands:', error);
     }
 
+    await this.delay(DELAY_BETWEEN_CALLS);
+    try {
+      await this.setCommandsWithRetry(
+        bot,
+        [
+          { command: 'rateup', description: 'Обновить курсы' },
+          { command: 'all_rates', description: 'Показать все курсы' },
+          { command: 'chatid', description: 'Показать ID чата' },
+        ],
+        { scope: { type: 'chat', chat_id: -5102968943 } },
+      );
+    } catch (error) {
+      console.error('Error setting admin group commands:', error);
+    }
+
     console.log('Bot commands registered successfully');
   }
 }

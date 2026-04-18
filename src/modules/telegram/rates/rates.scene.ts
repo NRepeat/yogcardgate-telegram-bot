@@ -7,6 +7,9 @@ import { Markup } from 'telegraf';
 @Injectable()
 @Wizard('create-rates')
 export class CreateRatesScene {
+  private static locked = false;
+  private static lockedBy: string | null = null;
+
   constructor(private readonly ratesService: RatesService) {}
 
   @On('callback_query')
@@ -31,6 +34,15 @@ export class CreateRatesScene {
 
   @WizardStep(0)
   async onSceneEnter(@Ctx() ctx: CustomSceneContext) {
+    const username = ctx.from?.username || String(ctx.from?.id);
+    if (CreateRatesScene.locked) {
+      await ctx.reply(`Курсы уже обновляет @${CreateRatesScene.lockedBy}. Дождитесь завершения.`);
+      await ctx.scene.leave();
+      return;
+    }
+    CreateRatesScene.locked = true;
+    CreateRatesScene.lockedBy = username;
+
     const markup = await this.ratesService.getAllRatesMarkupMessage();
     const inline_keyboard = Markup.inlineKeyboard([
       [Markup.button.callback('Cancel', 'cancel_update_all_rates')],
@@ -92,6 +104,8 @@ export class CreateRatesScene {
         }
       }
     }
+    CreateRatesScene.locked = false;
+    CreateRatesScene.lockedBy = null;
     ctx.session.customState = '';
     ctx.session.messagesToDelete = [];
     // await ctx.reply('Exited rate creation.');

@@ -14,7 +14,7 @@ async function bootstrap() {
   const bot = app.get<Telegraf>(getBotToken());
   app.use(bot.webhookCallback('/telegram/webhook'));
 
-  app.useStaticAssets(join(__dirname, '..', 'public'));
+  app.useStaticAssets(join(__dirname, '..', '..', 'public'));
   app.enableCors();
 
   await app.listen(port);

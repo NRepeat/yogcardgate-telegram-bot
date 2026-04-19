@@ -64,7 +64,7 @@ export class UserService {
           telegramId: BigInt(userId),
           workGroupChatId: BigInt(userId),
         },
-        RoleEnum.WORKER,
+        RoleEnum.GUEST,
       );
     } else {
       console.error('User information is incomplete');

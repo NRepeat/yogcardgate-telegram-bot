@@ -139,7 +139,7 @@ enum AccessType {
 model Message {
   id              String          @id @default(cuid())
   chatId          BigInt
-  messageId       Int             @unique
+  messageId       Int
   text            String?
   photoUrl        String?
   createdAt       DateTime        @default(now())
@@ -147,6 +147,8 @@ model Message {
   requestId       String
   accessType      AccessType      @default(PUBLIC)
   paymentRequests PaymentRequests @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, messageId])
 }
 
 model PaymentRequestMethod {

@@ -18,9 +18,10 @@
   .tab-content { display: none; }
   .tab-content.active { display: block; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #1c1f26; }
-  th { background: #1c1f26; color: #8b949e; font-weight: 500; font-size: 13px; text-transform: uppercase; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #1c1f26; }
+  th { background: #1c1f26; color: #8b949e; font-weight: 500; font-size: 13px; text-transform: uppercase; position: sticky; top: 0; }
   tr:hover { background: #161b22; }
+  tr.disabled { opacity: 0.5; }
   .role-btn { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; margin: 2px; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; }
   .role-btn.active { border-color: currentColor; }
   .role-btn.ADMIN { color: #58a6ff; background: #1f6feb33; }
@@ -37,6 +38,14 @@
   .status.error { display: block; background: #da363333; color: #f85149; }
   .tg-id { color: #8b949e; font-size: 13px; }
   .token { color: #8b949e; font-size: 12px; font-family: monospace; }
+  .rate-input { width: 90px; padding: 4px 8px; background: #1c1f26; border: 1px solid #333; border-radius: 6px; color: #e1e4e8; font-size: 13px; font-family: monospace; text-align: right; }
+  .rate-input:focus { border-color: #3b82f6; outline: none; }
+  .rate-input.changed { border-color: #d29922; }
+  .save-btn { padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; border: none; background: #3b82f6; color: #fff; }
+  .save-btn:hover { background: #2563eb; }
+  .group-header { background: #161b22; }
+  .group-header td { font-weight: 600; font-size: 14px; padding: 8px 14px; color: #8b949e; }
+  .xml-tag { font-size: 11px; color: #6e7681; font-family: monospace; }
 </style>
 </head>
 <body>
@@ -49,12 +58,22 @@
 
 <div id="app" style="display:none">
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('users')">Users</button>
-    <button class="tab" onclick="switchTab('vendors')">Vendors</button>
+    <button class="tab active" onclick="switchTab('rates', this)">Rates</button>
+    <button class="tab" onclick="switchTab('users', this)">Users</button>
+    <button class="tab" onclick="switchTab('vendors', this)">Vendors</button>
   </div>
   <div id="status" class="status"></div>
 
-  <div id="tab-users" class="tab-content active">
+  <div id="tab-rates" class="tab-content active">
+    <table>
+      <thead>
+        <tr><th>Currency</th><th>Method</th><th>Range</th><th>Rate</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody id="rates-body"></tbody>
+    </table>
+  </div>
+
+  <div id="tab-users" class="tab-content">
     <table>
       <thead>
         <tr><th>User</th><th>Telegram ID</th><th>Roles</th><th>Status</th></tr>
@@ -94,11 +113,12 @@ function showStatus(msg, type) {
   setTimeout(() => el.className = 'status', 3000);
 }
 
-function switchTab(name) {
+function switchTab(name, btn) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelector(`.tab-content#tab-${name}`).classList.add('active');
-  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'rates') loadRates();
   if (name === 'vendors') loadVendors();
   if (name === 'users') loadUsers();
 }
@@ -109,10 +129,95 @@ async function login() {
     ALL_ROLES = await api('/api/users/roles');
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-    loadUsers();
+    loadRates();
   } catch (e) {
     alert('Invalid token');
   }
+}
+
+// === RATES ===
+async function loadRates() {
+  const rates = await api('/api/rates');
+  const tbody = document.getElementById('rates-body');
+  tbody.innerHTML = '';
+
+  // Group by currency:method
+  const groups = new Map();
+  for (const r of rates) {
+    const key = r.currency + ':' + r.method;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  }
+
+  for (const [key, items] of groups) {
+    // Sort: highest minAmount first
+    items.sort((a, b) => b.minAmount - a.minAmount);
+    const allDisabled = items.every(r => !r.enabled);
+
+    // Group header
+    const htr = document.createElement('tr');
+    htr.className = 'group-header';
+    const xml = items[0].xml || '';
+    htr.innerHTML = `<td colspan="6">${key} ${xml ? '<span class="xml-tag">' + xml + '</span>' : ''}
+      <button class="toggle-btn ${allDisabled ? 'off' : 'on'}" onclick="toggleGroup('${key}', ${allDisabled})" style="margin-left:10px;font-size:11px">${allDisabled ? 'ALL OFF' : 'ALL ON'}</button></td>`;
+    tbody.appendChild(htr);
+
+    for (const r of items) {
+      const tr = document.createElement('tr');
+      tr.className = r.enabled ? '' : 'disabled';
+      const range = r.maxAmount > 0 ? `${r.minAmount} - ${r.maxAmount}` : `${r.minAmount}+`;
+      tr.innerHTML = `
+        <td>${r.currency}</td>
+        <td>${r.method}</td>
+        <td>
+          <input class="rate-input" style="width:70px" value="${r.minAmount}" onchange="markChanged(this)" data-id="${r.id}" data-field="minAmount" /> -
+          <input class="rate-input" style="width:70px" value="${r.maxAmount}" onchange="markChanged(this)" data-id="${r.id}" data-field="maxAmount" />
+        </td>
+        <td><input class="rate-input" value="${r.rate}" onchange="markChanged(this)" data-id="${r.id}" data-field="rate" /></td>
+        <td><button class="toggle-btn ${r.enabled ? 'on' : 'off'}" onclick="toggleRate('${r.id}', ${!r.enabled})">${r.enabled ? 'ON' : 'OFF'}</button></td>
+        <td><button class="save-btn" onclick="saveRate('${r.id}')">Save</button></td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+}
+
+function markChanged(el) {
+  el.classList.add('changed');
+}
+
+async function saveRate(id) {
+  const inputs = document.querySelectorAll(`input[data-id="${id}"]`);
+  const body = {};
+  for (const input of inputs) {
+    const field = input.dataset.field;
+    const val = parseFloat(input.value);
+    if (!isNaN(val)) body[field] = val;
+    input.classList.remove('changed');
+  }
+  try {
+    const updated = await api(`/api/rates/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+    showStatus(`${updated.currency}:${updated.method} updated`, 'success');
+    loadRates();
+  } catch (e) { showStatus('Error: ' + e.message, 'error'); }
+}
+
+async function toggleRate(id, enabled) {
+  try {
+    await api(`/api/rates/${id}`, { method: 'PUT', body: JSON.stringify({ enabled }) });
+    showStatus(enabled ? 'Enabled' : 'Disabled', 'success');
+    loadRates();
+  } catch (e) { showStatus('Error: ' + e.message, 'error'); }
+}
+
+async function toggleGroup(key, enable) {
+  const rates = await api('/api/rates');
+  const group = rates.filter(r => r.currency + ':' + r.method === key);
+  for (const r of group) {
+    await api(`/api/rates/${r.id}`, { method: 'PUT', body: JSON.stringify({ enabled: enable }) });
+  }
+  showStatus(`${key} ${enable ? 'enabled' : 'disabled'}`, 'success');
+  loadRates();
 }
 
 // === USERS ===

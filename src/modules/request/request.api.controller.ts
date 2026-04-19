@@ -34,6 +34,93 @@ export class RequestApiController {
     private readonly prismaService: PrismaService,
   ) {}
 
+  @Get('admin/dashboard')
+  async getDashboard() {
+    const requests = await this.prismaService.paymentRequests.findMany({
+      include: { currency: true, paymentMethod: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const completed = requests.filter((r) => r.status === 'COMPLETED');
+    const failed = requests.filter((r) => r.status === 'FAILED');
+    const pending = requests.filter((r) => r.status === 'PENDING' || r.status === 'ACCEPTED');
+    const todayReqs = requests.filter((r) => new Date(r.createdAt) >= today);
+    const todayCompleted = completed.filter((r) => r.completedAt && new Date(r.completedAt) >= today);
+
+    // Avg completion time in minutes
+    const completionTimes = completed
+      .filter((r) => r.completedAt)
+      .map((r) => (new Date(r.completedAt!).getTime() - new Date(r.createdAt).getTime()) / 60000);
+    const avgCompletionMinutes = completionTimes.length > 0
+      ? Math.round(completionTimes.reduce((a, b) => a + b, 0) / completionTimes.length)
+      : 0;
+
+    // Daily data (last 30 days)
+    const dailyMap = new Map<string, { count: number; volume: number }>();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      dailyMap.set(d.toISOString().slice(0, 10), { count: 0, volume: 0 });
+    }
+    for (const r of requests) {
+      const key = new Date(r.createdAt).toISOString().slice(0, 10);
+      if (dailyMap.has(key)) {
+        const entry = dailyMap.get(key)!;
+        entry.count++;
+        entry.volume += r.amount;
+      }
+    }
+    const dailyData = [...dailyMap.entries()].map(([date, d]) => ({ date, ...d }));
+
+    // By currency
+    const currMap = new Map<string, { count: number; volume: number }>();
+    for (const r of requests) {
+      const key = r.currency?.nameEn || 'Unknown';
+      const entry = currMap.get(key) || { count: 0, volume: 0 };
+      entry.count++;
+      entry.volume += r.amount;
+      currMap.set(key, entry);
+    }
+    const byCurrency = [...currMap.entries()].map(([currency, d]) => ({ currency, ...d }));
+
+    // By method
+    const methodMap = new Map<string, { count: number; volume: number }>();
+    for (const r of requests) {
+      const key = r.paymentMethod?.nameEn || 'Unknown';
+      const entry = methodMap.get(key) || { count: 0, volume: 0 };
+      entry.count++;
+      entry.volume += r.amount;
+      methodMap.set(key, entry);
+    }
+    const byMethod = [...methodMap.entries()].map(([method, d]) => ({ method, ...d }));
+
+    // By status
+    const statusMap = new Map<string, number>();
+    for (const r of requests) {
+      statusMap.set(r.status, (statusMap.get(r.status) || 0) + 1);
+    }
+    const byStatus = [...statusMap.entries()].map(([status, count]) => ({ status, count }));
+
+    return {
+      totalRequests: requests.length,
+      completedRequests: completed.length,
+      failedRequests: failed.length,
+      pendingRequests: pending.length,
+      totalVolume: completed.reduce((s, r) => s + r.amount, 0),
+      todayRequests: todayReqs.length,
+      todayVolume: todayCompleted.reduce((s, r) => s + r.amount, 0),
+      successRate: requests.length > 0 ? Math.round((completed.length / requests.length) * 100) : 0,
+      avgCompletionMinutes,
+      dailyData,
+      byCurrency,
+      byMethod,
+      byStatus,
+    };
+  }
+
   @Post('add_lead')
   async addLead(
     @Body() requests: CardRequestType[],
@@ -222,6 +309,57 @@ export class RequestApiController {
       responses.push(result);
     }
     return toJSONSafe(responses);
+  }
+
+  @Get('admin/list')
+  async getAdminRequests(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+  ) {
+    const take = Math.min(parseInt(limit || '50', 10), 100);
+    const skip = (Math.max(parseInt(page || '1', 10), 1) - 1) * take;
+
+    const where: any = {};
+    if (status && status !== 'ALL') {
+      where.status = status;
+    }
+
+    const [requests, total] = await Promise.all([
+      this.prismaService.paymentRequests.findMany({
+        where,
+        include: {
+          currency: true,
+          vendor: true,
+          activeUser: true,
+          payedByUser: true,
+          paymentMethod: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take,
+        skip,
+      }),
+      this.prismaService.paymentRequests.count({ where }),
+    ]);
+
+    return toJSONSafe({
+      data: requests.map((r) => ({
+        id: r.id,
+        amount: r.amount,
+        status: r.status,
+        currency: r.currency?.nameEn || '',
+        method: r.paymentMethod?.nameEn || '',
+        vendor: r.vendor?.title || '',
+        worker: r.activeUser?.username || '',
+        payedBy: r.payedByUser?.username || '',
+        rate: r.rate || '',
+        createdAt: r.createdAt,
+        completedAt: r.completedAt,
+      })),
+      total,
+      page: Math.max(parseInt(page || '1', 10), 1),
+      pages: Math.ceil(total / take),
+    });
   }
 
   @Get('get_leads')

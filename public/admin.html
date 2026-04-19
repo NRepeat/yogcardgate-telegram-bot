@@ -46,6 +46,30 @@
   .group-header { background: #161b22; }
   .group-header td { font-weight: 600; font-size: 14px; padding: 8px 14px; color: #8b949e; }
   .xml-tag { font-size: 11px; color: #6e7681; font-family: monospace; }
+  .stat-card { display: inline-block; background: #1c1f26; border-radius: 10px; padding: 14px 20px; margin: 6px; min-width: 140px; text-align: center; }
+  .stat-card .val { font-size: 22px; font-weight: 700; }
+  .stat-card .lbl { font-size: 11px; color: #8b949e; margin-top: 4px; }
+  .stat-card.green .val { color: #3fb950; }
+  .stat-card.blue .val { color: #58a6ff; }
+  .stat-card.red .val { color: #f85149; }
+  .stat-card.yellow .val { color: #d29922; }
+  .worker-block { background: #161b22; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+  .worker-block h3 { margin-bottom: 10px; font-size: 15px; }
+  .worker-block .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-left: 8px; }
+  .worker-block .badge.active { background: #23863633; color: #3fb950; }
+  .worker-block .badge.paused { background: #da363333; color: #f85149; }
+  .status-badge { padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; }
+  .status-badge.COMPLETED { background: #23863633; color: #3fb950; }
+  .status-badge.PENDING { background: #d2992233; color: #d29922; }
+  .status-badge.FAILED { background: #da363333; color: #f85149; }
+  .status-badge.IN_PROGRESS { background: #1f6feb33; color: #58a6ff; }
+  .pagination { display: flex; align-items: center; gap: 10px; margin: 14px 0; }
+  .pagination button { padding: 6px 14px; border-radius: 8px; border: none; background: #1c1f26; color: #e1e4e8; cursor: pointer; font-size: 13px; }
+  .pagination button:hover { background: #21262d; }
+  .pagination button:disabled { opacity: 0.4; cursor: default; }
+  .pagination span { color: #8b949e; font-size: 13px; }
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
+  .filter-bar select { padding: 8px 12px; background: #1c1f26; border: 1px solid #333; border-radius: 8px; color: #e1e4e8; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -59,6 +83,8 @@
 <div id="app" style="display:none">
   <div class="tabs">
     <button class="tab active" onclick="switchTab('rates', this)">Rates</button>
+    <button class="tab" onclick="switchTab('requests', this)">Requests</button>
+    <button class="tab" onclick="switchTab('workers', this)">Workers</button>
     <button class="tab" onclick="switchTab('users', this)">Users</button>
     <button class="tab" onclick="switchTab('vendors', this)">Vendors</button>
   </div>
@@ -71,6 +97,33 @@
       </thead>
       <tbody id="rates-body"></tbody>
     </table>
+  </div>
+
+  <div id="tab-requests" class="tab-content">
+    <div class="filter-bar">
+      <select id="req-status-filter" onchange="loadRequests()">
+        <option value="ALL">All statuses</option>
+        <option value="PENDING">Pending</option>
+        <option value="IN_PROGRESS">In Progress</option>
+        <option value="COMPLETED">Completed</option>
+        <option value="FAILED">Failed</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Amount</th><th>Currency</th><th>Method</th><th>Rate</th><th>Vendor</th><th>Worker</th><th>Status</th><th>Created</th><th>Completed</th></tr>
+      </thead>
+      <tbody id="requests-body"></tbody>
+    </table>
+    <div class="pagination">
+      <button onclick="loadRequests(reqPage-1)" id="req-prev">← Prev</button>
+      <span id="req-page-info"></span>
+      <button onclick="loadRequests(reqPage+1)" id="req-next">Next →</button>
+    </div>
+  </div>
+
+  <div id="tab-workers" class="tab-content">
+    <div id="workers-container"></div>
   </div>
 
   <div id="tab-users" class="tab-content">
@@ -119,6 +172,8 @@ function switchTab(name, btn) {
   document.getElementById('tab-' + name).classList.add('active');
   btn.classList.add('active');
   if (name === 'rates') loadRates();
+  if (name === 'requests') loadRequests();
+  if (name === 'workers') loadWorkers();
   if (name === 'vendors') loadVendors();
   if (name === 'users') loadUsers();
 }
@@ -263,6 +318,65 @@ async function togglePause(userId, pause) {
     showStatus(`@${updated.username} ${updated.onPause ? 'paused' : 'active'}`, 'success');
     loadUsers();
   } catch (e) { showStatus('Error: ' + e.message, 'error'); }
+}
+
+// === REQUESTS ===
+let reqPage = 1;
+async function loadRequests(page) {
+  reqPage = Math.max(1, page || 1);
+  const status = document.getElementById('req-status-filter').value;
+  const res = await api(`/api/request/admin/list?page=${reqPage}&limit=50&status=${status}`);
+  const tbody = document.getElementById('requests-body');
+  tbody.innerHTML = '';
+  for (const r of res.data) {
+    const tr = document.createElement('tr');
+    const created = new Date(r.createdAt).toLocaleString('ru');
+    const completed = r.completedAt ? new Date(r.completedAt).toLocaleString('ru') : '-';
+    tr.innerHTML = `
+      <td class="token">${r.id.slice(-8)}</td>
+      <td><strong>${r.amount}</strong></td>
+      <td>${r.currency}</td>
+      <td>${r.method}</td>
+      <td>${r.rate || '-'}</td>
+      <td>${r.vendor}</td>
+      <td>${r.worker ? '@' + r.worker : '-'}</td>
+      <td><span class="status-badge ${r.status}">${r.status}</span></td>
+      <td class="tg-id">${created}</td>
+      <td class="tg-id">${completed}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+  document.getElementById('req-page-info').textContent = `Page ${res.page} / ${res.pages} (${res.total} total)`;
+  document.getElementById('req-prev').disabled = res.page <= 1;
+  document.getElementById('req-next').disabled = res.page >= res.pages;
+}
+
+// === WORKERS ===
+async function loadWorkers() {
+  const workers = await api('/api/users/stats');
+  const container = document.getElementById('workers-container');
+  container.innerHTML = '';
+  for (const w of workers) {
+    const s = w.stats;
+    const div = document.createElement('div');
+    div.className = 'worker-block';
+    div.innerHTML = `
+      <h3>@${w.username}
+        <span class="badge ${w.onPause ? 'paused' : 'active'}">${w.onPause ? 'PAUSED' : 'ACTIVE'}</span>
+      </h3>
+      <div>
+        <div class="stat-card blue"><div class="val">${s.total}</div><div class="lbl">Total</div></div>
+        <div class="stat-card green"><div class="val">${s.completed}</div><div class="lbl">Completed</div></div>
+        <div class="stat-card red"><div class="val">${s.failed}</div><div class="lbl">Failed</div></div>
+        <div class="stat-card yellow"><div class="val">${s.active}</div><div class="lbl">Active</div></div>
+        <div class="stat-card green"><div class="val">${s.completedToday}</div><div class="lbl">Today</div></div>
+        <div class="stat-card"><div class="val">${s.totalAmount.toLocaleString()}</div><div class="lbl">Total Amount</div></div>
+        <div class="stat-card"><div class="val">${s.todayAmount.toLocaleString()}</div><div class="lbl">Today Amount</div></div>
+      </div>
+    `;
+    container.appendChild(div);
+  }
+  if (workers.length === 0) container.innerHTML = '<p style="color:#8b949e">No workers found</p>';
 }
 
 // === VENDORS ===

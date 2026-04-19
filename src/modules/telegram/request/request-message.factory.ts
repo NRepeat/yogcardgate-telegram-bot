@@ -411,10 +411,6 @@ export class RequestMessageFactory {
       return null;
     }
 
-    // Use 3 decimal places for USD/EUR/GBP, 2 for others
-    const currencyCode = request.currency?.nameEn?.toUpperCase();
-    const decimals = ['USD', 'EUR', 'GBP'].includes(currencyCode || '') ? 3 : 2;
-
     return `💱<b>Курс:</b> <code>${rateValue}</code>`;
   }
 

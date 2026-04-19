@@ -204,10 +204,6 @@ abstract class BaseRequestMenu {
           ? this.request.rates.rate
           : null;
 
-    // Use 3 decimal places for USD/EUR/GBP, 2 for others
-    const currencyCode = this.request.currency?.nameEn?.toUpperCase();
-    const decimals = ['USD', 'EUR', 'GBP'].includes(currencyCode || '') ? 3 : 2;
-
     const lines: Array<string | null> = [
       `✉️<b>Заявка номер:</b> <code>${this.request.id}</code>`,
       this.buildMethodLabel(method, currencyLabel),

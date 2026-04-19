@@ -24,6 +24,12 @@ export type PaymentPhoto = {
   height: number;
 };
 
+interface PaymentWizardState {
+  requestId: string;
+  messageId?: number;
+  paymentPhoto?: PaymentPhoto;
+}
+
 @Injectable()
 @Wizard('payment_photo_proceed')
 export default class PaymentWizard {
@@ -34,7 +40,6 @@ export default class PaymentWizard {
     private readonly configService: ConfigService,
     private readonly requestService: RequestService,
   ) {}
-  paymentPhotos: PaymentPhoto[] = [];
 
   private async getPhotoUrlFromDatabase(requestId: string): Promise<string> {
     try {
@@ -42,7 +47,6 @@ export default class PaymentWizard {
       if (messages && messages.length > 0) {
         const messageWithPhoto = messages.find(msg => msg.photoUrl && msg.photoUrl !== '');
         if (messageWithPhoto && messageWithPhoto.photoUrl) {
-          // Check if it's a Telegram CDN URL (old format) and fall back to default
           if (messageWithPhoto.photoUrl.startsWith('https://api.telegram.org/file/bot')) {
             console.warn('Found old Telegram CDN URL in database, using default image');
             return './src/assets/0056.jpg';
@@ -53,17 +57,16 @@ export default class PaymentWizard {
     } catch (error) {
       console.warn('Failed to retrieve photo from database, using default:', error);
     }
-    return './src/assets/0056.jpg'; // default fallback
+    return './src/assets/0056.jpg';
   }
 
   private async deletePhotoFileIfExists(photoUrl: string): Promise<void> {
     try {
-      // Only delete local files, not default images or HTTP URLs
-      if (photoUrl && 
-          photoUrl !== './src/assets/0056.jpg' && 
+      if (photoUrl &&
+          photoUrl !== './src/assets/0056.jpg' &&
           !photoUrl.startsWith('http') &&
           photoUrl.startsWith('./storage/request-photos/')) {
-        
+
         const fs = require('fs').promises;
         try {
           await fs.unlink(photoUrl);
@@ -99,23 +102,47 @@ export default class PaymentWizard {
 
   @WizardStep(1)
   async proceedFinalStep(@Ctx() ctx: CustomSceneContext) {
+    const state = ctx.wizard.state as PaymentWizardState;
     const message = ctx.message as { photo?: PaymentPhoto[] };
-    ctx.session.messagesToDelete?.push(ctx.message?.message_id || 0);
+
+    // Handle photo message
     if (message && Array.isArray(message.photo)) {
-      this.paymentPhotos.push(message.photo[message.photo.length - 1]);
-      if (Array.isArray(this.paymentPhotos)) {
-        const state = ctx.wizard.state as { requestId: string };
+      ctx.session.messagesToDelete?.push(ctx.message?.message_id || 0);
+
+      // Store photo in wizard state (replaces previous)
+      state.paymentPhoto = message.photo[message.photo.length - 1];
+
+      // Show photo back with confirm/retry buttons
+      const confirmMsg = await ctx.replyWithPhoto(state.paymentPhoto.file_id, {
+        caption: 'Подтвердите квитанцию',
+        reply_markup: Markup.inlineKeyboard([
+          [
+            Markup.button.callback('✅ Подтвердить', 'confirm_receipt'),
+            Markup.button.callback('🔄 Переснять', 'retry_receipt'),
+          ],
+          [Markup.button.callback('❌ Отмена', 'cancel_payment_photo_proceed')],
+        ]).reply_markup,
+      });
+      ctx.session.requestMenuMessageId?.push(confirmMsg.message_id);
+      return;
+    }
+
+    // Handle callbacks
+    if (ctx.callbackQuery && 'data' in ctx.callbackQuery) {
+      const data = ctx.callbackQuery.data;
+
+      if (data === 'confirm_receipt') {
+        if (!state.paymentPhoto) {
+          await ctx.answerCbQuery('Фото не найдено');
+          return;
+        }
+
         const requestId = state.requestId;
-        const buffers = await Promise.all(
-          this.paymentPhotos.map((photo) => {
-            return this.utilsService.downloadTelegramPhoto(
-              this.configService.get<string>('TELEGRAM_BOT_TOKEN')!,
-              photo.file_id,
-            );
-          }),
+        const buffer = await this.utilsService.downloadTelegramPhoto(
+          this.configService.get<string>('TELEGRAM_BOT_TOKEN')!,
+          state.paymentPhoto.file_id,
         );
-        const mergedImageBuffer =
-          await this.utilsService.mergeImagesHorizontal(buffers);
+
         const userId = ctx.from?.id;
         if (!userId) {
           throw new Error('User ID not found in context');
@@ -134,17 +161,17 @@ export default class PaymentWizard {
         const publicMenu = MenuFactory.createPublicMenu(
           request as unknown as FullRequestType,
           '',
-          mergedImageBuffer,
+          buffer,
         );
         const workerMenu = MenuFactory.createWorkerMenu(
           request as unknown as FullRequestType,
           '',
-          mergedImageBuffer,
+          buffer,
         );
         const adminMenu = MenuFactory.createAdminMenu(
           request as unknown as FullRequestType,
           '',
-          mergedImageBuffer,
+          buffer,
         );
         await this.telegramService.updateAllWorkersMessagesWithRequestsId(
           {
@@ -162,7 +189,6 @@ export default class PaymentWizard {
           },
           requestId,
         );
-
         await this.telegramService.updateAllPublicMessagesWithRequestsId(
           {
             text: publicMenu.done().caption,
@@ -172,103 +198,96 @@ export default class PaymentWizard {
           requestId,
         );
 
-        // Delete saved photo file if it exists after completing the request
         const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
         await this.deletePhotoFileIfExists(photoUrl);
-      } else {
+
+        await ctx.scene.leave();
         return;
       }
 
-      await ctx.scene.leave();
-
-      this.paymentPhotos = [];
-    } else {
-      console.error('No photos found in the message');
-      if (ctx.callbackQuery) {
-        if (
-          'data' in ctx.callbackQuery &&
-          ctx.callbackQuery.data === 'cancel_payment_photo_proceed'
-        ) {
-          const state = ctx.wizard.state as {
-            requestId: string;
-            messageId?: number;
-          };
-          const requestId = state.requestId;
-          const messageId = state.messageId;
-          const request = await this.requestService.findById(requestId);
-          console.log(
-            'Canceling payment photo proceed for request:',
-            requestId,
-            ctx.message,
-          );
-          if (!request) {
-            await ctx.scene.leave();
-            throw new Error('Request not found');
-          }
-          const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
-
-          const workerMenu = MenuFactory.createWorkerMenu(
-            request as unknown as FullRequestType,
-            photoUrl,
-            undefined,
-            true,
-            false,
-          );
-          await this.bot.telegram.editMessageMedia(
-            ctx.chat?.id!,
-            messageId!,
-            undefined,
-            {
-              media: {
-                source: photoUrl,
-              },
-              type: 'photo',
-              caption: workerMenu.inWork().caption,
-              parse_mode: 'HTML',
-            },
-            {
-              reply_markup: workerMenu.inProcess(undefined, request.id).markup,
-            },
-          );
-          await ctx.scene.leave();
-        } else if (
-          'data' in ctx.callbackQuery &&
-          ctx.callbackQuery.data.includes('accept_request')
-        ) {
-          console.error('Unknown callback query data:', ctx.callbackQuery);
-          const state = ctx.wizard.state as { requestId: string };
-          const requestId = state.requestId;
-          const request = await this.requestService.findById(requestId);
-          if (!request) {
-            await ctx.scene.leave();
-            throw new Error('Request not found');
-          }
-          const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
-
-          const workerMenu = MenuFactory.createWorkerMenu(
-            request as unknown as FullRequestType,
-            photoUrl,
-          );
-          await this.telegramService.updateAllWorkersMessagesWithRequestsId(
-            {
-              text: workerMenu.inWork().caption,
-              inline_keyboard: workerMenu.inProcess(undefined, request.id)
-                .markup,
-            },
-            requestId,
-          );
-          await ctx.scene.leave();
-        } else {
-          console.error('Unknown callback query data:', ctx.callbackQuery);
-          await ctx.answerCbQuery('Unknown action');
-          // await ctx.scene.leave();
-          return;
-        }
+      if (data === 'retry_receipt') {
+        state.paymentPhoto = undefined;
+        await ctx.answerCbQuery('Отправьте новую квитанцию');
+        const msg = await ctx.reply('Пожалуйста прикрепите квитанцию', {
+          reply_markup: Markup.inlineKeyboard([
+            [Markup.button.callback('Отмена', 'cancel_payment_photo_proceed')],
+          ]).reply_markup,
+        });
+        ctx.session.requestMenuMessageId?.push(msg.message_id);
+        return;
       }
-      await ctx.scene.leave();
+
+      if (data === 'cancel_payment_photo_proceed') {
+        const requestId = state.requestId;
+        const messageId = state.messageId;
+        const request = await this.requestService.findById(requestId);
+        if (!request) {
+          await ctx.scene.leave();
+          throw new Error('Request not found');
+        }
+        const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
+
+        const workerMenu = MenuFactory.createWorkerMenu(
+          request as unknown as FullRequestType,
+          photoUrl,
+          undefined,
+          true,
+          false,
+        );
+        await this.bot.telegram.editMessageMedia(
+          ctx.chat?.id!,
+          messageId!,
+          undefined,
+          {
+            media: {
+              source: photoUrl,
+            },
+            type: 'photo',
+            caption: workerMenu.inProcess(undefined, request.id).caption,
+            parse_mode: 'HTML',
+          },
+          {
+            reply_markup: workerMenu.inProcess(undefined, request.id).markup,
+          },
+        );
+        await ctx.scene.leave();
+        return;
+      }
+
+      if (data.includes('accept_request')) {
+        console.error('Unknown callback query data:', ctx.callbackQuery);
+        const requestId = state.requestId;
+        const request = await this.requestService.findById(requestId);
+        if (!request) {
+          await ctx.scene.leave();
+          throw new Error('Request not found');
+        }
+        const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
+
+        const workerMenu = MenuFactory.createWorkerMenu(
+          request as unknown as FullRequestType,
+          photoUrl,
+        );
+        await this.telegramService.updateAllWorkersMessagesWithRequestsId(
+          {
+            text: workerMenu.inWork().caption,
+            inline_keyboard: workerMenu.inProcess(undefined, request.id)
+              .markup,
+          },
+          requestId,
+        );
+        await ctx.scene.leave();
+        return;
+      }
+
+      console.error('Unknown callback query data:', ctx.callbackQuery);
+      await ctx.answerCbQuery('Unknown action');
+      return;
     }
+
+    await ctx.scene.leave();
   }
-  
+
   @SceneLeave()
   async onSceneLeave(@Ctx() ctx: CustomSceneContext) {
     await this.deleteSceneMessages(ctx);

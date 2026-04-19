@@ -15,5 +15,6 @@
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
-  }
+  },
+  "exclude": ["admin", "node_modules", "dist"]
 }

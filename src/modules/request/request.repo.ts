@@ -367,7 +367,7 @@ export class RequestRepository {
     requestId: string,
     messageId: number,
   ) {
-    return this.prisma.message.delete({
+    return this.prisma.message.deleteMany({
       where: { messageId, requestId },
     });
   }

@@ -488,25 +488,30 @@ export class MenuActions {
   async onPayCommand(@Ctx() ctx: CustomSceneContext) {
     const msId = ctx.message?.message_id;
     await ctx.deleteMessage(msId);
+    console.log(`[/pay] chatId: ${ctx.chat?.id}`);
     if (await this.isBotPaused(ctx)) {
+      console.log('[/pay] bot paused, skip');
       return;
     }
     const workGroup = this.configService.get<number>('WORK_GROUP_CHAT');
     if (workGroup === ctx.chat?.id) {
+      console.log('[/pay] workGroup chat, skip');
       return;
     }
     if (!ctx.chat || !ctx.chat.id) {
-      console.error('Chat ID is not available in the context');
+      console.error('[/pay] Chat ID is not available in the context');
       return;
     }
 
     const vendor = await this.vendorService.getVendorByChatId(ctx.chat?.id);
+    console.log(`[/pay] vendor lookup result:`, vendor ? `${vendor.title}, work=${vendor.work}` : 'null');
     if (!vendor) {
-      console.error('Vendor not found for the current chat');
+      console.error('[/pay] Vendor not found for the current chat');
       return;
     }
 
     if (!vendor.work) {
+      console.log('[/pay] vendor.work=false, skip');
       return;
     }
 

@@ -18,6 +18,7 @@ export const BUTTON_TEXTS = {
   VALUT_CARD: 'Валютная карта',
   BACK_TO_TAKE_REQUEST: 'Отказаться от заявки',
   REJECTED_BY_ADMIN: 'Отклонено админом',
+  CHANGE_RECEIPT: '📎 Изменить квитанцию',
 } as const;
 
 export const BUTTON_CALLBACKS = {
@@ -38,6 +39,7 @@ export const BUTTON_CALLBACKS = {
   CANCEL_WORKER_REQUEST: 'cancel_worker_request_',
   DUMMY: 'dummy',
   ADMIN_CANCEL_REQUEST: 'admin_cancel_request_',
+  CHANGE_RECEIPT: 'change_receipt_',
 } as const;
 
 export const MESSAGES = {

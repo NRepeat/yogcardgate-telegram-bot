@@ -563,7 +563,14 @@ abstract class BaseRequestMenu {
     ]).reply_markup;
   }
 
-  protected createDoneMarkup(): InlineKeyboardMarkup {
+  protected createDoneMarkup(requestId?: string): InlineKeyboardMarkup {
+    const accessType = this.getAccessType();
+    if (accessType === 'WORKER' && requestId) {
+      return Markup.inlineKeyboard([
+        [createButton(BUTTON_TEXTS.DONE, BUTTON_CALLBACKS.DONE)],
+        [createButton(BUTTON_TEXTS.CHANGE_RECEIPT, BUTTON_CALLBACKS.CHANGE_RECEIPT + requestId)],
+      ]).reply_markup;
+    }
     return createSingleButtonMarkup(BUTTON_TEXTS.DONE, BUTTON_CALLBACKS.DONE);
   }
 
@@ -732,9 +739,9 @@ abstract class BaseRequestMenu {
     return new Menu(baseMessage.text ?? MESSAGES.NO_DATA, markup, this.request);
   }
 
-  done(url?: string): MenuWithMedia {
+  done(url?: string, requestId?: string): MenuWithMedia {
     const baseMessage = this.messageFromRequest(this.getAccessType());
-    const markup = this.createDoneMarkup();
+    const markup = this.createDoneMarkup(requestId);
     const photoUrl = baseMessage.photoUrl ?? url ?? this.url;
     const source = baseMessage.source ?? this.source;
 

@@ -186,9 +186,9 @@ export default class PaymentWizard {
         );
         await this.telegramService.updateAllWorkersMessagesWithRequestsId(
           {
-            source: workerMenu.done().source,
-            text: workerMenu.done().caption,
-            inline_keyboard: workerMenu.done().markup,
+            source: workerMenu.done(undefined, requestId).source,
+            text: workerMenu.done(undefined, requestId).caption,
+            inline_keyboard: workerMenu.done(undefined, requestId).markup,
           },
           requestId,
         );

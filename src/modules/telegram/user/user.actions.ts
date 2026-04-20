@@ -438,6 +438,32 @@ export class UserActions {
         }
       }
 
+      if (callbackQuery.data.startsWith('change_receipt_')) {
+        const requestId = callbackQuery.data.substring('change_receipt_'.length);
+        if (!requestId) {
+          await ctx.answerCbQuery('Не удалось определить заявку.');
+          return;
+        }
+        const accessCheck = await this.accessControlService.canManageRequest(
+          requestId,
+          currentUserId,
+        );
+        if (!accessCheck.allowed) {
+          await ctx.answerCbQuery(accessCheck.message);
+          return;
+        }
+        const request = await this.requestService.findById(requestId);
+        if (!request) {
+          throw new Error('Request not found');
+        }
+        const messageId = callbackQuery.message?.message_id;
+        await ctx.scene.enter('payment_photo_proceed', {
+          requestId,
+          messageId,
+        });
+        return;
+      }
+
       if (callbackQuery.data.includes('proceeded_payment_')) {
         const requestId = callbackQuery.data.split('_')[2];
 

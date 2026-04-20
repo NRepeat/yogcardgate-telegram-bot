@@ -79,15 +79,22 @@ export class UserActions {
   @On('callback_query')
   async onCallbackQuery(@Ctx() ctx: SceneContext) {
     const callbackQuery = ctx.callbackQuery;
-    await this.VendorCallbackService.handleVendorAction(
-      ctx as CustomSceneContext,
-    );
     if (!callbackQuery) {
       console.error('No callback query found');
       return;
     } else if ('data' in callbackQuery) {
+      const data = callbackQuery.data;
       const currentUserId = callbackQuery.from.id;
-      if (callbackQuery.data.startsWith('admin_cancel_request_')) {
+
+      // Vendor-related callbacks — delegate and return
+      if (data.startsWith('provider_') || data.startsWith('toggle_off_') || data === 'close') {
+        await this.VendorCallbackService.handleVendorAction(
+          ctx as CustomSceneContext,
+        );
+        return;
+      }
+
+      if (data.startsWith('admin_cancel_request_')) {
         const requestId = callbackQuery.data.substring(
           'admin_cancel_request_'.length,
         );

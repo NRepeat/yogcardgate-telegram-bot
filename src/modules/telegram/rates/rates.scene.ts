@@ -4,11 +4,31 @@ import { RatesService } from 'src/modules/rates/rates.service';
 import { CustomSceneContext } from 'src/types/types';
 import { Markup } from 'telegraf';
 
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
 @Injectable()
 @Wizard('create-rates')
 export class CreateRatesScene {
   private static locked = false;
   private static lockedBy: string | null = null;
+  private static lockTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private static startLockTimer() {
+    CreateRatesScene.clearLockTimer();
+    CreateRatesScene.lockTimer = setTimeout(() => {
+      console.warn(`Rate update lock expired for @${CreateRatesScene.lockedBy} after ${LOCK_TIMEOUT_MS / 1000}s`);
+      CreateRatesScene.locked = false;
+      CreateRatesScene.lockedBy = null;
+      CreateRatesScene.lockTimer = null;
+    }, LOCK_TIMEOUT_MS);
+  }
+
+  private static clearLockTimer() {
+    if (CreateRatesScene.lockTimer) {
+      clearTimeout(CreateRatesScene.lockTimer);
+      CreateRatesScene.lockTimer = null;
+    }
+  }
 
   constructor(private readonly ratesService: RatesService) {}
 
@@ -42,6 +62,7 @@ export class CreateRatesScene {
     }
     CreateRatesScene.locked = true;
     CreateRatesScene.lockedBy = username;
+    CreateRatesScene.startLockTimer();
 
     const markup = await this.ratesService.getAllRatesMarkupMessage();
     const inline_keyboard = Markup.inlineKeyboard([
@@ -104,6 +125,7 @@ export class CreateRatesScene {
         }
       }
     }
+    CreateRatesScene.clearLockTimer();
     CreateRatesScene.locked = false;
     CreateRatesScene.lockedBy = null;
     ctx.session.customState = '';

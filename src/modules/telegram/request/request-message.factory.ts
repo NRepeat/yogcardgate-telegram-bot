@@ -328,10 +328,13 @@ export class RequestMessageFactory {
     const methodLabel =
       `${request.currency?.nameEn ?? request.currency?.name ?? ''} ${methodDisplayName}`.trim();
 
+    const usdtLine = this.formatUsdtLine(request);
+
     const lines: Array<string | null> = [
       `✉️<b>Заявка номер:</b> <code>${request.id}</code>`,
       `🔖<b>Валюта:</b> ${methodLabel}`,
       amountLine,
+      usdtLine,
       rateLine,
       ...extraLines,
     ];
@@ -397,6 +400,22 @@ export class RequestMessageFactory {
     return `💵<b>Сумма:</b> <code>${request.amount}</code>${
       currency ? ` ${currency}` : ''
     }`;
+  }
+
+  private static formatUsdtLine(request: FullRequestType): string | null {
+    const amount = request.amount;
+    const rate = request.rate
+      ? Number(request.rate)
+      : typeof request.rates?.rate === 'number'
+        ? request.rates.rate
+        : null;
+
+    if (typeof amount !== 'number' || !rate || rate === 0) {
+      return null;
+    }
+
+    const usdt = (amount / rate).toFixed(2);
+    return `💎<b>USDT:</b> <code>${usdt}</code>`;
   }
 
   private static formatRateLine(request: FullRequestType): string | null {

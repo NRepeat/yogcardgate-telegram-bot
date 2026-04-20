@@ -96,17 +96,15 @@ export class CreateRatesScene {
         );
         ctx.session.messagesToDelete?.push(msg.message_id);
         ctx.wizard.selectStep(1);
+        return;
       }
       const allRates = await this.ratesService.getAllRatesMarkupMessage();
       await ctx.reply('Rates updated successfully:\n\n' + allRates);
       ctx.session.customState = 'updated';
       await ctx.scene.leave();
     } catch (error) {
-      if (error instanceof Error) {
-        console.error('Error creating rates:', error.message);
-        // await ctx.reply('Somthing went wrong');
-        await ctx.scene.leave();
-      }
+      console.error('Error creating rates:', error instanceof Error ? error.message : error);
+      await ctx.scene.leave();
     }
   }
 

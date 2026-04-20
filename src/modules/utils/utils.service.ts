@@ -412,6 +412,66 @@ export class UtilsService {
     const arrayBuffer = await response.arrayBuffer();
     return Buffer.from(arrayBuffer);
   }
+  async mergeImagesGrid(images: Buffer[], columns = 2): Promise<Buffer> {
+    if (images.length === 1) return images[0];
+
+    const cellWidth = 800;
+    const cols = Math.min(columns, images.length);
+    const rows = Math.ceil(images.length / cols);
+
+    const resizedBuffers = await Promise.all(
+      images.map((img) =>
+        sharp(img).resize({ width: cellWidth, fit: 'inside' }).toBuffer(),
+      ),
+    );
+    const metadatas = await Promise.all(
+      resizedBuffers.map((buf) => sharp(buf).metadata()),
+    );
+
+    const rowHeights: number[] = [];
+    for (let r = 0; r < rows; r++) {
+      let maxH = 0;
+      for (let c = 0; c < cols; c++) {
+        const idx = r * cols + c;
+        if (idx < metadatas.length) {
+          maxH = Math.max(maxH, metadatas[idx].height || 0);
+        }
+      }
+      rowHeights.push(maxH);
+    }
+
+    const totalWidth = cellWidth * cols;
+    const totalHeight = rowHeights.reduce((s, h) => s + h, 0);
+
+    const composites: { input: Buffer; top: number; left: number }[] = [];
+    let topOffset = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const idx = r * cols + c;
+        if (idx < resizedBuffers.length) {
+          composites.push({
+            input: resizedBuffers[idx],
+            top: topOffset,
+            left: c * cellWidth,
+          });
+        }
+      }
+      topOffset += rowHeights[r];
+    }
+
+    return sharp({
+      create: {
+        width: totalWidth,
+        height: totalHeight,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      },
+    })
+      .composite(composites)
+      .jpeg({ quality: 85 })
+      .toBuffer();
+  }
+
   async mergeImagesHorizontal(images: Buffer[]): Promise<Buffer> {
     const sharpImages = images.map((img) => sharp(img));
     const metadatas = await Promise.all(

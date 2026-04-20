@@ -28,6 +28,9 @@ interface PaymentWizardState {
   requestId: string;
   messageId?: number;
   paymentPhoto?: PaymentPhoto;
+  paymentPhotos: PaymentPhoto[];
+  mediaGroupId?: string;
+  collectTimer?: ReturnType<typeof setTimeout>;
 }
 
 @Injectable()
@@ -103,27 +106,31 @@ export default class PaymentWizard {
   @WizardStep(1)
   async proceedFinalStep(@Ctx() ctx: CustomSceneContext) {
     const state = ctx.wizard.state as PaymentWizardState;
-    const message = ctx.message as { photo?: PaymentPhoto[] };
+    if (!state.paymentPhotos) state.paymentPhotos = [];
+    const message = ctx.message as { photo?: PaymentPhoto[]; media_group_id?: string };
 
     // Handle photo message
     if (message && Array.isArray(message.photo)) {
       ctx.session.messagesToDelete?.push(ctx.message?.message_id || 0);
 
-      // Store photo in wizard state (replaces previous)
-      state.paymentPhoto = message.photo[message.photo.length - 1];
+      const photo = message.photo[message.photo.length - 1];
+      state.paymentPhotos.push(photo);
+      // Keep backward compat
+      state.paymentPhoto = photo;
 
-      // Show photo back with confirm/retry buttons
-      const confirmMsg = await ctx.replyWithPhoto(state.paymentPhoto.file_id, {
-        caption: 'Подтвердите квитанцию',
-        reply_markup: Markup.inlineKeyboard([
-          [
-            Markup.button.callback('✅ Подтвердить', 'confirm_receipt'),
-            Markup.button.callback('🔄 Переснять', 'retry_receipt'),
-          ],
-          [Markup.button.callback('❌ Отмена', 'cancel_payment_photo_proceed')],
-        ]).reply_markup,
-      });
-      ctx.session.requestMenuMessageId?.push(confirmMsg.message_id);
+      // If part of media group, debounce confirm prompt
+      if (message.media_group_id) {
+        state.mediaGroupId = message.media_group_id;
+        // Clear previous timer if exists
+        if (state.collectTimer) clearTimeout(state.collectTimer);
+        state.collectTimer = setTimeout(async () => {
+          await this.showConfirmPrompt(ctx, state);
+        }, 1500);
+        return;
+      }
+
+      // Single photo — show confirm immediately
+      await this.showConfirmPrompt(ctx, state);
       return;
     }
 
@@ -132,16 +139,20 @@ export default class PaymentWizard {
       const data = ctx.callbackQuery.data;
 
       if (data === 'confirm_receipt') {
-        if (!state.paymentPhoto) {
+        const photos = state.paymentPhotos?.length ? state.paymentPhotos : (state.paymentPhoto ? [state.paymentPhoto] : []);
+        if (photos.length === 0) {
           await ctx.answerCbQuery('Фото не найдено');
           return;
         }
 
         const requestId = state.requestId;
-        const buffer = await this.utilsService.downloadTelegramPhoto(
-          this.configService.get<string>('TELEGRAM_BOT_TOKEN')!,
-          state.paymentPhoto.file_id,
+        const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN')!;
+        const buffers = await Promise.all(
+          photos.map((p) => this.utilsService.downloadTelegramPhoto(token, p.file_id)),
         );
+        const buffer = buffers.length > 1
+          ? await this.utilsService.mergeImagesGrid(buffers)
+          : buffers[0];
 
         const userId = ctx.from?.id;
         if (!userId) {
@@ -207,6 +218,8 @@ export default class PaymentWizard {
 
       if (data === 'retry_receipt') {
         state.paymentPhoto = undefined;
+        state.paymentPhotos = [];
+        state.mediaGroupId = undefined;
         await ctx.answerCbQuery('Отправьте новую квитанцию');
         const msg = await ctx.reply('Пожалуйста прикрепите квитанцию', {
           reply_markup: Markup.inlineKeyboard([
@@ -286,6 +299,28 @@ export default class PaymentWizard {
     }
 
     await ctx.scene.leave();
+  }
+
+  private async showConfirmPrompt(ctx: CustomSceneContext, state: PaymentWizardState) {
+    const count = state.paymentPhotos?.length || 1;
+    const caption = count > 1
+      ? `Получено ${count} фото. Подтвердите квитанцию (будут объединены в одно изображение)`
+      : 'Подтвердите квитанцию';
+
+    const lastPhoto = state.paymentPhotos?.[state.paymentPhotos.length - 1] || state.paymentPhoto;
+    if (!lastPhoto) return;
+
+    const confirmMsg = await ctx.replyWithPhoto(lastPhoto.file_id, {
+      caption,
+      reply_markup: Markup.inlineKeyboard([
+        [
+          Markup.button.callback('✅ Подтвердить', 'confirm_receipt'),
+          Markup.button.callback('🔄 Переснять', 'retry_receipt'),
+        ],
+        [Markup.button.callback('❌ Отмена', 'cancel_payment_photo_proceed')],
+      ]).reply_markup,
+    });
+    ctx.session.requestMenuMessageId?.push(confirmMsg.message_id);
   }
 
   @SceneLeave()

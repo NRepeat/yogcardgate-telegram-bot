@@ -16,6 +16,12 @@ export class AccessControlService {
     private readonly userService: UserService,
   ) {}
 
+  private async isSuperAdmin(telegramUserId: number): Promise<boolean> {
+    const user = await this.userService.findByTelegramId(telegramUserId);
+    if (!user) return false;
+    return user.Role.some((role) => role.name === RoleEnum.SUPER_ADMIN);
+  }
+
   /**
    * Проверяет, может ли пользователь принять заявку
    */
@@ -24,6 +30,12 @@ export class AccessControlService {
     telegramUserId: number,
   ): Promise<AccessCheckResult> {
     try {
+      if (await this.isSuperAdmin(telegramUserId)) {
+        const request = await this.requestService.findById(requestId);
+        if (!request) return { allowed: false, message: '❌ Заявка не найдена' };
+        return { allowed: true };
+      }
+
       const request = await this.requestService.findById(requestId);
       if (!request) {
         return { allowed: false, message: '❌ Заявка не найдена' };
@@ -73,6 +85,10 @@ export class AccessControlService {
     telegramUserId: number,
   ): Promise<AccessCheckResult> {
     try {
+      if (await this.isSuperAdmin(telegramUserId)) {
+        return { allowed: true };
+      }
+
       const request = await this.requestService.findById(requestId);
       if (!request) {
         return { allowed: false, message: '❌ Заявка не найдена' };
@@ -114,7 +130,7 @@ export class AccessControlService {
       }
 
       if (
-        user.Role.find((role) => role.name === RoleEnum.ADMIN) === undefined
+        user.Role.find((role) => role.name === RoleEnum.ADMIN || role.name === RoleEnum.SUPER_ADMIN) === undefined
       ) {
         return {
           allowed: false,
@@ -206,8 +222,8 @@ export class AccessControlService {
         };
       }
 
-      // Администраторы имеют доступ ко всем заявкам
-      if (user.Role.some((role) => role.name === RoleEnum.ADMIN)) {
+      // Супер-администраторы и администраторы имеют доступ ко всем заявкам
+      if (user.Role.some((role) => role.name === RoleEnum.ADMIN || role.name === RoleEnum.SUPER_ADMIN)) {
         return {
           request: request as FullRequestType,
           access: { allowed: true },

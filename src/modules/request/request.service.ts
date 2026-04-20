@@ -80,7 +80,7 @@ export class RequestService {
     requestId: string,
     userId: number,
     chatId?: number,
-  ): Promise<void> {
+  ): Promise<boolean> {
     console.log(
       `Accepting request with ID: ${requestId}, User ID: ${userId}, Chat ID: ${chatId}`,
     );
@@ -88,7 +88,7 @@ export class RequestService {
     if (!dbUser) {
       throw new Error('User not found');
     }
-    await this.requestRepo.acceptRequest(requestId, dbUser.id);
+    return this.requestRepo.acceptRequest(requestId, dbUser.id);
   }
   async isInBlackList(cardNumber: string) {
     const isBlackListed = this.requestRepo.isInBlackList(cardNumber);

@@ -68,7 +68,12 @@ export class AcceptRequestScene {
         await ctx.scene.leave();
         return;
       }
-      await this.requestService.acceptRequest(state.requestId, userId, userId);
+      const accepted = await this.requestService.acceptRequest(state.requestId, userId, userId);
+      if (!accepted) {
+        await ctx.reply('❌ Заявка уже принята другим пользователем');
+        await ctx.scene.leave();
+        return;
+      }
       const request = (await this.requestService.findById(
         state.requestId,
       )) as FullRequestType;

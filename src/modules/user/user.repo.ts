@@ -132,7 +132,7 @@ export default class UserRepository implements Repository<SerializedUser> {
         onPause: false,
         Role: {
           some: {
-            name: RoleEnum.ADMIN,
+            name: { in: [RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN] },
           },
         },
       },
@@ -166,14 +166,27 @@ export default class UserRepository implements Repository<SerializedUser> {
     });
   }
   async getAllAdmins() {
-    return this.prisma.role.findFirst({
-      where: {
-        name: 'ADMIN',
-      },
-      include: {
-        users: true,
-      },
+    const adminRole = await this.prisma.role.findFirst({
+      where: { name: 'ADMIN' },
+      include: { users: true },
     });
+    const superAdminRole = await this.prisma.role.findFirst({
+      where: { name: 'SUPER_ADMIN' },
+      include: { users: true },
+    });
+    const allUsers = [
+      ...(adminRole?.users || []),
+      ...(superAdminRole?.users || []),
+    ];
+    // Deduplicate by id
+    const uniqueUsers = allUsers.filter(
+      (user, idx, arr) => arr.findIndex((u) => u.id === user.id) === idx,
+    );
+    return adminRole
+      ? { ...adminRole, users: uniqueUsers }
+      : superAdminRole
+        ? { ...superAdminRole, users: uniqueUsers }
+        : null;
   }
   async update(userId: string, data: SerializedUser) {
     return this.prisma.user.update({

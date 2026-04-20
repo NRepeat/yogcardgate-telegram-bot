@@ -427,16 +427,19 @@ export class RequestRepository {
       where: { card: { some: { card: cardNumber } } },
     });
   }
-  async acceptRequest(requestId: string, userId: string): Promise<void> {
-    await this.prisma.paymentRequests.update({
-      where: { id: requestId },
+  async acceptRequest(requestId: string, userId: string): Promise<boolean> {
+    const result = await this.prisma.paymentRequests.updateMany({
+      where: {
+        id: requestId,
+        status: 'PENDING',
+        activeUserId: null,
+      },
       data: {
         status: 'ACCEPTED',
-        activeUser: {
-          connect: { id: userId },
-        },
+        activeUserId: userId,
       },
     });
+    return result.count > 0;
   }
   async findAllNotProcessedRequests() {
     return this.prisma.paymentRequests.findMany({

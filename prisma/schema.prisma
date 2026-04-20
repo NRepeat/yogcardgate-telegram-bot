@@ -57,6 +57,7 @@ enum RoleEnum {
   GUEST
   ADMIN
   WORKER
+  SUPER_ADMIN
 }
 
 model User {

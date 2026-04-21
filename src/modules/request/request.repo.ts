@@ -267,7 +267,7 @@ export class RequestRepository {
   async unlinkUser(requestId: string) {
     await this.prisma.paymentRequests.update({
       where: { id: requestId },
-      data: { userId: null, activeUserId: null },
+      data: { userId: null, activeUserId: null, status: 'PENDING' },
     });
   }
   async updateRequestNotificationStatus(requestId: string, sended: boolean) {

@@ -964,7 +964,6 @@ export class CreateRequestWizard {
     if (!ctx.session.messagesToDelete) {
       ctx.session.messagesToDelete = [];
     }
-    ctx.session.messagesToDelete.push(payload.originalMessage.message_id);
 
     const defaultPhotoUrl = './src/assets/0056.jpg';
 

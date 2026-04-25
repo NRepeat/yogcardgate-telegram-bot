@@ -197,6 +197,7 @@ export class RequestMessageFactory {
       details.name ? `👤<b>Получатель:</b> <code>${details.name}</code>` : null,
       iban ? `🏦<b>IBAN:</b> <code>${iban}</code>` : null,
       details.inn ? `📋<b>ИНН:</b> <code>${details.inn}</code>` : null,
+      details.comment ? `💬<b>Комментарий:</b> ${details.comment}` : null,
       this.partnerLine(request),
     ]);
 

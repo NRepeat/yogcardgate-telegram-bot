@@ -46,7 +46,7 @@ export class UahIbanStrategy extends UahBaseStrategy {
       };
     }
 
-    const iban = rawIban.replace(/\s+/g, '').toUpperCase();
+    const iban = rawIban.replace(/[^\w]/g, '').toUpperCase();
     if (!/^UA\d{27}$/.test(iban)) {
       return {
         success: false as const,
@@ -54,7 +54,7 @@ export class UahIbanStrategy extends UahBaseStrategy {
       };
     }
 
-    const inn = rawInn.replace(/\s+/g, '');
+    const inn = rawInn.replace(/[^\d]/g, '');
     if (!/^\d{8}$/.test(inn) && !/^\d{10}$/.test(inn)) {
       return {
         success: false as const,
@@ -128,7 +128,7 @@ export class UahIbanStrategy extends UahBaseStrategy {
 
   private tryParseAmount(raw: string): number | null {
     const normalized = raw
-      .replace(/[^0-9,\.]/g, '')
+      .replace(/[^\d,\.]/g, '')
       .replace(/,/g, '.');
     if (!normalized) {
       return null;

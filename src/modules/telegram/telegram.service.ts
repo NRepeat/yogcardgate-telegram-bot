@@ -184,7 +184,13 @@ export class TelegramService {
       if (!chatId) {
         throw new Error('Work group chat not found');
       }
-      const filteredRequeste = requests.filter((r) => r.status === 'PENDING');
+      const NOTIFICATION_DELAY_MS = 15 * 60 * 1000;
+      const now = Date.now();
+      const filteredRequeste = requests.filter(
+        (r) =>
+          r.status === 'PENDING' &&
+          now - new Date(r.createdAt).getTime() >= NOTIFICATION_DELAY_MS,
+      );
       for (const request of filteredRequeste) {
         const messages = request.message?.filter(
           (m) => m.accessType === 'WORKER',

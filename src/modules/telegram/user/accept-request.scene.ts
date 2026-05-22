@@ -84,19 +84,28 @@ export class AcceptRequestScene {
         undefined,
         true,
       );
-      const message = await this.telegramService.sendMessageToUser(
-        {
-          text: workerMenu.inProcess(undefined, state.requestId).caption,
-          inline_keyboard: workerMenu.inProcess(undefined, state.requestId)
-            .markup,
-          photoUrl: photoUrl,
-        },
-        Number(workGroupChatId),
-        state.requestId,
-        String(userId),
-      );
-      if (!message) {
-        throw new Error('Failed to send message to user');
+      let message;
+      try {
+        message = await this.telegramService.sendMessageToUser(
+          {
+            text: workerMenu.inProcess(undefined, state.requestId).caption,
+            inline_keyboard: workerMenu.inProcess(undefined, state.requestId)
+              .markup,
+            photoUrl: photoUrl,
+          },
+          Number(workGroupChatId),
+          state.requestId,
+          String(userId),
+        );
+        if (!message) {
+          throw new Error('Failed to send message to user');
+        }
+      } catch (sendError) {
+        console.error('Failed to send accept message, rolling back:', sendError);
+        await this.requestService.unlinkUser(state.requestId);
+        await ctx.reply('❌ Не удалось уведомить рабочую группу (таймаут Telegram). Попробуйте ещё раз.');
+        await ctx.scene.leave();
+        return;
       }
       (ctx.wizard.state as { requestId: string; msId?: number }).msId =
         message.message_id;

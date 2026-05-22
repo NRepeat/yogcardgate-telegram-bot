@@ -371,6 +371,31 @@ export class RequestRepository {
       where: { messageId, requestId },
     });
   }
+  async findReminderMessages(requestId: string) {
+    return this.prisma.message.findMany({
+      where: { requestId, text: '__REMINDER__' },
+    });
+  }
+  async saveReminderMessage(
+    requestId: string,
+    chatId: number,
+    messageId: number,
+  ) {
+    return this.prisma.message.create({
+      data: {
+        requestId,
+        chatId: BigInt(chatId),
+        messageId,
+        text: '__REMINDER__',
+        accessType: 'PUBLIC',
+      },
+    });
+  }
+  async deleteReminderMessages(requestId: string) {
+    return this.prisma.message.deleteMany({
+      where: { requestId, text: '__REMINDER__' },
+    });
+  }
   async updateRequestStatus(
     requestId: string,
     status: Status,
@@ -431,8 +456,10 @@ export class RequestRepository {
     const result = await this.prisma.paymentRequests.updateMany({
       where: {
         id: requestId,
-        status: 'PENDING',
-        activeUserId: null,
+        OR: [
+          { status: 'PENDING', activeUserId: null },
+          { activeUserId: userId },
+        ],
       },
       data: {
         status: 'ACCEPTED',

@@ -20,6 +20,19 @@ export class RequestService {
   async unlinkUser(requestId: string) {
     await this.requestRepo.unlinkUser(requestId);
   }
+  async findReminderMessages(requestId: string) {
+    return this.requestRepo.findReminderMessages(requestId);
+  }
+  async saveReminderMessage(
+    requestId: string,
+    chatId: number,
+    messageId: number,
+  ) {
+    return this.requestRepo.saveReminderMessage(requestId, chatId, messageId);
+  }
+  async deleteReminderMessages(requestId: string) {
+    return this.requestRepo.deleteReminderMessages(requestId);
+  }
   async updateRequestNotificationStatus(requestId: string, sended: boolean) {
     await this.requestRepo.updateRequestNotificationStatus(requestId, sended);
   }

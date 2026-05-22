@@ -192,29 +192,44 @@ export class TelegramService {
           now - new Date(r.createdAt).getTime() >= NOTIFICATION_DELAY_MS,
       );
       for (const request of filteredRequeste) {
-        const messages = request.message?.filter(
-          (m) => m.accessType === 'WORKER',
-        );
-        if (messages) {
-          for (const message of messages) {
-            if (message.messageId) {
-              await this.sendMessageWithRetry(
-                () => this.bot.telegram.sendMessage(
-                  chatId,
-                  `Обратите внимание на заявку #${request.id}`,
-                  {
-                    reply_parameters: {
-                      message_id: Number(message.messageId),
-                    },
-                  },
-                )
-              );
-              
-              // Add small delay between messages to avoid rate limiting
-              await new Promise(resolve => setTimeout(resolve, 100));
-            }
-          }
+        const previousReminders = await this.requestService.findReminderMessages(request.id);
+        if (previousReminders.length > 0) {
+          await this.deleteAllTelegramMessages(
+            previousReminders.map((r) => Number(r.messageId)),
+            chatId,
+          );
+          await this.requestService.deleteReminderMessages(request.id);
         }
+
+        const workerMessage = request.message?.find(
+          (m) => m.accessType === 'WORKER' && m.messageId,
+        );
+        if (!workerMessage?.messageId) continue;
+
+        try {
+          const sent = await this.sendMessageWithRetry(
+            () => this.bot.telegram.sendMessage(
+              chatId,
+              `Обратите внимание на заявку #${request.id}`,
+              {
+                reply_parameters: {
+                  message_id: Number(workerMessage.messageId),
+                },
+              },
+            )
+          );
+          if (sent && (sent as { message_id?: number }).message_id) {
+            await this.requestService.saveReminderMessage(
+              request.id,
+              chatId,
+              (sent as { message_id: number }).message_id,
+            );
+          }
+        } catch (err) {
+          this.logger.error(`Failed to send reminder for request ${request.id}`, err);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     } catch (error) {
       // It's a good practice to log the error for debugging

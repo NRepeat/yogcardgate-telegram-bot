@@ -44,6 +44,7 @@ import { UahIbanStrategy } from './strategies/uah-iban.strategy';
 import { UahIbanCompanyStrategy } from './strategies/uah-iban-company.strategy';
 import { GenericFormStrategy } from './strategies/generic-form.strategy';
 import { AznOtherBanksStrategy } from './strategies/azn-other-banks.strategy';
+import { ThbOtherBanksStrategy } from './strategies/thb-other-banks.strategy';
 import { UahStrategyDependencies } from './strategies/uah-base.strategy';
 import { EurStrategyDependencies } from './strategies/eur-base.strategy';
 import { EurCardStrategy } from './strategies/eur-card.strategy';
@@ -734,6 +735,7 @@ export class CreateRequestWizard {
       new AedIbanStrategy(aedDeps),
       new PlnIbanStrategy(plnDeps),
       new ThbBankStrategy(thbDeps),
+      new ThbOtherBanksStrategy(thbDeps),
       new CzkBankStrategy(czkDeps),
       new KztBankCardStrategy({
         ...kztDeps,

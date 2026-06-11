@@ -27,6 +27,7 @@ const XML_MAP: Record<string, string> = {
   'WISE_USD': 'WISEUSD',
   'WISE_EUR': 'WISEEUR',
   'BANK_THB': 'WIRETHB',
+  'THB_OTHER_BANKS_THB': 'WIRETHB',
   'BANK_CZK': 'WIRECZK',
   'SKRILL_USD': 'SKLUSD',
   'SKRILL_EUR': 'SKLEUR',

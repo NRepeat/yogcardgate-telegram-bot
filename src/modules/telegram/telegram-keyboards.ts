@@ -268,6 +268,7 @@ abstract class BaseRequestMenu {
       BRL_ATM_QR: 'ATM QR-код',
       ARS_MERCADO_PAGO: 'Mercado Pago',
       AZN_OTHER_BANKS: 'CARD остальные банки',
+      THB_OTHER_BANKS: 'BANK остальные банки',
       CARD: 'карта',
       IBAN: 'IBAN',
       IBAN_COMPANY: 'IBAN с ФОП на ФОП/ТОВ',
@@ -304,6 +305,8 @@ abstract class BaseRequestMenu {
       case PaymentMethodEnum.PAYPAL:
         return this.buildPayPalLines(accessType, method);
       case PaymentMethodEnum.CNY_ACCOUNT:
+      case PaymentMethodEnum.BANK:
+      case PaymentMethodEnum.THB_OTHER_BANKS:
         return this.buildBankLines(accessType, method);
       case PaymentMethodEnum.IBAN:
       case PaymentMethodEnum.IBAN_COMPANY:

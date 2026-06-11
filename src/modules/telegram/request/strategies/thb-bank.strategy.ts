@@ -19,8 +19,11 @@ export class ThbBankStrategy extends ThbBaseStrategy {
     super(deps);
   }
 
+  protected readonly methodEnum: PaymentMethodEnum = PaymentMethodEnum.BANK;
+  protected readonly typeLabel: string = 'THB BANK';
+
   protected supportsMethod(method: PaymentMethodEnum): boolean {
-    return method === PaymentMethodEnum.BANK;
+    return method === this.methodEnum;
   }
 
   protected parseInput(message: string) {
@@ -104,7 +107,7 @@ export class ThbBankStrategy extends ThbBaseStrategy {
       rateId: rate.id,
       rate: String(rate.rate ?? ''),
       method: {
-        method: PaymentMethodEnum.BANK,
+        method: this.methodEnum,
         bank: {
           account: parsed.account,
           recipient: parsed.recipient,
@@ -119,7 +122,7 @@ export class ThbBankStrategy extends ThbBaseStrategy {
 
   protected buildDetails(data: ThbBankParsedInput): string {
     const lines = [
-      'Тип: THB BANK',
+      `Тип: ${this.typeLabel}`,
       `ФИО: ${data.recipient}`,
       `Счёт: ${data.account}`,
       `Сумма: ${data.amount} THB`,

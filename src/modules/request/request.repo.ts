@@ -185,6 +185,7 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
         },
       };
     case PaymentMethodEnum.BANK:
+    case PaymentMethodEnum.THB_OTHER_BANKS:
       if (!details.bank) {
         throw new Error('Bank details are required for bank method');
       }

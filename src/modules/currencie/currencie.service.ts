@@ -39,6 +39,14 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethodEnum, string> = {
   [PaymentMethodEnum.CNY_WECHAT]: 'WeChat Pay',
   [PaymentMethodEnum.CNY_CARD]: 'карта',
   [PaymentMethodEnum.CNY_ACCOUNT]: 'номер счета',
+  [PaymentMethodEnum.REVOLUT]: 'Revolut',
+  [PaymentMethodEnum.AMD_IDRAM]: 'Idram',
+  [PaymentMethodEnum.KGS_ELCART]: 'Elcart',
+  [PaymentMethodEnum.INR_UPI]: 'UPI',
+  [PaymentMethodEnum.INR_PAYTM]: 'Paytm',
+  [PaymentMethodEnum.BRL_PIX]: 'Pix',
+  [PaymentMethodEnum.BRL_ATM_QR]: 'ATM QR-код',
+  [PaymentMethodEnum.ARS_MERCADO_PAGO]: 'Mercado Pago',
   [PaymentMethodEnum.PAYPAL]: 'PayPal',
 };
 

@@ -5,6 +5,7 @@ import {
   CardBank,
   CardPaymentRequestsMethod,
   Currency,
+  GenericPaymentRequestsMethod,
   IbanPaymentRequestsMethod,
   PaymentRequestMethod,
   PhonePaymentRequestsMethod,
@@ -106,6 +107,7 @@ export type FullRequestType = PaymentRequests & {
     qrDetails?: QrPaymentRequestsMethod | null;
     wiseDetails?: WisePaymentRequestsMethod | null;
     paypalDetails?: PayPalPaymentRequestsMethod | null;
+    genericDetails?: GenericPaymentRequestsMethod | null;
   })[];
   message?: Message[];
   vendor?: Vendors;

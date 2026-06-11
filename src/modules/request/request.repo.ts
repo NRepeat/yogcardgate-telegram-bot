@@ -56,6 +56,8 @@ export interface PaymentMethodDetailsInput {
     fullName: string;
     comment?: string | null;
   };
+  // Ordered label -> value pairs for form-driven directions (PaymentFormFactory)
+  generic?: Record<string, string>;
 }
 
 export interface GeneralRequestCreateInput {
@@ -93,12 +95,23 @@ const PAYMENT_REQUEST_DEFAULT_INCLUDE = {
       qrDetails: true,
       wiseDetails: true,
       paypalDetails: true,
+      genericDetails: true,
     },
   },
 } as const;
 
 const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
   console.log('details.method', details.method);
+  if (details.generic) {
+    return {
+      method: details.method,
+      genericDetails: {
+        create: {
+          fields: details.generic,
+        },
+      },
+    };
+  }
   switch (details.method) {
     case PaymentMethodEnum.CARD:
     case PaymentMethodEnum.KZT_KASPI_BANK:

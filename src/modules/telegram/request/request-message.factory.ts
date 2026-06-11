@@ -313,10 +313,23 @@ export class RequestMessageFactory {
     method: RequestMethodWithDetails,
   ): ReplyPhotoMessage {
     const lines = this.composeBaseLines(request, method.method, [
+      ...this.buildGenericDetailLines(method),
       this.partnerLine(request),
     ]);
 
     return this.wrapWithButtons(accessType, request.id, lines);
+  }
+
+  private static buildGenericDetailLines(
+    method: RequestMethodWithDetails,
+  ): Array<string | null> {
+    const fields = method.genericDetails?.fields;
+    if (!fields || typeof fields !== 'object' || Array.isArray(fields)) {
+      return [];
+    }
+    return Object.entries(fields as Record<string, string>).map(
+      ([label, value]) => `💳<b>${label}:</b> <code>${value}</code>`,
+    );
   }
 
   private static composeBaseLines(
@@ -515,6 +528,14 @@ export class RequestMessageFactory {
       [PaymentMethodEnum.CNY_WECHAT]: 'WeChat Pay',
       [PaymentMethodEnum.CNY_CARD]: 'карта',
       [PaymentMethodEnum.CNY_ACCOUNT]: 'номер счета',
+      [PaymentMethodEnum.REVOLUT]: 'Revolut',
+      [PaymentMethodEnum.AMD_IDRAM]: 'Idram',
+      [PaymentMethodEnum.KGS_ELCART]: 'Elcart',
+      [PaymentMethodEnum.INR_UPI]: 'UPI',
+      [PaymentMethodEnum.INR_PAYTM]: 'Paytm',
+      [PaymentMethodEnum.BRL_PIX]: 'Pix',
+      [PaymentMethodEnum.BRL_ATM_QR]: 'ATM QR-код',
+      [PaymentMethodEnum.ARS_MERCADO_PAGO]: 'Mercado Pago',
       [PaymentMethodEnum.CARD]: 'карта',
       [PaymentMethodEnum.IBAN]: 'IBAN',
       [PaymentMethodEnum.IBAN_COMPANY]: 'IBAN с ФОП на ФОП/ТОВ',

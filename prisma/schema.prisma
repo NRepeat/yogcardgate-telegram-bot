@@ -33,6 +33,21 @@ enum CurrencyEnum {
   TRY
   UAH
   USD
+  GBP
+  SEK
+  MDL
+  AMD
+  KGS
+  BGN
+  HUF
+  GEL
+  TJS
+  INR
+  IDR
+  RON
+  BRL
+  ARS
+  VND
 }
 
 enum PaymentMethodEnum {
@@ -52,6 +67,14 @@ enum PaymentMethodEnum {
   CNY_CARD
   CNY_ACCOUNT
   PAYPAL
+  REVOLUT
+  AMD_IDRAM
+  KGS_ELCART
+  INR_UPI
+  INR_PAYTM
+  BRL_PIX
+  BRL_ATM_QR
+  ARS_MERCADO_PAGO
 }
 
 enum RoleEnum {
@@ -170,6 +193,18 @@ model PaymentRequestMethod {
   qrDetails   QrPaymentRequestsMethod?
   wiseDetails  WisePaymentRequestsMethod?
   paypalDetails PayPalPaymentRequestsMethod?
+  genericDetails GenericPaymentRequestsMethod?
+}
+
+// Requisites for form-driven directions (fields defined in PaymentFormFactory).
+// Stores ordered label->value pairs as JSON instead of a dedicated table per method.
+model GenericPaymentRequestsMethod {
+  id        String               @id @default(cuid())
+  methodId  String               @unique
+  method    PaymentRequestMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  fields    Json
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
 }
 
 model CardPaymentRequestsMethod {

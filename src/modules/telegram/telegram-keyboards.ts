@@ -259,6 +259,14 @@ abstract class BaseRequestMenu {
       CNY_WECHAT: 'WeChat Pay',
       CNY_CARD: 'карта',
       CNY_ACCOUNT: 'номер счета',
+      REVOLUT: 'Revolut',
+      AMD_IDRAM: 'Idram',
+      KGS_ELCART: 'Elcart',
+      INR_UPI: 'UPI',
+      INR_PAYTM: 'Paytm',
+      BRL_PIX: 'Pix',
+      BRL_ATM_QR: 'ATM QR-код',
+      ARS_MERCADO_PAGO: 'Mercado Pago',
       CARD: 'карта',
       IBAN: 'IBAN',
       IBAN_COMPANY: 'IBAN с ФОП на ФОП/ТОВ',
@@ -307,8 +315,20 @@ abstract class BaseRequestMenu {
       case PaymentMethodEnum.CNY_WECHAT:
         return this.buildQrLines(method);
       default:
-        return [];
+        return this.buildGenericDetailLines(method);
     }
+  }
+
+  private buildGenericDetailLines(
+    method: RequestMethodWithDetails,
+  ): Array<string | null> {
+    const fields = method.genericDetails?.fields;
+    if (!fields || typeof fields !== 'object' || Array.isArray(fields)) {
+      return [];
+    }
+    return Object.entries(fields as Record<string, string>).map(
+      ([label, value]) => `💳<b>${label}:</b> <code>${value}</code>`,
+    );
   }
 
   private buildCardLines(

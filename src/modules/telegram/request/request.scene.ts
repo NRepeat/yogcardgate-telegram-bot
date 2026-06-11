@@ -42,6 +42,7 @@ import { UsdPayPalStrategy } from './strategies/usd-paypal.strategy';
 import { UahCardStrategy } from './strategies/uah-card.strategy';
 import { UahIbanStrategy } from './strategies/uah-iban.strategy';
 import { UahIbanCompanyStrategy } from './strategies/uah-iban-company.strategy';
+import { GenericFormStrategy } from './strategies/generic-form.strategy';
 import { UahStrategyDependencies } from './strategies/uah-base.strategy';
 import { EurStrategyDependencies } from './strategies/eur-base.strategy';
 import { EurCardStrategy } from './strategies/eur-card.strategy';
@@ -746,6 +747,9 @@ export class CreateRequestWizard {
       new CnyAlipayStrategy(cnyDeps),
       new CnyWechatStrategy(cnyDeps),
       new CnyCardStrategy(cnyDeps),
+      // Form-driven directions (GBP, SEK, MDL, ...): keep LAST so that
+      // dedicated strategies above always win for their currency+method.
+      new GenericFormStrategy(sharedDeps),
     ];
   }
   private async buildPaymentMethodKeyboard(

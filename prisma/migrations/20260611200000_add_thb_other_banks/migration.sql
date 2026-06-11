@@ -1,2 +1,0 @@
--- AlterEnum
-ALTER TYPE "PaymentMethodEnum" ADD VALUE IF NOT EXISTS 'THB_OTHER_BANKS';

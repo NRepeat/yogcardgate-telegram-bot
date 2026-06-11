@@ -222,11 +222,6 @@ const paymentMethods = [
     description: 'CARD остальные банки',
     descriptionEn: 'CARD other banks',
   },
-  {
-    nameEn: PaymentMethodEnum.THB_OTHER_BANKS,
-    description: 'BANK остальные банки',
-    descriptionEn: 'BANK other banks',
-  },
 ];
 
 const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
@@ -248,10 +243,7 @@ const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
     PaymentMethodEnum.SKRILL,
   ],
   [CurrencyEnum.PLN]: [PaymentMethodEnum.IBAN],
-  [CurrencyEnum.THB]: [
-    PaymentMethodEnum.BANK,
-    PaymentMethodEnum.THB_OTHER_BANKS,
-  ],
+  [CurrencyEnum.THB]: [PaymentMethodEnum.BANK],
   [CurrencyEnum.CZK]: [PaymentMethodEnum.BANK],
   [CurrencyEnum.KZT]: [
     PaymentMethodEnum.CARD,
@@ -466,7 +458,6 @@ async function seedRates() {
       'IBAN_COMPANY_UAH': 'CORPUAH',
       'WISE_EUR': 'WISEEUR',
       'BANK_THB': 'WIRETHB',
-      'THB_OTHER_BANKS_THB': 'WIRETHB',
       'BANK_CZK': 'WIRECZK',
       'IBAN_EUR': 'SEPAEUR',
       'IBAN_AED': 'WIREAED',

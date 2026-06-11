@@ -320,29 +320,6 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       ],
       sample: 'NAME SURNAME\n10000\n00000000\nBank Name',
     },
-    [PaymentMethodEnum.THB_OTHER_BANKS]: {
-      title: 'BANK остальные банки',
-      intro: DEFAULT_INTRO,
-      fields: [
-        {
-          label: 'ФИО',
-          description: 'Например NAME SURNAME',
-        },
-
-        {
-          label: 'Сумма',
-          description: 'Например 10000',
-        },
-        {
-          label: 'Номер счета',
-          description: '0123456789',
-        },
-        {
-          label: 'Название банка',
-        },
-      ],
-      sample: 'NAME SURNAME\n10000\n00000000\nBank Name',
-    },
   },
   [CurrencyEnum.CZK]: {
     [PaymentMethodEnum.BANK]: {

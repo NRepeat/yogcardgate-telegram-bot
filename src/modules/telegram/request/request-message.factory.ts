@@ -29,7 +29,6 @@ export class RequestMessageFactory {
         return this.buildPayPalMessage(accessType, request, method, options);
       case PaymentMethodEnum.CNY_ACCOUNT:
       case PaymentMethodEnum.BANK:
-      case PaymentMethodEnum.THB_OTHER_BANKS:
         return this.buildBankMessage(accessType, request, method, options);
       case PaymentMethodEnum.IBAN:
       case PaymentMethodEnum.IBAN_COMPANY:
@@ -539,7 +538,6 @@ export class RequestMessageFactory {
       [PaymentMethodEnum.BRL_ATM_QR]: 'ATM QR-код',
       [PaymentMethodEnum.ARS_MERCADO_PAGO]: 'Mercado Pago',
       [PaymentMethodEnum.AZN_OTHER_BANKS]: 'CARD остальные банки',
-      [PaymentMethodEnum.THB_OTHER_BANKS]: 'BANK остальные банки',
       [PaymentMethodEnum.CARD]: 'карта',
       [PaymentMethodEnum.IBAN]: 'IBAN',
       [PaymentMethodEnum.IBAN_COMPANY]: 'IBAN с ФОП на ФОП/ТОВ',

@@ -76,7 +76,6 @@ enum PaymentMethodEnum {
   BRL_ATM_QR
   ARS_MERCADO_PAGO
   AZN_OTHER_BANKS
-  THB_OTHER_BANKS
 }
 
 enum RoleEnum {

@@ -233,8 +233,6 @@ export class UtilsService {
           methodLabel = 'CARD (Kapital, Leo, M10)';
         } else if (method === 'AZN_OTHER_BANKS') {
           methodLabel = 'CARD остальные банки';
-        } else if (method === 'THB_OTHER_BANKS') {
-          methodLabel = 'BANK остальные банки';
         } else if (method.startsWith('CNY_')) {
           // For CNY methods, strip prefix and use only symbol with flag
           methodLabel = method.replace('CNY_', '');

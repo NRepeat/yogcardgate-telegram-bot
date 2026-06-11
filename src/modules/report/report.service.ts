@@ -208,10 +208,11 @@ export default class ReportService {
           clientName: '',
         };
       }
-      case PaymentMethodEnum.IBAN: {
+      case PaymentMethodEnum.IBAN:
+      case PaymentMethodEnum.IBAN_COMPANY: {
         const details = method.ibanDetails;
         return {
-          type: PaymentMethodEnum.IBAN,
+          type: method.method,
           requisites: details?.iban ?? '',
           bank: '',
           comment: details?.comment ?? '',

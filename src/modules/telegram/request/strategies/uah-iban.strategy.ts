@@ -15,12 +15,15 @@ interface UahIbanParsedInput extends ParsedStrategyInput {
 }
 
 export class UahIbanStrategy extends UahBaseStrategy {
+  protected readonly methodEnum: PaymentMethodEnum = PaymentMethodEnum.IBAN;
+  protected readonly typeLabel: string = 'UAH IBAN';
+
   constructor(deps: UahStrategyDependencies) {
     super(deps);
   }
 
   protected supportsMethod(method: PaymentMethodEnum): boolean {
-    return method === PaymentMethodEnum.IBAN;
+    return method === this.methodEnum;
   }
 
   protected parseInput(message: string) {
@@ -99,7 +102,7 @@ export class UahIbanStrategy extends UahBaseStrategy {
       rateId: rate.id,
       rate: String(rate.rate ?? ''),
       method: {
-        method: PaymentMethodEnum.IBAN,
+        method: this.methodEnum,
         iban: {
           iban: parsed.iban,
           inn: parsed.inn,
@@ -114,7 +117,7 @@ export class UahIbanStrategy extends UahBaseStrategy {
 
   protected buildDetails(data: UahIbanParsedInput): string {
     const lines = [
-      'Тип: UAH IBAN',
+      `Тип: ${this.typeLabel}`,
       `Получатель: ${data.name}`,
       `IBAN: <code>${data.iban}</code>`,
       `ИНН: ${data.inn}`,

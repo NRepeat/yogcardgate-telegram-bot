@@ -41,6 +41,7 @@ import { UsdWiseStrategy } from './strategies/usd-wise.strategy';
 import { UsdPayPalStrategy } from './strategies/usd-paypal.strategy';
 import { UahCardStrategy } from './strategies/uah-card.strategy';
 import { UahIbanStrategy } from './strategies/uah-iban.strategy';
+import { UahIbanCompanyStrategy } from './strategies/uah-iban-company.strategy';
 import { UahStrategyDependencies } from './strategies/uah-base.strategy';
 import { EurStrategyDependencies } from './strategies/eur-base.strategy';
 import { EurCardStrategy } from './strategies/eur-card.strategy';
@@ -273,6 +274,7 @@ export class CreateRequestWizard {
         const fallbackLabels: Partial<Record<PaymentMethodEnum, string>> = {
           [PaymentMethodEnum.CARD]: BUTTON_TEXTS.CARD,
           [PaymentMethodEnum.IBAN]: BUTTON_TEXTS.IBAN,
+          [PaymentMethodEnum.IBAN_COMPANY]: BUTTON_TEXTS.IBAN_COMPANY,
           [PaymentMethodEnum.WISE]: 'Wise',
           [PaymentMethodEnum.PAYPAL]: 'PayPal',
           [PaymentMethodEnum.PHONE]: 'Phone transfer',
@@ -719,6 +721,7 @@ export class CreateRequestWizard {
         utilsService: this.utilsService,
       }),
       new UahIbanStrategy(uahDeps),
+      new UahIbanCompanyStrategy(uahDeps),
       new EurCardStrategy({
         ...eurDeps,
         utilsService: this.utilsService,

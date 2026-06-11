@@ -446,7 +446,9 @@ export class RequestApiController {
           (method) => method.method === PaymentMethodEnum.CARD,
         );
         const ibanMethod = request.methods?.find(
-          (method) => method.method === PaymentMethodEnum.IBAN,
+          (method) =>
+            method.method === PaymentMethodEnum.IBAN ||
+            method.method === PaymentMethodEnum.IBAN_COMPANY,
         );
 
         return {

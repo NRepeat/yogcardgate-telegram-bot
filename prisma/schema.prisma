@@ -38,6 +38,7 @@ enum CurrencyEnum {
 enum PaymentMethodEnum {
   CARD
   IBAN
+  IBAN_COMPANY
   PHONE
   WISE
   BANK

@@ -261,6 +261,7 @@ abstract class BaseRequestMenu {
       CNY_ACCOUNT: 'номер счета',
       CARD: 'карта',
       IBAN: 'IBAN',
+      IBAN_COMPANY: 'IBAN (компания)',
       PHONE: 'телефон',
       WISE: 'Wise',
       SKRILL: 'Skrill',
@@ -295,6 +296,7 @@ abstract class BaseRequestMenu {
       case PaymentMethodEnum.CNY_ACCOUNT:
         return this.buildBankLines(accessType, method);
       case PaymentMethodEnum.IBAN:
+      case PaymentMethodEnum.IBAN_COMPANY:
         return this.buildIbanLines(accessType, method);
       case PaymentMethodEnum.PHONE:
         return this.buildPhoneLines(accessType, method);

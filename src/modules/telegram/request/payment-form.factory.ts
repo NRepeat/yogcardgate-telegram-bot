@@ -47,6 +47,32 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       sample:
         'IVAN IVANOV\nUA123456789012345678901234567\n1234567890\n10000.00\nОплата услуг',
     },
+    [PaymentMethodEnum.IBAN_COMPANY]: {
+      title: 'IBAN Компания',
+      intro: DEFAULT_INTRO,
+      fields: [
+        {
+          label: 'Название компании / ФИО латиницей',
+        },
+        {
+          label: 'IBAN',
+          description: 'формат UAxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+        },
+        {
+          label: 'ИНН / ЕДРПОУ (8 или 10 цифр)',
+        },
+        {
+          label: 'Сумма',
+          description: 'например 10000.00',
+        },
+        {
+          label: 'Комментарий',
+          optional: true,
+        },
+      ],
+      sample:
+        'TOV PRYKLAD\nUA123456789012345678901234567\n12345678\n10000.00\nОплата услуг',
+    },
   },
   [CurrencyEnum.EUR]: {
     [PaymentMethodEnum.CARD]: {

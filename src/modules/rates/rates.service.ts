@@ -18,6 +18,7 @@ const XML_MAP: Record<string, string> = {
   'CARD_AZN': 'WIREAZN',
   'CARD_CNY': 'CARDCNY',
   'IBAN_UAH': 'WIREUAH',
+  'IBAN_COMPANY_UAH': 'CORPUAH',
   'IBAN_EUR': 'SEPAEUR',
   'IBAN_AED': 'WIREAED',
   'IBAN_PLN': 'WIREPLN',

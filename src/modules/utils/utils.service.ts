@@ -268,7 +268,9 @@ export class UtilsService {
     accessType: MessageAccessType,
   ) {
     const ibanMethod = request.methods?.find(
-      (method) => method.method === PaymentMethodEnum.IBAN,
+      (method) =>
+        method.method === PaymentMethodEnum.IBAN ||
+        method.method === PaymentMethodEnum.IBAN_COMPANY,
     )?.ibanDetails;
 
     if (!ibanMethod) {

@@ -93,6 +93,11 @@ const paymentMethods = [
     descriptionEn: 'IBAN transfer',
   },
   {
+    nameEn: PaymentMethodEnum.IBAN_COMPANY,
+    description: 'Оплата по IBAN (счёт компании)',
+    descriptionEn: 'IBAN transfer (company account)',
+  },
+  {
     nameEn: PaymentMethodEnum.WISE,
     description: 'Оплата по номеру счета / ваер',
     descriptionEn: 'Wise transfer (bank account)',
@@ -155,7 +160,11 @@ const paymentMethods = [
 ];
 
 const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
-  [CurrencyEnum.UAH]: [PaymentMethodEnum.CARD, PaymentMethodEnum.IBAN],
+  [CurrencyEnum.UAH]: [
+    PaymentMethodEnum.CARD,
+    PaymentMethodEnum.IBAN,
+    PaymentMethodEnum.IBAN_COMPANY,
+  ],
   [CurrencyEnum.USD]: [
     PaymentMethodEnum.CARD,
     PaymentMethodEnum.WISE,

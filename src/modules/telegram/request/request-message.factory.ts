@@ -30,6 +30,7 @@ export class RequestMessageFactory {
       case PaymentMethodEnum.BANK:
         return this.buildBankMessage(accessType, request, method, options);
       case PaymentMethodEnum.IBAN:
+      case PaymentMethodEnum.IBAN_COMPANY:
         return this.buildIbanMessage(accessType, request, method, options);
       case PaymentMethodEnum.SKRILL:
         return this.buildSkrillMessage(accessType, request, method, options);
@@ -516,6 +517,7 @@ export class RequestMessageFactory {
       [PaymentMethodEnum.CNY_ACCOUNT]: 'номер счета',
       [PaymentMethodEnum.CARD]: 'карта',
       [PaymentMethodEnum.IBAN]: 'IBAN',
+      [PaymentMethodEnum.IBAN_COMPANY]: 'IBAN (компания)',
       [PaymentMethodEnum.PHONE]: 'телефон',
       [PaymentMethodEnum.WISE]: 'Wise',
       [PaymentMethodEnum.SKRILL]: 'Skrill',

@@ -126,6 +126,7 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
         },
       };
     case PaymentMethodEnum.IBAN:
+    case PaymentMethodEnum.IBAN_COMPANY:
       if (!details.iban) {
         throw new Error('IBAN details are required for IBAN method');
       }

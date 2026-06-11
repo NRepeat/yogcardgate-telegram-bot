@@ -173,6 +173,11 @@ const paymentMethods = [
     descriptionEn: 'Account payment',
   },
   {
+    nameEn: PaymentMethodEnum.BANK,
+    description: 'Банковская оплата',
+    descriptionEn: 'Bank payment',
+  },
+  {
     nameEn: PaymentMethodEnum.REVOLUT,
     description: 'Revolut',
     descriptionEn: 'Revolut',

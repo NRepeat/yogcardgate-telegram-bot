@@ -24,24 +24,32 @@ const session = new LocalSession({});
     TelegrafModule.forRootAsync({
       imports: [ConfigModule],
 
-      useFactory: (configService: ConfigService) => ({
-        middlewares: [session.middleware()],
-        token: configService.get<string>('TELEGRAM_BOT_TOKEN') || '',
-        launchOptions: {
-          allowedUpdates: [
-            'message',
-            'edited_message',
-            'channel_post',
-            'edited_channel_post',
-            'callback_query',
-            'inline_query',
-          ],
-          webhook: {
-            path: '/telegram/webhook',
-            domain: configService.get<string>('WEBHOOK_DOMAIN') || '',
+      useFactory: (configService: ConfigService) => {
+        const webhookDomain = configService.get<string>('WEBHOOK_DOMAIN');
+        return {
+          middlewares: [session.middleware()],
+          token: configService.get<string>('TELEGRAM_BOT_TOKEN') || '',
+          launchOptions: {
+            allowedUpdates: [
+              'message',
+              'edited_message',
+              'channel_post',
+              'edited_channel_post',
+              'callback_query',
+              'inline_query',
+            ],
+            // Without WEBHOOK_DOMAIN fall back to long polling (local dev)
+            ...(webhookDomain
+              ? {
+                  webhook: {
+                    path: '/telegram/webhook',
+                    domain: webhookDomain,
+                  },
+                }
+              : {}),
           },
-        },
-      }),
+        };
+      },
 
       inject: [ConfigService],
     }),

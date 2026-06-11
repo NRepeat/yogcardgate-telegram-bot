@@ -18,12 +18,15 @@ interface EurIbanParsedInput extends ParsedStrategyInput {
 }
 
 export class EurIbanStrategy extends EurBaseStrategy {
+  protected readonly methodEnum: PaymentMethodEnum = PaymentMethodEnum.IBAN;
+  protected readonly typeLabel: string = 'EUR IBAN PERSONAL';
+
   constructor(deps: EurStrategyDependencies) {
     super(deps);
   }
 
   protected supportsMethod(method: PaymentMethodEnum): boolean {
-    return method === PaymentMethodEnum.IBAN;
+    return method === this.methodEnum;
   }
 
   protected parseInput(message: string) {
@@ -82,7 +85,7 @@ export class EurIbanStrategy extends EurBaseStrategy {
       rateId: rate.id,
       rate: formatRateForStorage(finalRate),
       method: {
-        method: PaymentMethodEnum.IBAN,
+        method: this.methodEnum,
         iban: {
           iban: parsed.iban,
           inn: '',
@@ -97,7 +100,7 @@ export class EurIbanStrategy extends EurBaseStrategy {
 
   protected buildDetails(data: EurIbanParsedInput): string {
     const lines = [
-      'Тип: EUR IBAN',
+      `Тип: ${this.typeLabel}`,
       `Получатель: ${data.name}`,
       `IBAN: <code>${data.iban}</code>`,
       `Сумма: ${data.amount} EUR`,

@@ -32,6 +32,7 @@ export class RequestMessageFactory {
         return this.buildBankMessage(accessType, request, method, options);
       case PaymentMethodEnum.IBAN:
       case PaymentMethodEnum.IBAN_COMPANY:
+      case PaymentMethodEnum.EUR_IBAN_BUSINESS:
         return this.buildIbanMessage(accessType, request, method, options);
       case PaymentMethodEnum.SKRILL:
         return this.buildSkrillMessage(accessType, request, method, options);
@@ -538,6 +539,7 @@ export class RequestMessageFactory {
       [PaymentMethodEnum.BRL_ATM_QR]: 'ATM QR-код',
       [PaymentMethodEnum.ARS_MERCADO_PAGO]: 'Mercado Pago',
       [PaymentMethodEnum.AZN_OTHER_BANKS]: 'CARD остальные банки',
+      [PaymentMethodEnum.EUR_IBAN_BUSINESS]: 'IBAN BUSINESS',
       [PaymentMethodEnum.CARD]: 'карта',
       [PaymentMethodEnum.IBAN]: 'IBAN',
       [PaymentMethodEnum.IBAN_COMPANY]: 'IBAN с ФОП на ФОП/ТОВ',

@@ -48,6 +48,7 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethodEnum, string> = {
   [PaymentMethodEnum.BRL_ATM_QR]: 'ATM QR-код',
   [PaymentMethodEnum.ARS_MERCADO_PAGO]: 'Mercado Pago',
   [PaymentMethodEnum.AZN_OTHER_BANKS]: 'CARD остальные банки',
+  [PaymentMethodEnum.EUR_IBAN_BUSINESS]: 'IBAN BUSINESS',
   [PaymentMethodEnum.PAYPAL]: 'PayPal',
 };
 

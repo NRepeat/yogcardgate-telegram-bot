@@ -44,6 +44,7 @@ import { UahIbanStrategy } from './strategies/uah-iban.strategy';
 import { UahIbanCompanyStrategy } from './strategies/uah-iban-company.strategy';
 import { GenericFormStrategy } from './strategies/generic-form.strategy';
 import { AznOtherBanksStrategy } from './strategies/azn-other-banks.strategy';
+import { EurIbanBusinessStrategy } from './strategies/eur-iban-business.strategy';
 import { UahStrategyDependencies } from './strategies/uah-base.strategy';
 import { EurStrategyDependencies } from './strategies/eur-base.strategy';
 import { EurCardStrategy } from './strategies/eur-card.strategy';
@@ -729,6 +730,7 @@ export class CreateRequestWizard {
         utilsService: this.utilsService,
       }),
       new EurIbanStrategy(eurDeps),
+      new EurIbanBusinessStrategy(eurDeps),
       new EurSkrillEmailStrategy(eurDeps),
       new EurWiseStrategy(eurDeps),
       new AedIbanStrategy(aedDeps),

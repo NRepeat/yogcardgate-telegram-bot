@@ -230,9 +230,18 @@ export class UtilsService {
         } else if (method === 'KZT_OTHER_BANKS') {
           methodLabel = 'Остальные банки';
         } else if (method === 'CARD' && currencyCode.toUpperCase() === 'AZN') {
-          methodLabel = 'CARD (Kapital, Leo, M10)';
+          methodLabel = 'Kapital/Leo/M10';
         } else if (method === 'AZN_OTHER_BANKS') {
           methodLabel = 'CARD остальные банки';
+        } else if (
+          method === 'CARD' &&
+          ['USD', 'EUR'].includes(currencyCode.toUpperCase())
+        ) {
+          methodLabel = 'CARD VISA';
+        } else if (method === 'IBAN' && currencyCode.toUpperCase() === 'EUR') {
+          methodLabel = 'IBAN PERSONAL';
+        } else if (method === 'EUR_IBAN_BUSINESS') {
+          methodLabel = 'IBAN BUSINESS';
         } else if (method.startsWith('CNY_')) {
           // For CNY methods, strip prefix and use only symbol with flag
           methodLabel = method.replace('CNY_', '');

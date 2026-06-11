@@ -21,6 +21,7 @@ const XML_MAP: Record<string, string> = {
   'IBAN_UAH': 'WIREUAH',
   'IBAN_COMPANY_UAH': 'CORPUAH',
   'IBAN_EUR': 'SEPAEUR',
+  'EUR_IBAN_BUSINESS_EUR': 'SEPAEUR',
   'IBAN_AED': 'WIREAED',
   'IBAN_PLN': 'WIREPLN',
   'IBAN_TRY': 'WIRETRY',

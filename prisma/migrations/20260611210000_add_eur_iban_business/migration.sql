@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "PaymentMethodEnum" ADD VALUE IF NOT EXISTS 'EUR_IBAN_BUSINESS';

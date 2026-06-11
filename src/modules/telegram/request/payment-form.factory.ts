@@ -76,7 +76,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
   },
   [CurrencyEnum.EUR]: {
     [PaymentMethodEnum.CARD]: {
-      title: 'CARD',
+      title: 'CARD VISA',
       intro: DEFAULT_INTRO,
       fields: [
         {
@@ -90,7 +90,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       sample: '4000000012345678 1111 JOHN DOE',
     },
     [PaymentMethodEnum.IBAN]: {
-      title: 'IBAN',
+      title: 'IBAN PERSONAL',
       intro: DEFAULT_INTRO,
       fields: [
         {
@@ -105,6 +105,23 @@ const FORM_REGISTRY: PaymentFormRegistry = {
         },
       ],
       sample: 'JOHN DOE\nDE00000000000000000000\n1000.00',
+    },
+    [PaymentMethodEnum.EUR_IBAN_BUSINESS]: {
+      title: 'IBAN BUSINESS',
+      intro: DEFAULT_INTRO,
+      fields: [
+        {
+          label: 'Название компании / ФИО латиницей',
+        },
+        {
+          label: 'IBAN',
+        },
+        {
+          label: 'Сумма',
+          description: 'например 1000.00',
+        },
+      ],
+      sample: 'COMPANY GMBH\nDE00000000000000000000\n1000.00',
     },
     [PaymentMethodEnum.SKRILL]: {
       title: 'Skrill',
@@ -190,7 +207,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
   },
   [CurrencyEnum.USD]: {
     [PaymentMethodEnum.CARD]: {
-      title: 'CARD',
+      title: 'CARD VISA',
       intro: DEFAULT_INTRO,
       fields: [
         {
@@ -417,7 +434,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
   },
   [CurrencyEnum.AZN]: {
     [PaymentMethodEnum.CARD]: {
-      title: 'CARD (Kapital, Leo, M10)',
+      title: 'Kapital/Leo/M10',
       intro: DEFAULT_INTRO,
       fields: [
         {

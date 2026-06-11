@@ -268,6 +268,7 @@ abstract class BaseRequestMenu {
       BRL_ATM_QR: 'ATM QR-код',
       ARS_MERCADO_PAGO: 'Mercado Pago',
       AZN_OTHER_BANKS: 'CARD остальные банки',
+      EUR_IBAN_BUSINESS: 'IBAN BUSINESS',
       CARD: 'карта',
       IBAN: 'IBAN',
       IBAN_COMPANY: 'IBAN с ФОП на ФОП/ТОВ',
@@ -307,6 +308,7 @@ abstract class BaseRequestMenu {
         return this.buildBankLines(accessType, method);
       case PaymentMethodEnum.IBAN:
       case PaymentMethodEnum.IBAN_COMPANY:
+      case PaymentMethodEnum.EUR_IBAN_BUSINESS:
         return this.buildIbanLines(accessType, method);
       case PaymentMethodEnum.PHONE:
         return this.buildPhoneLines(accessType, method);

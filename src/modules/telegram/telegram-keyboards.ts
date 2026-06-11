@@ -261,7 +261,7 @@ abstract class BaseRequestMenu {
       CNY_ACCOUNT: 'номер счета',
       CARD: 'карта',
       IBAN: 'IBAN',
-      IBAN_COMPANY: 'IBAN (компания)',
+      IBAN_COMPANY: 'IBAN с ФОП на ФОП/ТОВ',
       PHONE: 'телефон',
       WISE: 'Wise',
       SKRILL: 'Skrill',

@@ -209,6 +209,8 @@ export class UtilsService {
 
         if (method === 'KZT_KASPI_BANK') {
           methodLabel = 'Kaspi Bank';
+        } else if (method === 'IBAN_COMPANY') {
+          methodLabel = 'IBAN с ФОП на ФОП/ТОВ';
         } else if (method === 'KZT_OTHER_BANKS') {
           methodLabel = 'Остальные банки';
         } else if (method.startsWith('CNY_')) {

@@ -48,7 +48,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
         'IVAN IVANOV\nUA123456789012345678901234567\n1234567890\n10000.00\nОплата услуг',
     },
     [PaymentMethodEnum.IBAN_COMPANY]: {
-      title: 'IBAN Компания',
+      title: 'IBAN с ФОП на ФОП/ТОВ',
       intro: DEFAULT_INTRO,
       fields: [
         {

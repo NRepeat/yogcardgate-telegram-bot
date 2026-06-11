@@ -517,7 +517,7 @@ export class RequestMessageFactory {
       [PaymentMethodEnum.CNY_ACCOUNT]: 'номер счета',
       [PaymentMethodEnum.CARD]: 'карта',
       [PaymentMethodEnum.IBAN]: 'IBAN',
-      [PaymentMethodEnum.IBAN_COMPANY]: 'IBAN (компания)',
+      [PaymentMethodEnum.IBAN_COMPANY]: 'IBAN с ФОП на ФОП/ТОВ',
       [PaymentMethodEnum.PHONE]: 'телефон',
       [PaymentMethodEnum.WISE]: 'Wise',
       [PaymentMethodEnum.SKRILL]: 'Skrill',

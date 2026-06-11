@@ -8,7 +8,7 @@ export const BUTTON_TEXTS = {
   BACK: 'Назад',
   CARD: 'CARD',
   IBAN: 'IBAN',
-  IBAN_COMPANY: 'IBAN Компания',
+  IBAN_COMPANY: 'IBAN с ФОП на ФОП/ТОВ',
   CANCEL: 'Отменить',
   TAKE_REQUEST: 'Взять заявку',
   WORKER_CANCEL_REQUEST: 'Отказаться',

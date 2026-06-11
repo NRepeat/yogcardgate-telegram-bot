@@ -94,8 +94,8 @@ const paymentMethods = [
   },
   {
     nameEn: PaymentMethodEnum.IBAN_COMPANY,
-    description: 'Оплата по IBAN (счёт компании)',
-    descriptionEn: 'IBAN transfer (company account)',
+    description: 'IBAN с ФОП на ФОП/ТОВ',
+    descriptionEn: 'IBAN FOP to FOP/LLC',
   },
   {
     nameEn: PaymentMethodEnum.WISE,

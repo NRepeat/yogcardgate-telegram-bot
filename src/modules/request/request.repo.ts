@@ -116,6 +116,7 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
     case PaymentMethodEnum.CARD:
     case PaymentMethodEnum.KZT_KASPI_BANK:
     case PaymentMethodEnum.KZT_OTHER_BANKS:
+    case PaymentMethodEnum.AZN_OTHER_BANKS:
     case PaymentMethodEnum.CNY_CARD:
       if (!details.card) {
         throw new Error('Card details are required for CARD method');

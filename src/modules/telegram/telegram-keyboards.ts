@@ -267,6 +267,7 @@ abstract class BaseRequestMenu {
       BRL_PIX: 'Pix',
       BRL_ATM_QR: 'ATM QR-код',
       ARS_MERCADO_PAGO: 'Mercado Pago',
+      AZN_OTHER_BANKS: 'CARD остальные банки',
       CARD: 'карта',
       IBAN: 'IBAN',
       IBAN_COMPANY: 'IBAN с ФОП на ФОП/ТОВ',
@@ -295,6 +296,7 @@ abstract class BaseRequestMenu {
       case PaymentMethodEnum.CARD:
       case PaymentMethodEnum.KZT_KASPI_BANK:
       case PaymentMethodEnum.KZT_OTHER_BANKS:
+      case PaymentMethodEnum.AZN_OTHER_BANKS:
       case PaymentMethodEnum.CNY_CARD:
         return this.buildCardLines(accessType, method);
       case PaymentMethodEnum.WISE:

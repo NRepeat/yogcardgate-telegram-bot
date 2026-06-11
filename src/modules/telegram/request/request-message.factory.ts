@@ -20,6 +20,7 @@ export class RequestMessageFactory {
       case PaymentMethodEnum.CARD:
       case PaymentMethodEnum.KZT_KASPI_BANK:
       case PaymentMethodEnum.KZT_OTHER_BANKS:
+      case PaymentMethodEnum.AZN_OTHER_BANKS:
       case PaymentMethodEnum.CNY_CARD:
         return this.buildCardMessage(accessType, request, method, options);
       case PaymentMethodEnum.WISE:
@@ -536,6 +537,7 @@ export class RequestMessageFactory {
       [PaymentMethodEnum.BRL_PIX]: 'Pix',
       [PaymentMethodEnum.BRL_ATM_QR]: 'ATM QR-код',
       [PaymentMethodEnum.ARS_MERCADO_PAGO]: 'Mercado Pago',
+      [PaymentMethodEnum.AZN_OTHER_BANKS]: 'CARD остальные банки',
       [PaymentMethodEnum.CARD]: 'карта',
       [PaymentMethodEnum.IBAN]: 'IBAN',
       [PaymentMethodEnum.IBAN_COMPANY]: 'IBAN с ФОП на ФОП/ТОВ',

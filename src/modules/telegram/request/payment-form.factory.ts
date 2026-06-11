@@ -417,7 +417,21 @@ const FORM_REGISTRY: PaymentFormRegistry = {
   },
   [CurrencyEnum.AZN]: {
     [PaymentMethodEnum.CARD]: {
-      title: 'CARD',
+      title: 'CARD (Kapital, Leo, M10)',
+      intro: DEFAULT_INTRO,
+      fields: [
+        {
+          label: 'Номер карты - Сумма - ФИО латиницей',
+          description: 'точно как на карте',
+        },
+        {
+          label: 'Название банка',
+        },
+      ],
+      sample: '4000000012345678 1111 JOHN DOE\nBank Name',
+    },
+    [PaymentMethodEnum.AZN_OTHER_BANKS]: {
+      title: 'CARD остальные банки',
       intro: DEFAULT_INTRO,
       fields: [
         {

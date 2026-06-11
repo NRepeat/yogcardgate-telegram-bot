@@ -212,6 +212,11 @@ const paymentMethods = [
     description: 'Mercado Pago',
     descriptionEn: 'Mercado Pago',
   },
+  {
+    nameEn: PaymentMethodEnum.AZN_OTHER_BANKS,
+    description: 'CARD остальные банки',
+    descriptionEn: 'CARD other banks',
+  },
 ];
 
 const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
@@ -241,7 +246,10 @@ const currencyPaymentMethodConfig: Record<CurrencyEnum, PaymentMethodEnum[]> = {
     PaymentMethodEnum.KZT_OTHER_BANKS,
   ],
   [CurrencyEnum.TRY]: [PaymentMethodEnum.IBAN],
-  [CurrencyEnum.AZN]: [PaymentMethodEnum.CARD],
+  [CurrencyEnum.AZN]: [
+    PaymentMethodEnum.CARD,
+    PaymentMethodEnum.AZN_OTHER_BANKS,
+  ],
   [CurrencyEnum.CNY]: [
     PaymentMethodEnum.CNY_ALIPAY,
     PaymentMethodEnum.CNY_WECHAT,
@@ -439,6 +447,7 @@ async function seedRates() {
       'CARD_EUR': 'CARDEUR',
       'CARD_KZT': 'CARDKZT',
       'CARD_AZN': 'CARDAZN',
+      'AZN_OTHER_BANKS_AZN': 'CARDAZN',
       'CARD_CNY': 'CARDCNY',
       'IBAN_UAH': 'WIREUAH',
       'IBAN_COMPANY_UAH': 'CORPUAH',

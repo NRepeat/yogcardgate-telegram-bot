@@ -16,6 +16,8 @@ interface AznCardParsedInput extends ParsedStrategyInput {
 
 export class AznCardStrategy extends AznBaseStrategy {
   private readonly cardRegex = /^(?:\d{12,19})$/;
+  protected readonly methodEnum: PaymentMethodEnum = PaymentMethodEnum.CARD;
+  protected readonly typeLabel: string = 'AZN CARD';
 
   constructor(deps: AznStrategyDependencies & { utilsService: UtilsService }) {
     super(deps);
@@ -25,7 +27,7 @@ export class AznCardStrategy extends AznBaseStrategy {
   private readonly utilsService: UtilsService;
 
   protected supportsMethod(method: PaymentMethodEnum): boolean {
-    return method === PaymentMethodEnum.CARD;
+    return method === this.methodEnum;
   }
 
   protected parseInput(message: string) {
@@ -135,7 +137,7 @@ export class AznCardStrategy extends AznBaseStrategy {
       rateId: rate.id,
       rate: String(rate.rate ?? ''),
       method: {
-        method: PaymentMethodEnum.CARD,
+        method: this.methodEnum,
         card: {
           card: parsed.cardNumber,
           comment: commentParts.length > 0 ? commentParts.join(', ') : null,
@@ -150,7 +152,7 @@ export class AznCardStrategy extends AznBaseStrategy {
 
   protected buildDetails(data: AznCardParsedInput): string {
     const lines = [
-      'Тип: AZN CARD',
+      `Тип: ${this.typeLabel}`,
       `Карта: <code>${data.cardNumber}</code>`,
       `Сумма: ${data.amount} AZN`,
     ];

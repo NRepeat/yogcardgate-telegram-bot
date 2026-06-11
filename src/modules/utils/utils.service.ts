@@ -54,6 +54,21 @@ const CURRENCY_FLAGS: Record<string, string> = {
   TRY: '🇹🇷',
   CZK: '🇨🇿',
   THB: '🇹🇭',
+  GBP: '🇬🇧',
+  SEK: '🇸🇪',
+  MDL: '🇲🇩',
+  AMD: '🇦🇲',
+  KGS: '🇰🇬',
+  BGN: '🇧🇬',
+  HUF: '🇭🇺',
+  GEL: '🇬🇪',
+  TJS: '🇹🇯',
+  INR: '🇮🇳',
+  IDR: '🇮🇩',
+  RON: '🇷🇴',
+  BRL: '🇧🇷',
+  ARS: '🇦🇷',
+  VND: '🇻🇳',
 };
 
 @Injectable()
@@ -204,7 +219,8 @@ export class UtilsService {
         : `${flag} ${group.displayName}`.trim();
 
       for (let [method, methodData] of group.methods) {
-        let methodLabel = method;
+        // Overridden labels keep their case; raw enum names get uppercased
+        let methodLabel = method.toUpperCase();
         let headerLabel = currencyLabel;
 
         if (method === 'KZT_KASPI_BANK') {
@@ -213,6 +229,10 @@ export class UtilsService {
           methodLabel = 'IBAN с ФОП на ФОП/ТОВ';
         } else if (method === 'KZT_OTHER_BANKS') {
           methodLabel = 'Остальные банки';
+        } else if (method === 'CARD' && currencyCode.toUpperCase() === 'AZN') {
+          methodLabel = 'CARD (Kapital, Leo, M10)';
+        } else if (method === 'AZN_OTHER_BANKS') {
+          methodLabel = 'CARD остальные банки';
         } else if (method.startsWith('CNY_')) {
           // For CNY methods, strip prefix and use only symbol with flag
           methodLabel = method.replace('CNY_', '');
@@ -222,15 +242,15 @@ export class UtilsService {
         // If no enabled rates in this direction, show "temporarily unavailable"
         if (!methodData.hasEnabled) {
           message.push(
-            `${headerLabel} ${methodLabel.toUpperCase()} - временно не доступен`,
+            `${headerLabel} ${methodLabel} - временно не доступен`,
           );
         } else {
           if (CURRENCY_TO_SKIP_RANGE.includes(currencyCode)) {
             message.push(
-              `${headerLabel} ${methodLabel.toUpperCase()} ${methodData.lines.join('\n')}`,
+              `${headerLabel} ${methodLabel} ${methodData.lines.join('\n')}`,
             );
           } else {
-            message.push(`${headerLabel} ${methodLabel.toUpperCase()}`);
+            message.push(`${headerLabel} ${methodLabel}`);
             message.push(...methodData.lines);
           }
         }

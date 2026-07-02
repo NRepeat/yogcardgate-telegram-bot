@@ -4,10 +4,86 @@ import {
   Put,
   Body,
   Param,
+  Header,
+  Headers,
+  Query,
   UseGuards,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTokenGuard } from '../request/api-token.guard';
 import { PrismaService } from '../prisma/prisma.service';
+
+const XML_FROM_CODE = 'USDTTRC20';
+// ponytail: no reserve tracking — reuse direction max (or 1M when unbounded) as <amount>
+const UNBOUNDED_AMOUNT = 1000000;
+
+type XmlRateRow = {
+  xml: string | null;
+  rate: number;
+  minAmount: number;
+  maxAmount: number;
+};
+
+export function buildRatesXml(rows: XmlRateRow[], created: string): string {
+  const groups = new Map<string, XmlRateRow[]>();
+  for (const row of rows) {
+    if (!row.xml) continue;
+    if (!groups.has(row.xml)) groups.set(row.xml, []);
+    groups.get(row.xml)!.push(row);
+  }
+
+  const items = Array.from(groups.entries()).map(([code, list]) => {
+    // Same "middle tier" rate selection as RatesService.createRates
+    const sorted = [...list].sort((a, b) => b.minAmount - a.minAmount);
+    const out = sorted[Math.floor(sorted.length / 2)].rate;
+    const min = Math.min(...list.map((r) => r.minAmount));
+    const unbounded = list.some((r) => !r.maxAmount);
+    const max = unbounded
+      ? UNBOUNDED_AMOUNT
+      : Math.max(...list.map((r) => r.maxAmount));
+    return [
+      '  <item>',
+      `    <from>${XML_FROM_CODE}</from>`,
+      `    <to>${code}</to>`,
+      '    <in>1</in>',
+      `    <out>${out}</out>`,
+      `    <amount>${max}</amount>`,
+      `    <minamount>${min}</minamount>`,
+      `    <maxamount>${max}</maxamount>`,
+      '    <param/>',
+      '  </item>',
+    ].join('\n');
+  });
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<rates created="${created}">\n${items.join('\n')}\n</rates>`;
+}
+
+// Auth per vendor: token must match Vendors.token (header or ?token= for browsers/aggregators)
+@Controller('api/rates')
+export class RatesXmlController {
+  constructor(private readonly prisma: PrismaService) {}
+
+  @Get('export.xml')
+  @Header('Content-Type', 'application/xml')
+  async exportXml(
+    @Headers('x-api-token') headerToken?: string,
+    @Headers('x-api-key') headerKey?: string,
+    @Query('token') queryToken?: string,
+  ): Promise<string> {
+    const token = headerToken || headerKey || queryToken;
+    const vendor = token
+      ? await this.prisma.vendors.findUnique({ where: { token } })
+      : null;
+    if (!vendor) {
+      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+    }
+    const rates = await this.prisma.rates.findMany({
+      where: { enabled: true, xml: { not: null } },
+    });
+    return buildRatesXml(rates, new Date().toISOString());
+  }
+}
 
 @Controller('api/rates')
 @UseGuards(ApiTokenGuard)

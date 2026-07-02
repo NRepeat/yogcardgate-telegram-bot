@@ -4,14 +4,17 @@ import { RatesService } from './rates.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { VendorModule } from '../vendor/vendor.module';
 import { UtilsModule } from '../utils/utils.module';
-import { RatesApiController } from './rates.api.controller';
+import {
+  RatesApiController,
+  RatesXmlController,
+} from './rates.api.controller';
 @Module({
   imports: [
     PrismaModule,
     VendorModule,
     forwardRef(() => UtilsModule),
   ],
-  controllers: [RatesApiController],
+  controllers: [RatesApiController, RatesXmlController],
   providers: [RatesRepository, RatesService],
   exports: [RatesRepository, RatesService],
 })

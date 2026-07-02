@@ -168,6 +168,7 @@ export default class PaymentWizard {
           'COMPLETED',
           userId,
         );
+        await this.telegramService.deleteReminderMessagesForRequest(requestId);
 
         const publicMenu = MenuFactory.createPublicMenu(
           request as unknown as FullRequestType,

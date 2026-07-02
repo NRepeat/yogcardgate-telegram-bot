@@ -236,6 +236,27 @@ export class TelegramService {
       console.error('Error sending message to work group:', error);
     }
   }
+  async deleteReminderMessagesForRequest(requestId: string) {
+    try {
+      const reminders =
+        await this.requestService.findReminderMessages(requestId);
+      if (reminders.length === 0) return;
+      const chatId =
+        Number(reminders[0].chatId) ||
+        this.configService.get<number>('WORK_GROUP_CHAT');
+      await this.deleteAllTelegramMessages(
+        reminders.map((r) => Number(r.messageId)),
+        chatId,
+      );
+      await this.requestService.deleteReminderMessages(requestId);
+    } catch (err) {
+      this.logger.error(
+        `Failed to delete reminder messages for request ${requestId}`,
+        err,
+      );
+    }
+  }
+
   async sendRequestToWorkGroup(request: FullRequestType) {
     try {
       const chatId = this.configService.get<number>('WORK_GROUP_CHAT');

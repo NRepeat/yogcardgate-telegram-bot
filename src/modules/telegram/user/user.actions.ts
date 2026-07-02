@@ -123,6 +123,7 @@ export class UserActions {
           'FAILED',
           callbackQuery.from.id,
         );
+        await this.telegramService.deleteReminderMessagesForRequest(requestId);
         const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
         const workerMenu = MenuFactory.createWorkerMenu(
           request as unknown as FullRequestType,
@@ -383,6 +384,7 @@ export class UserActions {
           'FAILED',
           Number(userId),
         );
+        await this.telegramService.deleteReminderMessagesForRequest(request.id);
 
         await this.telegramService.updateAllWorkersMessagesWithRequestsId(
           {

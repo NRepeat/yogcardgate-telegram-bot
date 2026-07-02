@@ -13,12 +13,17 @@ const photoUrl = './src/assets/0056.jpg';
 @Injectable()
 export class RequestTaskService {
   private readonly logger = new Logger('RequestTaskService');
+  // Guards against overlapping cron ticks: a slow tick (photo uploads, Telegram
+  // retries) would otherwise re-send the same not-yet-flagged requests
+  private handleRequestsRunning = false;
   constructor(
     private readonly requestService: RequestService,
     private readonly telegramService: TelegramService,
   ) {}
   @Cron(CronExpression.EVERY_10_SECONDS)
   async handleRequests() {
+    if (this.handleRequestsRunning) return;
+    this.handleRequestsRunning = true;
     try {
       const requests =
         (await this.requestService.findAllNotProcessedRequests()) as FullRequestType[];
@@ -94,6 +99,8 @@ export class RequestTaskService {
       }
     } catch (error) {
       this.logger.error('Error while processing requests', error);
+    } finally {
+      this.handleRequestsRunning = false;
     }
   }
 

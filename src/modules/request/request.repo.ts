@@ -469,13 +469,13 @@ export class RequestRepository {
     });
   }
   async acceptRequest(requestId: string, userId: string): Promise<boolean> {
+    // Strictly PENDING + free: a second concurrent accept (double-click) must
+    // return false. Failed accepts roll back via unlinkUser -> PENDING again.
     const result = await this.prisma.paymentRequests.updateMany({
       where: {
         id: requestId,
-        OR: [
-          { status: 'PENDING', activeUserId: null },
-          { activeUserId: userId },
-        ],
+        status: 'PENDING',
+        activeUserId: null,
       },
       data: {
         status: 'ACCEPTED',

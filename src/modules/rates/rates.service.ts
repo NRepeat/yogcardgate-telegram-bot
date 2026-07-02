@@ -274,9 +274,15 @@ export class RatesService {
           enabled = false;
         }
 
-        // Remove # prefix if present and trim
-        const cleanedLine = trimmedLine.replace(/^#/, '').trim();
-        const parts = cleanedLine.split(/\s+/); // Split by any whitespace
+        // Remove # prefix, bullets, brackets; normalize em/en dash to space
+        const cleanedLine = trimmedLine
+          .replace(/^#/, '')
+          .replace(/^[•·*\-]+/, '')
+          .replace(/[\[\]]/g, '')
+          .replace(/[—–−]/g, ' ')
+          .replace(/,/g, '.')
+          .trim();
+        const parts = cleanedLine.split(/\s+/);
 
         if (parts.length < 2) {
           console.warn(`Invalid line format: ${line}`);

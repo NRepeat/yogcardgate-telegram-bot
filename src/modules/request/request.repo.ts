@@ -6,6 +6,7 @@ import {
 } from 'src/types/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { CardPaymentRequestsMethod, PaymentMethodEnum, Status } from '@prisma/client';
+import { DEDUP_WINDOW_MS, buildDuplicateWhere } from './request.dedup';
 
 export interface PaymentMethodDetailsInput {
   method: PaymentMethodEnum;
@@ -430,6 +431,15 @@ export class RequestRepository {
   }
 
   async createIbanRequest(data: IbanRequestType) {
+    const duplicate = await this.findRecentDuplicate({
+      vendorId: data.vendorId,
+      amount: data.amount || 0,
+      method: PaymentMethodEnum.IBAN,
+      iban: data.iban?.iban,
+    });
+    if (duplicate) {
+      return Object.assign(duplicate, { __duplicate: true });
+    }
     return this.prisma.paymentRequests.create({
       data: {
         amount: data.amount || 0,
@@ -512,7 +522,40 @@ export class RequestRepository {
     });
   }
 
-  createGeneralRequest(data: GeneralRequestCreateInput) {
+  // Returns a recent, still-live request with the same vendor + amount +
+  // destination, or null. Used to make request creation idempotent.
+  // ponytail: read-then-write, so two truly-simultaneous (ms-apart) submits can
+  // still race past it; add a partial unique index if that ever shows up.
+  private async findRecentDuplicate(params: {
+    vendorId: string;
+    amount: number;
+    method: PaymentMethodEnum;
+    card?: string | null;
+    iban?: string | null;
+  }) {
+    const where = buildDuplicateWhere({
+      ...params,
+      since: new Date(Date.now() - DEDUP_WINDOW_MS),
+    });
+    if (!where) return null;
+    return this.prisma.paymentRequests.findFirst({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: PAYMENT_REQUEST_DEFAULT_INCLUDE,
+    });
+  }
+
+  async createGeneralRequest(data: GeneralRequestCreateInput) {
+    const duplicate = await this.findRecentDuplicate({
+      vendorId: data.vendorId,
+      amount: data.amount,
+      method: data.method.method,
+      card: data.method.card?.card,
+      iban: data.method.iban?.iban,
+    });
+    if (duplicate) {
+      return Object.assign(duplicate, { __duplicate: true });
+    }
     return this.prisma.paymentRequests.create({
       data: {
         amount: data.amount,

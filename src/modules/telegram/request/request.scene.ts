@@ -4,6 +4,7 @@ import * as path from 'path';
 import { Wizard, WizardStep, Ctx, SceneLeave, On } from 'nestjs-telegraf';
 import { RatesService } from 'src/modules/rates/rates.service';
 import { RequestService } from 'src/modules/request/request.service';
+import { DEDUP_WINDOW_MS } from 'src/modules/request/request.dedup';
 import { UtilsService } from 'src/modules/utils/utils.service';
 import { VendorService } from 'src/modules/vendor/vendor.service';
 import {
@@ -984,6 +985,16 @@ export class CreateRequestWizard {
     try {
       for (let index = 0; index < payload.requests.length; index++) {
         const request = payload.requests[index];
+        // Idempotent create returned an existing request: it is already in the
+        // work group and possibly paid — skip re-sending its card, just warn.
+        if ((request as { __duplicate?: boolean }).__duplicate) {
+          await ctx.reply(
+            `⚠️ Похоже на дубликат: заявка на ${request.amount} на этот же реквизит уже создана менее ${Math.round(
+              DEDUP_WINDOW_MS / 60000,
+            )} мин назад (ID ${request.id}). Пропущена, чтобы не заплатить дважды. Если это НЕ дубль — повторите позже.`,
+          );
+          continue;
+        }
         const attachment = payload.attachments?.find(
           (item) => item.requestId === request.id,
         );

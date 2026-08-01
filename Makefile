@@ -77,9 +77,18 @@ seed-vendors: check-env
 restart-app:
 	$(docker_compose_bin) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) restart app
 
-# Full deploy: build and start
+# Full deploy: build and start (local — builds image on this machine)
 deploy: check-env
 	$(docker_compose_bin) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up --build -d
+
+# Pull the CI-built app image from the registry (no local build)
+pull: check-env
+	$(docker_compose_bin) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) pull app
+
+# Remote deploy (CI): use the prebuilt image — pull + start, migrations run on boot
+deploy-image: check-env
+	$(docker_compose_bin) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) pull app
+	$(docker_compose_bin) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up -d app
 
 # Print help
 help:

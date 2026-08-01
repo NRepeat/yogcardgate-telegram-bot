@@ -53,6 +53,7 @@ enum CurrencyEnum {
 enum PaymentMethodEnum {
   CARD
   IBAN
+  IBAN_PERSONAL
   IBAN_COMPANY
   PHONE
   WISE

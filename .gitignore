@@ -61,3 +61,5 @@ session.json
 sessions.json
 
 storage/request-photos/*.jpg
+# local dev override (forces long-polling; must NOT ship to prod)
+docker-compose.override.yml

@@ -204,7 +204,8 @@ export class MenuActions {
   @Command('reg')
   async registration(@Ctx() ctx: Context) {
     const msId = ctx.message?.message_id;
-    await ctx.deleteMessage(msId);
+    // bot may lack delete rights in the group — never abort registration over cleanup
+    await ctx.deleteMessage(msId).catch(() => {});
     const chatId = ctx.chat?.id;
     const isAdmin = await this.userService.isAdminChat(ctx);
     console.log(`Chat ID: ${chatId}, isAdmin: ${isAdmin}`);

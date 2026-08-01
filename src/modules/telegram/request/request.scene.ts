@@ -43,6 +43,7 @@ import { UsdPayPalStrategy } from './strategies/usd-paypal.strategy';
 import { UahCardStrategy } from './strategies/uah-card.strategy';
 import { UahIbanStrategy } from './strategies/uah-iban.strategy';
 import { UahIbanCompanyStrategy } from './strategies/uah-iban-company.strategy';
+import { UahIbanPersonalStrategy } from './strategies/uah-iban-personal.strategy';
 import { GenericFormStrategy } from './strategies/generic-form.strategy';
 import { AznOtherBanksStrategy } from './strategies/azn-other-banks.strategy';
 import { EurIbanBusinessStrategy } from './strategies/eur-iban-business.strategy';
@@ -278,12 +279,21 @@ export class CreateRequestWizard {
         const fallbackLabels: Partial<Record<PaymentMethodEnum, string>> = {
           [PaymentMethodEnum.CARD]: BUTTON_TEXTS.CARD,
           [PaymentMethodEnum.IBAN]: BUTTON_TEXTS.IBAN,
+          [PaymentMethodEnum.IBAN_PERSONAL]: BUTTON_TEXTS.IBAN_PERSONAL,
           [PaymentMethodEnum.IBAN_COMPANY]: BUTTON_TEXTS.IBAN_COMPANY,
           [PaymentMethodEnum.WISE]: 'Wise',
           [PaymentMethodEnum.PAYPAL]: 'PayPal',
           [PaymentMethodEnum.PHONE]: 'Phone transfer',
           [PaymentMethodEnum.SKRILL]: 'Skrill / email',
           [PaymentMethodEnum.QR]: 'QR',
+        };
+
+        // partner-facing button labels only — system names and forms unchanged
+        const uahButtonLabels: Partial<Record<PaymentMethodEnum, string>> = {
+          [PaymentMethodEnum.CARD]: 'Карта',
+          [PaymentMethodEnum.IBAN]: 'ИБАН ФОП-ФИЗ',
+          [PaymentMethodEnum.IBAN_PERSONAL]: 'ИБАН ФИЗ-ФИЗ',
+          [PaymentMethodEnum.IBAN_COMPANY]: 'ИБАН ФОП-ФОП/ТОВ',
         };
 
         const paymentMethodsMeta = paymentMethods.map((method) => {
@@ -295,6 +305,9 @@ export class CreateRequestWizard {
           const description = method.description?.trim();
           const descriptionEn = method.descriptionEn?.trim();
           const baseLabel =
+            (currencyEnum === CurrencyEnum.UAH
+              ? uahButtonLabels[methodEnum]
+              : undefined) ||
             formDefinition?.title ||
             description ||
             descriptionEn ||
@@ -725,6 +738,7 @@ export class CreateRequestWizard {
         utilsService: this.utilsService,
       }),
       new UahIbanStrategy(uahDeps),
+      new UahIbanPersonalStrategy(uahDeps),
       new UahIbanCompanyStrategy(uahDeps),
       new EurCardStrategy({
         ...eurDeps,
@@ -779,7 +793,7 @@ export class CreateRequestWizard {
       ),
     );
     const rows: InlineKeyboardButton[][] = [];
-    const perRow = 2;
+    const perRow = 1; // one per row so full method names never truncate
     for (let i = 0; i < methodButtons.length; i += perRow) {
       rows.push(methodButtons.slice(i, i + perRow));
     }

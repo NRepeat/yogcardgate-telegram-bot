@@ -31,6 +31,7 @@ export class RequestMessageFactory {
       case PaymentMethodEnum.BANK:
         return this.buildBankMessage(accessType, request, method, options);
       case PaymentMethodEnum.IBAN:
+      case PaymentMethodEnum.IBAN_PERSONAL:
       case PaymentMethodEnum.IBAN_COMPANY:
       case PaymentMethodEnum.EUR_IBAN_BUSINESS:
         return this.buildIbanMessage(accessType, request, method, options);
@@ -341,9 +342,11 @@ export class RequestMessageFactory {
   ): string[] {
     const rateLine = this.formatRateLine(request);
     const amountLine = this.formatAmountLine(request);
-    const methodDisplayName = this.getMethodDisplayName(method);
-    const methodLabel =
-      `${request.currency?.nameEn ?? request.currency?.name ?? ''} ${methodDisplayName}`.trim();
+    const currencyCode = String(
+      request.currency?.nameEn ?? request.currency?.name ?? '',
+    );
+    const methodDisplayName = this.getMethodDisplayName(method, currencyCode);
+    const methodLabel = `${currencyCode} ${methodDisplayName}`.trim();
 
     const usdtLine = this.formatUsdtLine(request);
 
@@ -522,7 +525,17 @@ export class RequestMessageFactory {
     return `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
   }
 
-  private static getMethodDisplayName(method: PaymentMethodEnum): string {
+  private static getMethodDisplayName(
+    method: PaymentMethodEnum,
+    currencyCode = '',
+  ): string {
+    // plain IBAN means different things per currency: UAH = ФОП→ФИЗ, EUR = SEPA
+    if (
+      method === PaymentMethodEnum.IBAN &&
+      currencyCode.toUpperCase() === 'UAH'
+    ) {
+      return 'IBAN с ФОП на ФИЗ';
+    }
     const methodDisplayMap: Record<PaymentMethodEnum, string> = {
       [PaymentMethodEnum.KZT_KASPI_BANK]: 'Kaspi Bank',
       [PaymentMethodEnum.KZT_OTHER_BANKS]: 'Остальные банки',
@@ -542,6 +555,7 @@ export class RequestMessageFactory {
       [PaymentMethodEnum.EUR_IBAN_BUSINESS]: 'IBAN BUSINESS',
       [PaymentMethodEnum.CARD]: 'карта',
       [PaymentMethodEnum.IBAN]: 'IBAN',
+      [PaymentMethodEnum.IBAN_PERSONAL]: 'IBAN с ФИЗ на ФИЗ',
       [PaymentMethodEnum.IBAN_COMPANY]: 'IBAN с ФОП на ФОП/ТОВ',
       [PaymentMethodEnum.PHONE]: 'телефон',
       [PaymentMethodEnum.WISE]: 'Wise',

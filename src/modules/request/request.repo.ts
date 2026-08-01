@@ -141,6 +141,7 @@ const buildMethodCreateInput = (details: PaymentMethodDetailsInput) => {
         },
       };
     case PaymentMethodEnum.IBAN:
+    case PaymentMethodEnum.IBAN_PERSONAL:
     case PaymentMethodEnum.IBAN_COMPANY:
     case PaymentMethodEnum.EUR_IBAN_BUSINESS:
       if (!details.iban) {

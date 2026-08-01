@@ -242,7 +242,7 @@ abstract class BaseRequestMenu {
     }
 
     const methodDisplayName = methodName
-      ? this.getMethodDisplayName(methodName)
+      ? this.getMethodDisplayName(methodName, currencyLabel)
       : '';
     const label = [currencyLabel, methodDisplayName]
       .filter((part): part is string => Boolean(part && part.length > 0))
@@ -251,7 +251,11 @@ abstract class BaseRequestMenu {
     return label ? `🔖<b>Валюта:</b> ${label}` : null;
   }
 
-  private getMethodDisplayName(methodName: string): string {
+  private getMethodDisplayName(methodName: string, currencyLabel = ''): string {
+    // plain IBAN means different things per currency: UAH = ФОП→ФИЗ, EUR = SEPA
+    if (methodName === 'IBAN' && currencyLabel.toUpperCase().includes('UAH')) {
+      return 'IBAN с ФОП на ФИЗ';
+    }
     const methodDisplayMap: Record<string, string> = {
       KZT_KASPI_BANK: 'Kaspi Bank',
       KZT_OTHER_BANKS: 'Остальные банки',
@@ -271,6 +275,7 @@ abstract class BaseRequestMenu {
       EUR_IBAN_BUSINESS: 'IBAN BUSINESS',
       CARD: 'карта',
       IBAN: 'IBAN',
+      IBAN_PERSONAL: 'IBAN с ФИЗ на ФИЗ',
       IBAN_COMPANY: 'IBAN с ФОП на ФОП/ТОВ',
       PHONE: 'телефон',
       WISE: 'Wise',
@@ -307,6 +312,7 @@ abstract class BaseRequestMenu {
       case PaymentMethodEnum.CNY_ACCOUNT:
         return this.buildBankLines(accessType, method);
       case PaymentMethodEnum.IBAN:
+      case PaymentMethodEnum.IBAN_PERSONAL:
       case PaymentMethodEnum.IBAN_COMPANY:
       case PaymentMethodEnum.EUR_IBAN_BUSINESS:
         return this.buildIbanLines(accessType, method);

@@ -21,7 +21,7 @@ services:
   app:
     # CI publishes this image to GHCR; server pulls it (see .github/workflows/deploy.yml).
     # `build:` stays for local dev (`make deploy` / `up --build` builds & tags the same name).
-    image: ghcr.io/nrepeat/klim-bot:latest
+    image: ghcr.io/nrepeat/yogcardgate-telegram-bot:latest
     build:
       context: .
       labels:

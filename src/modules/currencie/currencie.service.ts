@@ -27,6 +27,7 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethodEnum, string> = {
   [PaymentMethodEnum.CARD]: 'карта',
   [PaymentMethodEnum.IBAN]: 'IBAN',
   [PaymentMethodEnum.IBAN_COMPANY]: 'IBAN с ФОП на ФОП/ТОВ',
+  [PaymentMethodEnum.IBAN_PERSONAL]: 'IBAN с ФИЗ на ФИЗ',
   [PaymentMethodEnum.PHONE]: 'телефон',
   [PaymentMethodEnum.WISE]: 'Wise',
   [PaymentMethodEnum.SKRILL]: 'Skrill',

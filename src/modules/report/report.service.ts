@@ -209,6 +209,7 @@ export default class ReportService {
         };
       }
       case PaymentMethodEnum.IBAN:
+      case PaymentMethodEnum.IBAN_PERSONAL:
       case PaymentMethodEnum.IBAN_COMPANY: {
         const details = method.ibanDetails;
         return {

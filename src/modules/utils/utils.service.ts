@@ -227,6 +227,10 @@ export class UtilsService {
           methodLabel = 'Kaspi Bank';
         } else if (method === 'IBAN_COMPANY') {
           methodLabel = 'IBAN с ФОП на ФОП/ТОВ';
+        } else if (method === 'IBAN_PERSONAL') {
+          methodLabel = 'IBAN с ФИЗ на ФИЗ';
+        } else if (method === 'IBAN' && currencyCode.toUpperCase() === 'UAH') {
+          methodLabel = 'IBAN с ФОП на ФИЗ';
         } else if (method === 'KZT_OTHER_BANKS') {
           methodLabel = 'Остальные банки';
         } else if (method === 'CARD' && currencyCode.toUpperCase() === 'AZN') {

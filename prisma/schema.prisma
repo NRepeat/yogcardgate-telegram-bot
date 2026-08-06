@@ -409,3 +409,14 @@ model Settings {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Набор полей формы выплаты для xml-направления. Читает payout-плагин обменника,
+// пишется через /api/payout-fields — с логикой бота не связано.
+model PayoutFieldPreset {
+  xml       String   @id
+  fields    String[]
+  enabled   Boolean  @default(true)
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

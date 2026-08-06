@@ -9,12 +9,14 @@ import { RequestTaskModule } from './modules/request-task/request-task.module';
 import { UserService } from './modules/user/user.service';
 import { UserModule } from './modules/user/user.module';
 import { ExternalApiModule } from './modules/external-api/external-api.module';
+import { PayoutFieldsModule } from './modules/payout-fields/payout-fields.module';
 
 const session = new LocalSession({});
 
 @Module({
   imports: [
     ExternalApiModule,
+    PayoutFieldsModule,
     RequestTaskModule,
     TelegramModule,
     UserModule,

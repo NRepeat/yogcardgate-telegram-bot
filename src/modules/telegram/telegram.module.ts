@@ -20,6 +20,8 @@ import { AccessControlService } from './access-control/access-control.service';
 import { VendorCallbackService } from './callback/vendors';
 import { CurrencyService } from '../currencie/currencie.service';
 import { CurrencyModule } from '../currencie/currencie.module';
+import { PayoutFieldsActions } from './payout-fields/payout-fields.actions';
+import { BoxApiService } from '../payout-fields/box-api.service';
 
 @Module({
   imports: [
@@ -48,6 +50,8 @@ import { CurrencyModule } from '../currencie/currencie.module';
     AcceptRequestScene,
     AccessControlService,
     VendorCallbackService,
+    PayoutFieldsActions,
+    BoxApiService,
   ],
 })
 export class TelegramModule {}

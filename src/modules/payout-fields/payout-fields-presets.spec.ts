@@ -13,6 +13,17 @@ describe('/fields — разбор команды', () => {
     });
   });
 
+  it('по умолчанию только активные роуты', () => {
+    expect(parseFieldsCommand('/fields P24UAH card')).toMatchObject({ allRoutes: false });
+  });
+
+  it('флаг all включает выключенные роуты', () => {
+    expect(parseFieldsCommand('/fields uah card all')).toMatchObject({
+      preset: 'card',
+      allRoutes: true,
+    });
+  });
+
   it('пресет card тянет карточный курс', () => {
     expect(parseFieldsCommand('/fields CARDUAH card')).toEqual({
       kind: 'set',
@@ -20,6 +31,20 @@ describe('/fields — разбор команды', () => {
       fields: ['card_number', 'full_name'],
       preset: 'card',
       parser: 'USDT/CARDUAH',
+      allRoutes: false,
+    });
+  });
+
+  it('по умолчанию только активные роуты', () => {
+    expect(parseFieldsCommand('/fields P24UAH card')).toMatchObject({
+      allRoutes: false,
+    });
+  });
+
+  it('флаг all включает и выключенные роуты', () => {
+    expect(parseFieldsCommand('/fields uah card all')).toMatchObject({
+      preset: 'card',
+      allRoutes: true,
     });
   });
 

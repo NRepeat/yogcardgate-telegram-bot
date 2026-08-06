@@ -94,12 +94,16 @@ export class BoxApiService {
   }
 
   /**
-   * Ставит парсер `routeName` всем роутам, ведущим в указанные xml.
+   * Ставит парсер `routeName` роутам, ведущим в указанные xml.
    * Ногу `<COIN>/USDT` у крипто-цепочек сохраняем, меняем только UAH-ногу.
+   * По умолчанию трогаем только активные: у направления ~20 роутов, из них
+   * живых 4, остальные — выключенные крипто-цепочки. С `onlyActive: false`
+   * переедут и они (нужно, если такой роут потом включат).
    */
   async setParserForXmls(
     xmls: string[],
     routeName: string,
+    { onlyActive = true }: { onlyActive?: boolean } = {},
   ): Promise<{ ok: number; fail: number; skipped: number; error?: string }> {
     if (!this.configured) {
       return { ok: 0, fail: 0, skipped: 0, error: 'BOX_API_KEY/BOX_API_SECRET не заданы' };
@@ -113,8 +117,10 @@ export class BoxApiService {
       'GET:admin/exchanger/route/get',
       { limit: 5000 },
     );
-    const routes = (data?.routes || []).filter((r) =>
-      xmls.includes(String(r.to?.currency?.xml || '')),
+    const routes = (data?.routes || []).filter(
+      (r) =>
+        xmls.includes(String(r.to?.currency?.xml || '')) &&
+        (!onlyActive || r.active),
     );
     if (!routes.length) {
       return { ok: 0, fail: 0, skipped: 0, error: 'роуты не найдены' };

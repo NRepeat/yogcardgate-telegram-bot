@@ -19,6 +19,7 @@ const USAGE = [
   '/fields CORPUAH iban,inn — задать поля вручную',
   '/fields CORPUAH off — вернуть направление на схему плагина',
   '/fields uah card — массово: Visa/Master Card + 12 банков',
+  '/fields uah card all — плюс выключенные роуты направления',
   '(Счет компании и Банковский счет группа uah не трогает)',
   '',
   `Пресеты: ${Object.entries(FIELD_PRESETS).map(([k, v]) => `${k} -> ${v.parser}`).join(', ')}`,
@@ -113,11 +114,13 @@ export class PayoutFieldsActions {
 
     // Курс следует за методом: пресет тянет за собой парсер направления.
     if (cmd.parser) {
-      const res = await this.box.setParserForXmls(cmd.targets, cmd.parser);
+      const res = await this.box.setParserForXmls(cmd.targets, cmd.parser, {
+        onlyActive: !cmd.allRoutes,
+      });
       lines.push(
         res.error
           ? `Курс НЕ переключён (${cmd.parser}): ${res.error}`
-          : `Курс ${cmd.parser}: обновлено ${res.ok}, без изменений ${res.skipped}` +
+          : `Курс ${cmd.parser} (${cmd.allRoutes ? "все роуты" : "только активные"}): обновлено ${res.ok}, без изменений ${res.skipped}` +
               (res.fail ? `, ошибок ${res.fail}` : ''),
       );
     }

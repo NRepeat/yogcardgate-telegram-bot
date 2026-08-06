@@ -42,7 +42,14 @@ export const UAH_GROUP = [
 export type FieldsCommand =
   | { kind: 'list' }
   | { kind: 'show'; targets: string[] }
-  | { kind: 'set'; targets: string[]; fields: string[]; preset?: string; parser?: string }
+  | {
+      kind: 'set';
+      targets: string[];
+      fields: string[];
+      preset?: string;
+      parser?: string;
+      allRoutes?: boolean;
+    }
   | { kind: 'off'; targets: string[] }
   | { kind: 'error'; message: string };
 
@@ -58,7 +65,9 @@ export function parseFieldsCommand(text: string): FieldsCommand {
   }
 
   const targets = resolveTargets(target);
-  const arg = rest.join('');
+  // `all` — курс менять и у выключенных роутов направления, по умолчанию только активные.
+  const allRoutes = rest.some((r) => r.toLowerCase() === 'all');
+  const arg = rest.filter((r) => r.toLowerCase() !== 'all').join('');
   if (!arg) return { kind: 'show', targets };
   if (arg.toLowerCase() === 'off') return { kind: 'off', targets };
 
@@ -70,6 +79,7 @@ export function parseFieldsCommand(text: string): FieldsCommand {
       fields: preset.fields,
       preset: arg.toLowerCase(),
       parser: preset.parser,
+      allRoutes,
     };
   }
 

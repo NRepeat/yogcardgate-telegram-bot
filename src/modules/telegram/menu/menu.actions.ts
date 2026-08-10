@@ -1,4 +1,6 @@
+import { UseGuards } from '@nestjs/common';
 import { Command, Ctx, Hears, On, Start, Update } from 'nestjs-telegraf';
+import { AdminGuard } from '../admin.guard';
 import ReportService from 'src/modules/report/report.service';
 import { RequestService } from 'src/modules/request/request.service';
 import { UserService } from 'src/modules/user/user.service';
@@ -127,14 +129,10 @@ export class MenuActions {
     );
   }
   @Command('report_all')
+  @UseGuards(AdminGuard)
   async reportAll(@Ctx() ctx: Context) {
     const msId = ctx.message?.message_id;
     await ctx.deleteMessage(msId);
-    const isAdmin = await this.userService.isAdminChat(ctx);
-    if (!isAdmin) {
-      //
-      return;
-    }
     const vendors = await this.vendorService.getAllVendors();
     let sentCount = 0;
     const allReports: {
@@ -202,27 +200,25 @@ export class MenuActions {
     await ctx.reply(`Отчеты отправлены ${sentCount} вендорам.`);
   }
   @Command('reg')
+  @UseGuards(AdminGuard)
   async registration(@Ctx() ctx: Context) {
     const msId = ctx.message?.message_id;
     // bot may lack delete rights in the group — never abort registration over cleanup
     await ctx.deleteMessage(msId).catch(() => {});
     const chatId = ctx.chat?.id;
-    const isAdmin = await this.userService.isAdminChat(ctx);
-    console.log(`Chat ID: ${chatId}, isAdmin: ${isAdmin}`);
     if (!chatId) {
       await ctx.reply('Chat ID not found');
       return;
     }
-    if (isAdmin) {
-      if (await this.utilsService.isChatRegistrated(ctx)) {
-        await ctx.reply('You are already registered');
-        return;
-      }
-      await this.vendorService.createVendor(ctx);
+    if (await this.utilsService.isChatRegistrated(ctx)) {
+      await ctx.reply('You are already registered');
+      return;
     }
+    await this.vendorService.createVendor(ctx);
   }
 
   @Hears('Menu')
+  @UseGuards(AdminGuard)
   async onMenu(@Ctx() ctx: Context) {
     const newButtonCallback = Markup.button.callback('New user', 'new_user');
     const inline_keyboard = Markup.inlineKeyboard([[newButtonCallback]]);
@@ -231,6 +227,7 @@ export class MenuActions {
     });
   }
   @Hears('Показать пользователей')
+  @UseGuards(AdminGuard)
   async onUsersShow(@Ctx() ctx: Context) {
     const msId = ctx.message?.message_id;
     await ctx.deleteMessage(msId);
@@ -262,15 +259,11 @@ export class MenuActions {
     // console.log(`Users: ${userList}`);
   }
   @Command('pause')
+  @UseGuards(AdminGuard)
   async pause(@Ctx() ctx: Context) {
     const userId = ctx.from?.id;
     if (!userId) {
       await ctx.reply('User ID not found');
-      return;
-    }
-    const isAdmin = await this.userService.isAdminChat(ctx);
-    if (!isAdmin) {
-      //
       return;
     }
     await this.userService.updateUser(
@@ -282,14 +275,11 @@ export class MenuActions {
     await ctx.reply('You are now on pause');
   }
   @Command('blacklist')
+  @UseGuards(AdminGuard)
   async blacklist(@Ctx() ctx: Context) {
     const userId = ctx.from?.id;
     if (!userId) {
       await ctx.reply('User ID not found');
-      return;
-    }
-    const isAdmin = await this.userService.isAdminChat(ctx);
-    if (!isAdmin) {
       return;
     }
     const card = ctx.text?.split(' ')[1]?.trim();
@@ -308,16 +298,13 @@ export class MenuActions {
     await ctx.reply(`Card ${card} has been blacklisted`);
   }
   @Command('remove_blacklist')
+  @UseGuards(AdminGuard)
   async removeBlacklist(@Ctx() ctx: Context) {
     const msId = ctx.message?.message_id;
     await ctx.deleteMessage(msId);
     const userId = ctx.from?.id;
     if (!userId) {
       await ctx.reply('User ID not found');
-      return;
-    }
-    const isAdmin = await this.userService.isAdminChat(ctx);
-    if (!isAdmin) {
       return;
     }
     const card = ctx.text?.split(' ')[1]?.trim();
@@ -341,16 +328,13 @@ export class MenuActions {
     await ctx.reply(`Card ${card} has been removed from the blacklist`);
   }
   @Command('resume')
+  @UseGuards(AdminGuard)
   async resume(@Ctx() ctx: Context) {
     const msId = ctx.message?.message_id;
     await ctx.deleteMessage(msId);
     const userId = ctx.from?.id;
     if (!userId) {
       await ctx.reply('User ID not found');
-      return;
-    }
-    const isAdmin = await this.userService.isAdminChat(ctx);
-    if (!isAdmin) {
       return;
     }
     await this.userService.updateUser(
@@ -362,6 +346,7 @@ export class MenuActions {
     await ctx.reply('You are now on work');
   }
   @Command('on')
+  @UseGuards(AdminGuard)
   async on(@Ctx() ctx: Context) {
     const msId = ctx.message?.message_id;
     await ctx.deleteMessage(msId);
@@ -380,6 +365,7 @@ export class MenuActions {
     await ctx.reply('Bot is now active');
   }
   @Command('off')
+  @UseGuards(AdminGuard)
   async off(@Ctx() ctx: Context) {
     const msId = ctx.message?.message_id;
     await ctx.deleteMessage(msId);
@@ -448,24 +434,18 @@ export class MenuActions {
     await ctx.deleteMessage(msId);
   }
   @Hears('Показать поставщиков')
+  @UseGuards(AdminGuard)
   async onVendorShow(@Ctx() ctx: SceneContext) {
     const msId = ctx.message?.message_id;
     await ctx.deleteMessage(msId);
-    const isAdmin = await this.userService.isAdminChat(ctx);
-    if (!isAdmin) {
-      return;
-    }
     await ctx.scene.enter('user-vendor-wizard');
   }
 
   @Hears('Черный список')
+  @UseGuards(AdminGuard)
   async onBlackList(@Ctx() ctx: Context) {
     const msId = ctx.message?.message_id;
     await ctx.deleteMessage(msId);
-    const isAdmin = await this.userService.isAdminChat(ctx);
-    if (!isAdmin) {
-      return;
-    }
     const blackList = await this.requestService.getBlackList();
     if (blackList.length === 0) {
       await ctx.reply('Черный список пуст');

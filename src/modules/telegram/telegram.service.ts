@@ -3,7 +3,7 @@ import { Context } from 'telegraf';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf } from 'telegraf';
 import { UserService } from '../user/user.service';
-import { createReadStream } from 'fs';
+import { photoSource as photoInput, DEFAULT_PHOTO } from './photo-source';
 
 import {
   FullRequestType,
@@ -321,7 +321,7 @@ export class TelegramService {
     
     const photoSource = payload.source
       ? { source: payload.source }
-      : { source: createReadStream(photoPath) };
+      : photoInput(photoPath);
 
     const message = await this.bot.telegram.sendPhoto(chatId, photoSource, {
       parse_mode: 'HTML',
@@ -346,8 +346,8 @@ export class TelegramService {
   ) {
     try {
       const inline_keyboard = message.inline_keyboard;
-      const photoPath = message.photoUrl ? message.photoUrl : './src/assets/0056.jpg';
-      const photoSource = { source: createReadStream(photoPath) };
+      const photoPath = message.photoUrl ? message.photoUrl : DEFAULT_PHOTO;
+      const photoSource = photoInput(photoPath);
 
       const photoMsg = await this.bot.telegram.sendPhoto(
         chatId,
@@ -424,7 +424,7 @@ export class TelegramService {
                   parse_mode: 'HTML',
                   caption: newCaption || '',
                   type: 'photo',
-                  media: { source: createReadStream('./src/assets/0056.jpg') },
+                  media: photoInput(DEFAULT_PHOTO),
                 },
                 { reply_markup: newMessage.inline_keyboard },
               );
@@ -526,8 +526,8 @@ export class TelegramService {
           await this.userService.appendRequestToUser(foundWorker.id, requestId);
 
           try {
-            const photoPath = message.photoUrl ? message.photoUrl : './src/assets/0056.jpg';
-            const photoSource = { source: createReadStream(photoPath) };
+            const photoPath = message.photoUrl ? message.photoUrl : DEFAULT_PHOTO;
+            const photoSource = photoInput(photoPath);
               
             const photoMsg = await this.bot.telegram.sendPhoto(
               chatId,
@@ -613,11 +613,11 @@ export class TelegramService {
           );
           if (requestId) {
             try {
-              const photoPath = message.photoUrl ?? './src/assets/0056.jpg';
-              
+              const photoPath = message.photoUrl ?? DEFAULT_PHOTO;
+
               const photoSource = message.source
                 ? { source: message.source }
-                : { source: createReadStream(photoPath) };
+                : photoInput(photoPath);
               
               const photoMsg = await this.bot.telegram.sendPhoto(
                 chatId,
@@ -925,8 +925,8 @@ export class TelegramService {
       }
 
       await this.userService.appendRequestToUser(worker.id, requestId);
-      const photoPath = message.photoUrl ? message.photoUrl : './src/assets/0056.jpg';
-      const photoSource = { source: createReadStream(photoPath) };
+      const photoPath = message.photoUrl ? message.photoUrl : DEFAULT_PHOTO;
+      const photoSource = photoInput(photoPath);
         
       const photoMsg = await this.bot.telegram.sendPhoto(
         chatId,

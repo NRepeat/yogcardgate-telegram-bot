@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { promises as fs, createReadStream } from 'fs';
+import { promises as fs } from 'fs';
+import { photoSource as photoInput } from '../photo-source';
 import * as path from 'path';
 import { Wizard, WizardStep, Ctx, SceneLeave, On } from 'nestjs-telegraf';
 import { RatesService } from 'src/modules/rates/rates.service';
@@ -1049,7 +1050,7 @@ export class CreateRequestWizard {
           photoSource = { source: publicPayload.source };
         } else {
           // Fallback to URL as file path
-          photoSource = { source: createReadStream(publicPayload.url) };
+          photoSource = photoInput(publicPayload.url);
         }
 
         const menuMessage = await ctx.replyWithPhoto(photoSource, {

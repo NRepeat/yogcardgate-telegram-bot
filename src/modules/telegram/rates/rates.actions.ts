@@ -1,23 +1,17 @@
+import { UseGuards } from '@nestjs/common';
 import { Ctx, Command, Hears, Update } from 'nestjs-telegraf';
 import { RatesService } from 'src/modules/rates/rates.service';
-import { UserService } from 'src/modules/user/user.service';
 import { SceneContext } from 'telegraf/typings/scenes';
+import { AdminGuard } from '../admin.guard';
 @Update()
+@UseGuards(AdminGuard)
 export class RatesActions {
-  constructor(
-    private readonly ratesService: RatesService,
-    private readonly userService: UserService,
-  ) {}
+  constructor(private readonly ratesService: RatesService) {}
 
   @Hears('Обновить курсы')
   async onRates(@Ctx() ctx: SceneContext) {
     const msId = ctx.message?.message_id;
     await ctx.deleteMessage(msId);
-    const isAdmin = await this.userService.isAdminChat(ctx);
-    if (!isAdmin) {
-      //
-      return;
-    }
     await ctx.scene.enter('create-rates');
   }
 
@@ -25,10 +19,6 @@ export class RatesActions {
   async onRateUp(@Ctx() ctx: SceneContext) {
     const msId = ctx.message?.message_id;
     await ctx.deleteMessage(msId);
-    const isAdmin = await this.userService.isAdminChat(ctx);
-    if (!isAdmin) {
-      return;
-    }
     await ctx.scene.enter('create-rates');
   }
 }

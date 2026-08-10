@@ -1,8 +1,9 @@
+import { UseGuards } from '@nestjs/common';
 import { Command, Ctx, Update } from 'nestjs-telegraf';
 import { SceneContext } from 'telegraf/typings/scenes';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BoxApiService } from '../../payout-fields/box-api.service';
-import { UserService } from '../../user/user.service';
+import { AdminGuard } from '../admin.guard';
 import { PAYOUT_FIELD_KEYS } from '../../payout-fields/payout-fields.constants';
 import {
   FIELD_PRESETS,
@@ -27,17 +28,16 @@ const USAGE = [
 ].join('\n');
 
 @Update()
+@UseGuards(AdminGuard) // наборы полей меняют форму выплаты — только админы
 export class PayoutFieldsActions {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly userService: UserService,
     private readonly box: BoxApiService,
   ) {}
 
   /** Справка по наборам полей и пресетам. */
   @Command('fields_info')
   async onFieldsInfo(@Ctx() ctx: SceneContext) {
-    if (!(await this.userService.isAdminChat(ctx))) return;
     await ctx.reply(
       `${USAGE}\n\nДоступные поля:\n${PAYOUT_FIELD_KEYS.join(', ')}\n\n` +
         `Группа uah (${UAH_GROUP.length}): ${UAH_GROUP.join(', ')}`,
@@ -47,7 +47,6 @@ export class PayoutFieldsActions {
   /** Наборы полей формы выплаты. Не админам не отвечаем — команду не палим. */
   @Command('fields')
   async onFields(@Ctx() ctx: SceneContext) {
-    if (!(await this.userService.isAdminChat(ctx))) return;
     const text = (ctx.message as { text?: string })?.text ?? '';
     const cmd = parseFieldsCommand(text);
 

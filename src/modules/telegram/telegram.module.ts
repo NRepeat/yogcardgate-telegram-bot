@@ -22,6 +22,7 @@ import { CurrencyService } from '../currencie/currencie.service';
 import { CurrencyModule } from '../currencie/currencie.module';
 import { PayoutFieldsActions } from './payout-fields/payout-fields.actions';
 import { BoxApiService } from '../payout-fields/box-api.service';
+import { AdminGuard } from './admin.guard';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { BoxApiService } from '../payout-fields/box-api.service';
     VendorCallbackService,
     PayoutFieldsActions,
     BoxApiService,
+    AdminGuard,
   ],
 })
 export class TelegramModule {}

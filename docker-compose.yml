@@ -30,6 +30,10 @@ services:
     restart: always
     ports:
       - '${PORT:-3005}:${PORT:-3005}'
+    volumes:
+      # Квитанции по заявкам — файлы: без маунта пересоздание контейнера стирает
+      # их у всех заявок в работе, и закрыть такую заявку уже нельзя.
+      - ./storage:/app/storage
     depends_on:
       db:
         condition: service_healthy

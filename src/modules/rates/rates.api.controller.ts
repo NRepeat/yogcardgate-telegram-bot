@@ -52,7 +52,10 @@ export function buildRatesXml(
           reference >= t.minAmount && (!t.maxAmount || reference <= t.maxAmount),
       ) ?? byMin[0];
     const out = tier.rate;
-    const min = Math.min(...list.map((r) => r.minAmount));
+    // Advertise the floor that <out> is actually good for. Taking the smallest
+    // tier's minAmount here would promise the quoted rate from an amount that
+    // is priced a tier lower.
+    const min = tier.minAmount;
     const unbounded = list.some((r) => !r.maxAmount);
     const max = unbounded
       ? UNBOUNDED_AMOUNT

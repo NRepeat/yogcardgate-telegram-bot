@@ -34,9 +34,11 @@ export function buildRatesXml(rows: XmlRateRow[], created: string): string {
   }
 
   const items = Array.from(groups.entries()).map(([code, list]) => {
-    // Same "middle tier" rate selection as RatesService.createRates
+    // Top tier (highest minAmount): the exchange's own minimum sits well above
+    // the lowest tiers, so every real order is priced there. The old middle-tier
+    // pick landed on the *lowest* tier whenever a method had only two of them.
     const sorted = [...list].sort((a, b) => b.minAmount - a.minAmount);
-    const out = sorted[Math.floor(sorted.length / 2)].rate;
+    const out = sorted[0].rate;
     const min = Math.min(...list.map((r) => r.minAmount));
     const unbounded = list.some((r) => !r.maxAmount);
     const max = unbounded

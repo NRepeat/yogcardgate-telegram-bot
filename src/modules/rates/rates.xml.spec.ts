@@ -61,4 +61,17 @@ describe('buildRatesXml', () => {
 
     expect(xml).toContain('<out>0.855</out>');
   });
+
+  it('follows the vendor order floor when it is raised', () => {
+    const tiers = [
+      { xml: 'CARDUAH', rate: 44.15, minAmount: 2000, maxAmount: 9999 },
+      { xml: 'CARDUAH', rate: 44.65, minAmount: 10000, maxAmount: 49999.99 },
+      { xml: 'CARDUAH', rate: 44.7, minAmount: 50000, maxAmount: 0 },
+    ];
+
+    // 1500 USD x 44.15 = 66225 UAH -> the 50000+ tier
+    expect(buildRatesXml(tiers, 'x', 1500)).toContain('<out>44.7</out>');
+    // 100 USD x 44.15 = 4415 UAH -> the entry tier
+    expect(buildRatesXml(tiers, 'x', 100)).toContain('<out>44.15</out>');
+  });
 });

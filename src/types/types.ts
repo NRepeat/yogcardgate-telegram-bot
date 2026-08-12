@@ -29,7 +29,10 @@ import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
 
 export type SerializedUser = SerializedModel<User & { role?: RoleEnum }>;
 export type SerializedRate = SerializedModel<Rates>;
-export type SerializedVendors = SerializedModel<Vendors>;
+// minOrderUsd is optional on write — the column has a DB default
+export type SerializedVendors = Omit<SerializedModel<Vendors>, 'minOrderUsd'> & {
+  minOrderUsd?: number;
+};
 export type SerializedPaymentMethod = SerializedModel<PaymentMethod>;
 export type SerializedRequest = SerializedModel<PaymentRequests>;
 export type SerializedMessage = Omit<

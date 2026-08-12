@@ -17,9 +17,8 @@ import { PrismaService } from '../prisma/prisma.service';
 const XML_FROM_CODE = 'USDTTRC20';
 // ponytail: no reserve tracking — reuse direction max (or 1M when unbounded) as <amount>
 const UNBOUNDED_AMOUNT = 1000000;
-// Exchange floor, in USD — the tier every real order is priced at. Keep in sync
-// with the minimum set on greatchange (directions.min_amount).
-const MIN_ORDER_USD = 350;
+// Used only when a vendor row predates the minOrderUsd column.
+const DEFAULT_MIN_ORDER_USD = 350;
 
 type XmlRateRow = {
   xml: string | null;
@@ -28,7 +27,11 @@ type XmlRateRow = {
   maxAmount: number;
 };
 
-export function buildRatesXml(rows: XmlRateRow[], created: string): string {
+export function buildRatesXml(
+  rows: XmlRateRow[],
+  created: string,
+  minOrderUsd: number = DEFAULT_MIN_ORDER_USD,
+): string {
   const groups = new Map<string, XmlRateRow[]>();
   for (const row of rows) {
     if (!row.xml) continue;
@@ -42,7 +45,7 @@ export function buildRatesXml(rows: XmlRateRow[], created: string): string {
     // differently: the middle of two tiers is the lowest one, and the top of
     // KZT's [9000, 300000] is a tier no order of ours reaches.
     const byMin = [...list].sort((a, b) => a.minAmount - b.minAmount);
-    const reference = MIN_ORDER_USD * byMin[0].rate;
+    const reference = minOrderUsd * byMin[0].rate;
     const tier =
       byMin.find(
         (t) =>
@@ -93,7 +96,11 @@ export class RatesXmlController {
     const rates = await this.prisma.rates.findMany({
       where: { enabled: true, xml: { not: null } },
     });
-    return buildRatesXml(rates, new Date().toISOString());
+    return buildRatesXml(
+      rates,
+      new Date().toISOString(),
+      vendor.minOrderUsd ?? DEFAULT_MIN_ORDER_USD,
+    );
   }
 }
 
@@ -118,6 +125,39 @@ export class RatesApiController {
       enabled: r.enabled,
       xml: r.xml,
     }));
+  }
+
+  // Order floor per vendor feed — drives which rate tier export.xml quotes.
+  @Get('vendors')
+  async getVendors() {
+    const vendors = await this.prisma.vendors.findMany({
+      orderBy: { title: 'asc' },
+    });
+    return vendors.map((v) => ({
+      id: v.id,
+      title: v.title,
+      minOrderUsd: v.minOrderUsd,
+      hasFeedToken: Boolean(v.token),
+    }));
+  }
+
+  @Put('vendors/:id')
+  async updateVendor(
+    @Param('id') id: string,
+    @Body() body: { minOrderUsd?: number },
+  ) {
+    const value = Number(body.minOrderUsd);
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new HttpException(
+        'minOrderUsd must be a positive number',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const updated = await this.prisma.vendors.update({
+      where: { id },
+      data: { minOrderUsd: value },
+    });
+    return { id: updated.id, title: updated.title, minOrderUsd: updated.minOrderUsd };
   }
 
   @Put(':id')

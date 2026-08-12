@@ -119,6 +119,10 @@ model Vendors {
   token          String?   @unique
   lastReportedAt DateTime? @default(now())
 
+  // Order floor in USD for this vendor's rate feed: export.xml quotes the tier
+  // that an order of this size lands in. Edit via PUT /api/rates/vendors/:id.
+  minOrderUsd Float @default(350)
+
   lastAllRatesSentAt   DateTime?         @default(now())
   lastAllRateMessageId Int?              @unique
   requests             PaymentRequests[]

@@ -19,7 +19,8 @@ describe('buildRatesXml', () => {
     expect(xml).toContain('<in>1</in>');
     // 350 USD x 44.15 = 15452 UAH -> the [10000, 49999.99] tier
     expect(xml).toContain('<out>44.65</out>');
-    expect(xml).toContain('<minamount>2000</minamount>');
+    // the floor <out> is good for, not the smallest tier's 2000
+    expect(xml).toContain('<minamount>10000</minamount>');
     // maxAmount 0 = unbounded tier -> 1M cap
     expect(xml).toContain('<maxamount>1000000</maxamount>');
   });

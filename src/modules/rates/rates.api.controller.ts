@@ -17,6 +17,9 @@ import { PrismaService } from '../prisma/prisma.service';
 const XML_FROM_CODE = 'USDTTRC20';
 // ponytail: no reserve tracking — reuse direction max (or 1M when unbounded) as <amount>
 const UNBOUNDED_AMOUNT = 1000000;
+// Exchange floor, in USD — the tier every real order is priced at. Keep in sync
+// with the minimum set on greatchange (directions.min_amount).
+const MIN_ORDER_USD = 350;
 
 type XmlRateRow = {
   xml: string | null;
@@ -34,11 +37,18 @@ export function buildRatesXml(rows: XmlRateRow[], created: string): string {
   }
 
   const items = Array.from(groups.entries()).map(([code, list]) => {
-    // Top tier (highest minAmount): the exchange's own minimum sits well above
-    // the lowest tiers, so every real order is priced there. The old middle-tier
-    // pick landed on the *lowest* tier whenever a method had only two of them.
-    const sorted = [...list].sort((a, b) => b.minAmount - a.minAmount);
-    const out = sorted[0].rate;
+    // Quote the tier a real order lands in. Any position-based pick (middle,
+    // top) hits the wrong band as soon as a method's tiers are laid out
+    // differently: the middle of two tiers is the lowest one, and the top of
+    // KZT's [9000, 300000] is a tier no order of ours reaches.
+    const byMin = [...list].sort((a, b) => a.minAmount - b.minAmount);
+    const reference = MIN_ORDER_USD * byMin[0].rate;
+    const tier =
+      byMin.find(
+        (t) =>
+          reference >= t.minAmount && (!t.maxAmount || reference <= t.maxAmount),
+      ) ?? byMin[0];
+    const out = tier.rate;
     const min = Math.min(...list.map((r) => r.minAmount));
     const unbounded = list.some((r) => !r.maxAmount);
     const max = unbounded

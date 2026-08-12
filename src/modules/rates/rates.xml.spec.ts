@@ -1,12 +1,12 @@
 import { buildRatesXml } from './rates.api.controller';
 
 describe('buildRatesXml', () => {
-  it('groups by xml code, picks top-tier rate, merges amount ranges', () => {
+  it('groups by xml code, prices the $350 tier, merges amount ranges', () => {
     const xml = buildRatesXml(
       [
-        { xml: 'CARDUAH', rate: 40, minAmount: 100, maxAmount: 500 },
-        { xml: 'CARDUAH', rate: 41, minAmount: 500, maxAmount: 1000 },
-        { xml: 'CARDUAH', rate: 42, minAmount: 1000, maxAmount: 0 },
+        { xml: 'CARDUAH', rate: 44.15, minAmount: 2000, maxAmount: 9999 },
+        { xml: 'CARDUAH', rate: 44.65, minAmount: 10000, maxAmount: 49999.99 },
+        { xml: 'CARDUAH', rate: 44.7, minAmount: 50000, maxAmount: 0 },
         { xml: null, rate: 1, minAmount: 1, maxAmount: 1 },
       ],
       '2026-07-02T00:00:00.000Z',
@@ -17,9 +17,9 @@ describe('buildRatesXml', () => {
     expect(xml).toContain('<from>USDTTRC20</from>');
     expect(xml).toContain('<to>CARDUAH</to>');
     expect(xml).toContain('<in>1</in>');
-    // top of [1000, 500, 100] by minAmount desc -> rate 42
-    expect(xml).toContain('<out>42</out>');
-    expect(xml).toContain('<minamount>100</minamount>');
+    // 350 USD x 44.15 = 15452 UAH -> the [10000, 49999.99] tier
+    expect(xml).toContain('<out>44.65</out>');
+    expect(xml).toContain('<minamount>2000</minamount>');
     // maxAmount 0 = unbounded tier -> 1M cap
     expect(xml).toContain('<maxamount>1000000</maxamount>');
   });
@@ -34,5 +34,31 @@ describe('buildRatesXml', () => {
     );
 
     expect(xml).toContain('<out>45.6</out>');
+  });
+
+  it('stays on the low tier when the top one is out of our reach', () => {
+    // 350 USD x 420 = 147000 KZT — the 300000+ tier is not something we hit
+    const xml = buildRatesXml(
+      [
+        { xml: 'CARDKZT', rate: 420, minAmount: 9000, maxAmount: 299999 },
+        { xml: 'CARDKZT', rate: 450, minAmount: 300000, maxAmount: 0 },
+      ],
+      '2026-08-12T00:00:00.000Z',
+    );
+
+    expect(xml).toContain('<out>420</out>');
+  });
+
+  it('falls back to the lowest tier when the order floor is below all of them', () => {
+    // 350 USD x 0.855 = 299 EUR, under the 500 EUR entry tier
+    const xml = buildRatesXml(
+      [
+        { xml: 'SEPAEUR', rate: 0.855, minAmount: 500, maxAmount: 999 },
+        { xml: 'SEPAEUR', rate: 0.86, minAmount: 1000, maxAmount: 0 },
+      ],
+      '2026-08-12T00:00:00.000Z',
+    );
+
+    expect(xml).toContain('<out>0.855</out>');
   });
 });

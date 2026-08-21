@@ -5,12 +5,14 @@ import { CustomSceneContext } from 'src/types/types';
 import { Markup } from 'telegraf';
 
 const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const RESTART_TRIGGERS: readonly string[] = ['Обновить курсы', '/rateup'];
 
 @Injectable()
 @Wizard('create-rates')
 export class CreateRatesScene {
   private static locked = false;
   private static lockedBy: string | null = null;
+  private static lockedById: number | null = null;
   private static lockTimer: ReturnType<typeof setTimeout> | null = null;
 
   private static startLockTimer() {
@@ -19,8 +21,10 @@ export class CreateRatesScene {
       console.warn(`Rate update lock expired for @${CreateRatesScene.lockedBy} after ${LOCK_TIMEOUT_MS / 1000}s`);
       CreateRatesScene.locked = false;
       CreateRatesScene.lockedBy = null;
+      CreateRatesScene.lockedById = null;
       CreateRatesScene.lockTimer = null;
     }, LOCK_TIMEOUT_MS);
+    CreateRatesScene.lockTimer.unref?.();
   }
 
   private static clearLockTimer() {
@@ -55,13 +59,15 @@ export class CreateRatesScene {
   @WizardStep(0)
   async onSceneEnter(@Ctx() ctx: CustomSceneContext) {
     const username = ctx.from?.username || String(ctx.from?.id);
-    if (CreateRatesScene.locked) {
+    const userId = ctx.from?.id ?? null;
+    if (CreateRatesScene.locked && CreateRatesScene.lockedById !== userId) {
       await ctx.reply(`Курсы уже обновляет @${CreateRatesScene.lockedBy}. Дождитесь завершения.`);
       await ctx.scene.leave();
       return;
     }
     CreateRatesScene.locked = true;
     CreateRatesScene.lockedBy = username;
+    CreateRatesScene.lockedById = userId;
     CreateRatesScene.startLockTimer();
 
     const markup = await this.ratesService.getAllRatesMarkupMessage();
@@ -83,6 +89,14 @@ export class CreateRatesScene {
     const message = ctx.text;
     console.log('Received message:', message);
     ctx.session.messagesToDelete?.push(ctx.message?.message_id || 0);
+    // Брошенная сцена оставляет админа на этом шаге. Без этого его следующее
+    // нажатие «Обновить курсы» уходит в парсер как текст курсов, падает и
+    // молча выкидывает из сцены — снаружи выглядит как «бот не отвечает».
+    if (message && RESTART_TRIGGERS.includes(message)) {
+      await ctx.scene.leave();
+      await ctx.scene.enter('create-rates');
+      return;
+    }
     if (!message) {
       const msg = await ctx.reply('Please send text with rates.');
       ctx.session.messagesToDelete?.push(msg.message_id);
@@ -104,7 +118,10 @@ export class CreateRatesScene {
       await ctx.scene.leave();
     } catch (error) {
       console.error('Error creating rates:', error instanceof Error ? error.message : error);
-      await ctx.scene.leave();
+      await ctx.reply(
+        `Курсы не обновлены: ${error instanceof Error ? error.message : 'неизвестная ошибка'}. Проверьте формат и пришлите заново.`,
+      );
+      ctx.wizard.selectStep(1);
     }
   }
 
@@ -123,9 +140,14 @@ export class CreateRatesScene {
         }
       }
     }
-    CreateRatesScene.clearLockTimer();
-    CreateRatesScene.locked = false;
-    CreateRatesScene.lockedBy = null;
+    // Только владелец снимает лок: заблокированный админ тоже проходит через
+    // leave(), и раньше он сбрасывал чужой лок.
+    if (CreateRatesScene.lockedById === (ctx.from?.id ?? null)) {
+      CreateRatesScene.clearLockTimer();
+      CreateRatesScene.locked = false;
+      CreateRatesScene.lockedBy = null;
+      CreateRatesScene.lockedById = null;
+    }
     ctx.session.customState = '';
     ctx.session.messagesToDelete = [];
     // await ctx.reply('Exited rate creation.');

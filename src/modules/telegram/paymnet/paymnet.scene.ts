@@ -30,8 +30,12 @@ interface PaymentWizardState {
   paymentPhoto?: PaymentPhoto;
   paymentPhotos: PaymentPhoto[];
   mediaGroupId?: string;
-  collectTimer?: ReturnType<typeof setTimeout>;
 }
+
+// Таймер дебаунса media_group живёт вне scene state: telegraf-session-local
+// сериализует state целиком, а Timeout циклический — JSON.stringify падал и
+// ронял запись sessions.json сразу для всех чатов.
+const collectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 @Injectable()
 @Wizard('payment_photo_proceed')
@@ -122,10 +126,16 @@ export default class PaymentWizard {
       if (message.media_group_id) {
         state.mediaGroupId = message.media_group_id;
         // Clear previous timer if exists
-        if (state.collectTimer) clearTimeout(state.collectTimer);
-        state.collectTimer = setTimeout(async () => {
-          await this.showConfirmPrompt(ctx, state);
-        }, 1500);
+        const timerKey = `${ctx.chat?.id}:${ctx.from?.id}`;
+        const pending = collectTimers.get(timerKey);
+        if (pending) clearTimeout(pending);
+        collectTimers.set(
+          timerKey,
+          setTimeout(async () => {
+            collectTimers.delete(timerKey);
+            await this.showConfirmPrompt(ctx, state);
+          }, 1500),
+        );
         return;
       }
 

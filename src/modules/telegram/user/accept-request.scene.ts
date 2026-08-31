@@ -101,9 +101,15 @@ export class AcceptRequestScene {
           throw new Error('Failed to send message to user');
         }
       } catch (sendError) {
+        // Лимит Telegram сюда уже не доходит: очередь в installTelegramThrottle
+        // выдерживает паузу между сообщениями и повторяет 429 по retry_after.
+        // Значит остались настоящие отказы — их откатываем, чтобы заявка
+        // вернулась в общий список, а не зависла за оператором без карточки.
         console.error('Failed to send accept message, rolling back:', sendError);
         await this.requestService.unlinkUser(state.requestId);
-        await ctx.reply('❌ Не удалось уведомить рабочую группу (таймаут Telegram). Попробуйте ещё раз.');
+        await ctx.reply(
+          '❌ Рабочая группа не приняла сообщение. Заявка снова в общем списке — попробуйте ещё раз.',
+        );
         await ctx.scene.leave();
         return;
       }

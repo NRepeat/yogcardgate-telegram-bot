@@ -16,6 +16,7 @@ import { MenuFactory } from './telegram-keyboards';
 import { ConfigService } from '@nestjs/config';
 import { CurrencyEnum } from '@prisma/client';
 import { RequestMessageFactory } from './request/request-message.factory';
+import { installTelegramThrottle } from './telegram-throttle';
 
 const photoUrl = './src/assets/0056.jpg';
 
@@ -28,7 +29,14 @@ export class TelegramService {
     private readonly userService: UserService,
     private readonly requestService: RequestService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    installTelegramThrottle(
+      this.bot.telegram as unknown as Parameters<
+        typeof installTelegramThrottle
+      >[0],
+      { logger: this.logger },
+    );
+  }
 
   private lastWorkerIndex = -1;
 
@@ -96,15 +104,21 @@ export class TelegramService {
           isWorkGroup,
           isHubGroup,
         );
-        await this.bot.telegram.editMessageCaption(
+        await this.editSafely(
           Number(message.chatId),
           Number(message.messageId),
-          undefined,
-          adminMenu.inWork().caption,
-          {
-            parse_mode: 'HTML',
-            reply_markup: adminMenu.inWork(undefined, requestId).markup,
-          },
+          requestId,
+          () =>
+            this.bot.telegram.editMessageCaption(
+              Number(message.chatId),
+              Number(message.messageId),
+              undefined,
+              adminMenu.inWork().caption,
+              {
+                parse_mode: 'HTML',
+                reply_markup: adminMenu.inWork(undefined, requestId).markup,
+              },
+            ),
         );
       }
       this.logger.log(
@@ -157,15 +171,21 @@ export class TelegramService {
           request as unknown as FullRequestType,
           photoUrl,
         );
-        return this.bot.telegram.editMessageCaption(
+        return this.editSafely(
           Number(m.chatId),
           Number(m.messageId),
-          undefined,
-          adminMenu.inWork(undefined, m.requestId).caption,
-          {
-            parse_mode: 'HTML',
-            reply_markup: adminMenu.inWork(undefined, requestId).markup,
-          },
+          requestId,
+          () =>
+            this.bot.telegram.editMessageCaption(
+              Number(m.chatId),
+              Number(m.messageId),
+              undefined,
+              adminMenu.inWork(undefined, m.requestId).caption,
+              {
+                parse_mode: 'HTML',
+                reply_markup: adminMenu.inWork(undefined, requestId).markup,
+              },
+            ),
         );
       });
       await Promise.all(requests);
@@ -380,6 +400,37 @@ export class TelegramService {
     }
   }
 
+  // One failed edit must not skip the remaining messages of a request, and a
+  // message deleted in the chat must not be retried on every status change.
+  private async editSafely(
+    chatId: number,
+    messageId: number,
+    requestId: string | undefined,
+    edit: () => Promise<unknown>,
+  ) {
+    try {
+      await edit();
+    } catch (error) {
+      const description: string = error?.response?.description ?? '';
+      if (description.includes('message to edit not found')) {
+        this.logger.warn(
+          `Message ${messageId} in chat ${chatId} is gone — dropping stale record`,
+        );
+        if (requestId) {
+          await this.requestService.findAndDeleteRequestMessageByRequestId(
+            requestId,
+            messageId,
+          );
+        }
+        return;
+      }
+      if (description.includes('message is not modified')) return;
+      this.logger.warn(
+        `Failed to edit message ${messageId} in chat ${chatId}: ${description || error}`,
+      );
+    }
+  }
+
   async updateAllPublicMessagesWithRequestsId(
     newMessage: ReplyPhotoMessage,
     requestId?: string,
@@ -400,36 +451,36 @@ export class TelegramService {
         const messageId = Number(message.messageId);
         const newCaption = newMessage.text ? newMessage.text : message.text;
         if (chatId && messageId) {
-          if (!message.photoUrl || message.photoUrl.length === 0) {
-            await this.bot.telegram.editMessageText(
-              chatId,
-              messageId,
-              undefined,
-              newCaption || '',
-              {
-                parse_mode: 'HTML',
-                reply_markup: newMessage.inline_keyboard,
-              },
-            );
-            continue;
-          }
-
-          if (newMessage.source) {
-            if (!message.paymentRequests?.vendor.showReceipt) {
-              await this.bot.telegram.editMessageMedia(
+          await this.editSafely(chatId, messageId, requestId, async () => {
+            if (!message.photoUrl || message.photoUrl.length === 0) {
+              return this.bot.telegram.editMessageText(
                 chatId,
                 messageId,
                 undefined,
+                newCaption || '',
                 {
                   parse_mode: 'HTML',
-                  caption: newCaption || '',
-                  type: 'photo',
-                  media: photoInput(DEFAULT_PHOTO),
+                  reply_markup: newMessage.inline_keyboard,
                 },
-                { reply_markup: newMessage.inline_keyboard },
               );
-            } else {
-              await this.bot.telegram.editMessageMedia(
+            }
+
+            if (newMessage.source) {
+              if (!message.paymentRequests?.vendor.showReceipt) {
+                return this.bot.telegram.editMessageMedia(
+                  chatId,
+                  messageId,
+                  undefined,
+                  {
+                    parse_mode: 'HTML',
+                    caption: newCaption || '',
+                    type: 'photo',
+                    media: photoInput(DEFAULT_PHOTO),
+                  },
+                  { reply_markup: newMessage.inline_keyboard },
+                );
+              }
+              return this.bot.telegram.editMessageMedia(
                 chatId,
                 messageId,
                 undefined,
@@ -442,15 +493,14 @@ export class TelegramService {
                 { reply_markup: newMessage.inline_keyboard },
               );
             }
-          } else {
-            await this.bot.telegram.editMessageCaption(
+            return this.bot.telegram.editMessageCaption(
               chatId,
               messageId,
               undefined,
               newCaption || '',
               { reply_markup: newMessage.inline_keyboard, parse_mode: 'HTML' },
             );
-          }
+          });
         }
         await new Promise((res) => setTimeout(res, 300));
       }
@@ -687,28 +737,29 @@ export class TelegramService {
         const newCaption = newMessage.text ? newMessage.text : message.text;
 
         if (chatId && messageId) {
-          if (newMessage.source) {
-            await this.bot.telegram.editMessageMedia(
-              chatId,
-              messageId,
-              undefined,
-              {
-                parse_mode: 'HTML',
-                caption: newCaption || '',
-                type: 'photo',
-                media: { source: newMessage.source },
-              },
-              { reply_markup: newMessage.inline_keyboard },
-            );
-          } else {
-            await this.bot.telegram.editMessageCaption(
+          await this.editSafely(chatId, messageId, requestId, async () => {
+            if (newMessage.source) {
+              return this.bot.telegram.editMessageMedia(
+                chatId,
+                messageId,
+                undefined,
+                {
+                  parse_mode: 'HTML',
+                  caption: newCaption || '',
+                  type: 'photo',
+                  media: { source: newMessage.source },
+                },
+                { reply_markup: newMessage.inline_keyboard },
+              );
+            }
+            return this.bot.telegram.editMessageCaption(
               chatId,
               messageId,
               undefined,
               newCaption || '',
               { reply_markup: newMessage.inline_keyboard, parse_mode: 'HTML' },
             );
-          }
+          });
         }
       }
     } catch (error) {

@@ -1002,13 +1002,22 @@ export class CreateRequestWizard {
         const request = payload.requests[index];
         // Idempotent create returned an existing request: it is already in the
         // work group and possibly paid — skip re-sending its card, just warn.
+        // Unless the original submit never got its card posted (two submits
+        // racing): then this run posts it, otherwise the partner stays blind
+        // and every later status update has nothing to edit.
         if ((request as { __duplicate?: boolean }).__duplicate) {
-          await ctx.reply(
-            `⚠️ Похоже на дубликат: заявка на ${request.amount} на этот же реквизит уже создана менее ${Math.round(
-              DEDUP_WINDOW_MS / 60000,
-            )} мин назад (ID ${request.id}). Пропущена, чтобы не заплатить дважды. Если это НЕ дубль — повторите позже.`,
-          );
-          continue;
+          const publicMessages =
+            await this.requestService.getAllPublicMessagesWithRequestsId(
+              request.id,
+            );
+          if (publicMessages.length > 0) {
+            await ctx.reply(
+              `⚠️ Похоже на дубликат: заявка на ${request.amount} на этот же реквизит уже создана менее ${Math.round(
+                DEDUP_WINDOW_MS / 60000,
+              )} мин назад (ID ${request.id}). Пропущена, чтобы не заплатить дважды. Если это НЕ дубль — повторите позже.`,
+            );
+            continue;
+          }
         }
         const attachment = payload.attachments?.find(
           (item) => item.requestId === request.id,

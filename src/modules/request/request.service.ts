@@ -58,6 +58,11 @@ export class RequestService {
   async removeFromBlackList(cardNumber: string) {
     await this.requestRepo.removeFromBlackList(cardNumber);
   }
+  /** Запомнить квитанцию (file_id) всем карточкам заявки. */
+  async setMessagesPhoto(requestId: string, photoUrl: string) {
+    return this.requestRepo.setMessagesPhoto(requestId, photoUrl);
+  }
+
   async getAllPublicMessagesWithRequestsId(
     requestId: string | undefined,
   ): Promise<SerializedMessage[]> {

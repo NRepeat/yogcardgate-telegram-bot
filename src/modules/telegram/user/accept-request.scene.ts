@@ -3,7 +3,6 @@ import { SceneLeave, Wizard, WizardStep } from 'nestjs-telegraf';
 import { RequestService } from 'src/modules/request/request.service';
 import { CustomSceneContext, FullRequestType } from 'src/types/types';
 import { MenuFactory } from '../telegram-keyboards';
-import { Markup } from 'telegraf';
 import { TelegramService } from '../telegram.service';
 import { AccessControlService } from '../access-control/access-control.service';
 import { UserService } from 'src/modules/user/user.service';
@@ -144,12 +143,14 @@ export class AcceptRequestScene {
       false,
       true,
     );
-    const newPaymentButton = Markup.button.callback('В работе', 'in_work_');
-    const inline_keyboard = Markup.inlineKeyboard([[newPaymentButton]]);
+    // Кнопку берём из меню вместе с requestId: самодельная «В работе» ходила
+    // на колбэк `in_work_`, которого в боте нет ни одного обработчика, —
+    // нажатие молчало, а нормальные кнопки статуса затирались.
+    const inWork = workerMenu.inWork(undefined, requestId);
     await this.telegramService.updateAllWorkersMessagesWithRequestsId(
       {
-        text: workerMenu.inWork().caption,
-        inline_keyboard: inline_keyboard.reply_markup,
+        text: inWork.caption,
+        inline_keyboard: inWork.markup,
       },
       requestId,
       [state.msId],

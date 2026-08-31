@@ -156,13 +156,21 @@ export default class PaymentWizard {
         }
 
         const requestId = state.requestId;
-        const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN')!;
-        const buffers = await Promise.all(
-          photos.map((p) => this.utilsService.downloadTelegramPhoto(token, p.file_id)),
-        );
-        const buffer = buffers.length > 1
-          ? await this.utilsService.mergeImagesGrid(buffers)
-          : buffers[0];
+        // Одна квитанция уже лежит у Telegram — обновляем карточки её file_id,
+        // без скачивания и повторной заливки. Склейку нескольких фото залить
+        // всё же придётся, но ровно один раз: file_id вернётся из ответа.
+        const singleFileId =
+          photos.length === 1 ? photos[0].file_id : undefined;
+        let buffer: Buffer | undefined;
+        if (!singleFileId) {
+          const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN')!;
+          const buffers = await Promise.all(
+            photos.map((p) =>
+              this.utilsService.downloadTelegramPhoto(token, p.file_id),
+            ),
+          );
+          buffer = await this.utilsService.mergeImagesGrid(buffers);
+        }
 
         const userId = ctx.from?.id;
         if (!userId) {
@@ -195,32 +203,46 @@ export default class PaymentWizard {
           '',
           buffer,
         );
-        await this.telegramService.updateAllWorkersMessagesWithRequestsId(
-          {
-            source: workerMenu.done(undefined, requestId).source,
-            text: workerMenu.done(undefined, requestId).caption,
-            inline_keyboard: workerMenu.done(undefined, requestId).markup,
-          },
-          requestId,
-        );
-        await this.telegramService.updateAllAdminsMessagesWithRequestsId(
-          {
-            source: adminMenu.done().source,
-            text: adminMenu.done().caption,
-            inline_keyboard: adminMenu.done().markup,
-          },
-          requestId,
-        );
-        await this.telegramService.updateAllPublicMessagesWithRequestsId(
-          {
-            text: publicMenu.done().caption,
-            inline_keyboard: publicMenu.done().markup,
-            source: publicMenu.done().source,
-          },
-          requestId,
-        );
+        // Первая рассылка отдаёт file_id залитой квитанции — им же кроем
+        // остальные каналы, чтобы во всех карточках висела одна картинка.
+        let fileId = singleFileId;
+        fileId =
+          (await this.telegramService.updateAllWorkersMessagesWithRequestsId(
+            {
+              fileId,
+              source: fileId ? undefined : buffer,
+              text: workerMenu.done(undefined, requestId).caption,
+              inline_keyboard: workerMenu.done(undefined, requestId).markup,
+            },
+            requestId,
+          )) ?? fileId;
+        fileId =
+          (await this.telegramService.updateAllAdminsMessagesWithRequestsId(
+            {
+              fileId,
+              source: fileId ? undefined : buffer,
+              text: adminMenu.done().caption,
+              inline_keyboard: adminMenu.done().markup,
+            },
+            requestId,
+          )) ?? fileId;
+        fileId =
+          (await this.telegramService.updateAllPublicMessagesWithRequestsId(
+            {
+              fileId,
+              source: fileId ? undefined : buffer,
+              text: publicMenu.done().caption,
+              inline_keyboard: publicMenu.done().markup,
+            },
+            requestId,
+          )) ?? fileId;
 
         const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
+        if (fileId) {
+          // Дальше карточки правятся по photoUrl из базы: держим там квитанцию,
+          // иначе следующая же правка вернёт заглушку.
+          await this.requestService.setMessagesPhoto(requestId, fileId);
+        }
         await this.deletePhotoFileIfExists(photoUrl);
 
         await ctx.scene.leave();

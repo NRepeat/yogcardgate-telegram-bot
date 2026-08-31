@@ -400,6 +400,24 @@ export class TelegramService {
     }
   }
 
+  /**
+   * Квитанцию заливаем один раз: из ответа Telegram достаём file_id и дальше
+   * раздаём его остальным сообщениям заявки. Иначе каждая карточка тянет те же
+   * байты заново, а на пачке заявок это ещё и лишний повод словить лимит.
+   */
+  private fileIdOf(edited: unknown): string | undefined {
+    const photo = (edited as { photo?: { file_id: string }[] } | undefined)
+      ?.photo;
+    return photo?.length ? photo[photo.length - 1].file_id : undefined;
+  }
+
+  /** Медиа для editMessageMedia: file_id, свежий буфер или файл на диске. */
+  private mediaOf(message: ReplyPhotoMessage, fallbackPhotoUrl?: string) {
+    if (message.fileId) return message.fileId;
+    if (message.source) return { source: message.source };
+    return photoInput(fallbackPhotoUrl ?? DEFAULT_PHOTO);
+  }
+
   // One failed edit must not skip the remaining messages of a request, and a
   // message deleted in the chat must not be retried on every status change.
   private async editSafely(
@@ -407,9 +425,9 @@ export class TelegramService {
     messageId: number,
     requestId: string | undefined,
     edit: () => Promise<unknown>,
-  ) {
+  ): Promise<unknown> {
     try {
-      await edit();
+      return await edit();
     } catch (error) {
       const description: string = error?.response?.description ?? '';
       if (description.includes('message to edit not found')) {
@@ -446,27 +464,45 @@ export class TelegramService {
         this.logger.warn('No public messages found for the given request ID');
         return;
       }
+      let fileId = newMessage.fileId;
       for (const message of messages) {
         const chatId = Number(message.chatId);
         const messageId = Number(message.messageId);
         const newCaption = newMessage.text ? newMessage.text : message.text;
         if (chatId && messageId) {
-          await this.editSafely(chatId, messageId, requestId, async () => {
-            if (!message.photoUrl || message.photoUrl.length === 0) {
-              return this.bot.telegram.editMessageText(
-                chatId,
-                messageId,
-                undefined,
-                newCaption || '',
-                {
-                  parse_mode: 'HTML',
-                  reply_markup: newMessage.inline_keyboard,
-                },
-              );
-            }
+          const edited = await this.editSafely(
+            chatId,
+            messageId,
+            requestId,
+            async () => {
+              if (!message.photoUrl || message.photoUrl.length === 0) {
+                return this.bot.telegram.editMessageText(
+                  chatId,
+                  messageId,
+                  undefined,
+                  newCaption || '',
+                  {
+                    parse_mode: 'HTML',
+                    reply_markup: newMessage.inline_keyboard,
+                  },
+                );
+              }
 
-            if (newMessage.source) {
-              if (!message.paymentRequests?.vendor.showReceipt) {
+              if (newMessage.source || fileId) {
+                if (!message.paymentRequests?.vendor.showReceipt) {
+                  return this.bot.telegram.editMessageMedia(
+                    chatId,
+                    messageId,
+                    undefined,
+                    {
+                      parse_mode: 'HTML',
+                      caption: newCaption || '',
+                      type: 'photo',
+                      media: photoInput(DEFAULT_PHOTO),
+                    },
+                    { reply_markup: newMessage.inline_keyboard },
+                  );
+                }
                 return this.bot.telegram.editMessageMedia(
                   chatId,
                   messageId,
@@ -475,35 +511,25 @@ export class TelegramService {
                     parse_mode: 'HTML',
                     caption: newCaption || '',
                     type: 'photo',
-                    media: photoInput(DEFAULT_PHOTO),
+                    media: fileId ?? this.mediaOf(newMessage),
                   },
                   { reply_markup: newMessage.inline_keyboard },
                 );
               }
-              return this.bot.telegram.editMessageMedia(
+              return this.bot.telegram.editMessageCaption(
                 chatId,
                 messageId,
                 undefined,
-                {
-                  parse_mode: 'HTML',
-                  caption: newCaption || '',
-                  type: 'photo',
-                  media: { source: newMessage.source },
-                },
-                { reply_markup: newMessage.inline_keyboard },
+                newCaption || '',
+                { reply_markup: newMessage.inline_keyboard, parse_mode: 'HTML' },
               );
-            }
-            return this.bot.telegram.editMessageCaption(
-              chatId,
-              messageId,
-              undefined,
-              newCaption || '',
-              { reply_markup: newMessage.inline_keyboard, parse_mode: 'HTML' },
-            );
-          });
+            },
+          );
+          fileId = fileId ?? this.fileIdOf(edited);
         }
         await new Promise((res) => setTimeout(res, 300));
       }
+      return fileId;
     } catch (error) {
       this.logger.error('Error updating public messages', error);
     }
@@ -722,9 +748,10 @@ export class TelegramService {
       const messages =
         await this.userService.getAlWorkerMessagesWithRequestsId(requestId);
       if (!messages || messages.length === 0) {
-        this.logger.warn('No active admins found');
+        this.logger.warn(`No worker messages for request ${requestId}`);
         return;
       }
+      let fileId = newMessage.fileId;
       for (const message of messages) {
         if (
           excludeMessageIds &&
@@ -737,33 +764,40 @@ export class TelegramService {
         const newCaption = newMessage.text ? newMessage.text : message.text;
 
         if (chatId && messageId) {
-          await this.editSafely(chatId, messageId, requestId, async () => {
-            if (newMessage.source) {
-              return this.bot.telegram.editMessageMedia(
+          const edited = await this.editSafely(
+            chatId,
+            messageId,
+            requestId,
+            async () => {
+              if (newMessage.source || fileId) {
+                return this.bot.telegram.editMessageMedia(
+                  chatId,
+                  messageId,
+                  undefined,
+                  {
+                    parse_mode: 'HTML',
+                    caption: newCaption || '',
+                    type: 'photo',
+                    media: fileId ?? this.mediaOf(newMessage),
+                  },
+                  { reply_markup: newMessage.inline_keyboard },
+                );
+              }
+              return this.bot.telegram.editMessageCaption(
                 chatId,
                 messageId,
                 undefined,
-                {
-                  parse_mode: 'HTML',
-                  caption: newCaption || '',
-                  type: 'photo',
-                  media: { source: newMessage.source },
-                },
-                { reply_markup: newMessage.inline_keyboard },
+                newCaption || '',
+                { reply_markup: newMessage.inline_keyboard, parse_mode: 'HTML' },
               );
-            }
-            return this.bot.telegram.editMessageCaption(
-              chatId,
-              messageId,
-              undefined,
-              newCaption || '',
-              { reply_markup: newMessage.inline_keyboard, parse_mode: 'HTML' },
-            );
-          });
+            },
+          );
+          fileId = fileId ?? this.fileIdOf(edited);
         }
       }
+      return fileId;
     } catch (error) {
-      this.logger.error('Error updating admin messages', error);
+      this.logger.error('Error updating worker messages', error);
     }
   }
   async updateAllAdminsMessagesWithRequestsId(
@@ -778,19 +812,48 @@ export class TelegramService {
       const messages =
         await this.userService.getAllAdminsMessagesWithRequestsId(requestId);
       if (!messages || messages.length === 0) {
-        this.logger.warn('No active admins found');
+        this.logger.warn(`No admin messages for request ${requestId}`);
         return;
       }
+      let fileId = newMessage.fileId;
       for (const message of messages) {
-        await this.updateAdminMessage(
-          Number(message.chatId),
-          Number(message.messageId),
-          newMessage.text,
-          newMessage.photoUrl ? newMessage.photoUrl : undefined,
-          newMessage.source,
-          newMessage.inline_keyboard,
+        const chatId = Number(message.chatId);
+        const messageId = Number(message.messageId);
+        if (!chatId || !messageId) continue;
+        const caption = newMessage.text ? newMessage.text : message.text;
+        const edited = await this.editSafely(
+          chatId,
+          messageId,
+          requestId,
+          async () => {
+            if (newMessage.source || fileId || message.photoUrl) {
+              return this.bot.telegram.editMessageMedia(
+                chatId,
+                messageId,
+                undefined,
+                {
+                  parse_mode: 'HTML',
+                  caption: caption || '',
+                  type: 'photo',
+                  media:
+                    fileId ??
+                    this.mediaOf(newMessage, message.photoUrl ?? undefined),
+                },
+                { reply_markup: newMessage.inline_keyboard },
+              );
+            }
+            return this.bot.telegram.editMessageCaption(
+              chatId,
+              messageId,
+              undefined,
+              caption || '',
+              { reply_markup: newMessage.inline_keyboard, parse_mode: 'HTML' },
+            );
+          },
         );
+        fileId = fileId ?? this.fileIdOf(edited);
       }
+      return fileId;
     } catch (error) {
       this.logger.error('Error updating admin messages', error);
     }

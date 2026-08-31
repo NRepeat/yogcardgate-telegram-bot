@@ -363,6 +363,18 @@ export class RequestRepository {
       },
     });
   }
+  /**
+   * Квитанция принята — запоминаем её file_id всем карточкам заявки. Без этого
+   * следующая правка карточки берёт photoUrl из базы, а там дефолтная
+   * заглушка, и квитанция в сообщении затирается.
+   */
+  async setMessagesPhoto(requestId: string, photoUrl: string) {
+    return this.prisma.message.updateMany({
+      where: { requestId },
+      data: { photoUrl },
+    });
+  }
+
   async getAllPublicMessagesWithRequestsId(
     requestId: string,
   ): Promise<SerializedMessage[]> {

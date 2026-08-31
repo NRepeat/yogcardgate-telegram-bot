@@ -191,4 +191,10 @@ export interface ReplyMessage {
 export interface ReplyPhotoMessage extends ReplyMessage {
   source?: Buffer<ArrayBufferLike>;
   photoUrl?: string;
+  /**
+   * Квитанция, уже лежащая на серверах Telegram. Заливать её в каждое
+   * сообщение заново незачем: file_id переиспользуется в editMessageMedia и
+   * переживает пересоздание контейнера, в отличие от файла на диске.
+   */
+  fileId?: string;
 }

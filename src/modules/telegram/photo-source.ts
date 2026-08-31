@@ -14,3 +14,19 @@ export const resolvePhotoPath = (photoUrl?: string | null): string =>
 export const photoSource = (photoUrl?: string | null) => ({
   source: createReadStream(resolvePhotoPath(photoUrl)),
 });
+
+/**
+ * В photoUrl сообщения лежит либо путь к файлу, либо file_id квитанции,
+ * которую Telegram уже хранит у себя. Пути начинаются с `.`/`/`, ссылки — с
+ * http, всё остальное считаем file_id и отдаём строкой: так медиа обновляется
+ * без повторной заливки байтов.
+ */
+export const isFileId = (photoUrl?: string | null): photoUrl is string =>
+  !!photoUrl &&
+  !photoUrl.startsWith('.') &&
+  !photoUrl.startsWith('/') &&
+  !photoUrl.startsWith('http');
+
+/** Медиа для editMessageMedia: file_id строкой либо файл потоком. */
+export const photoMedia = (photoUrl?: string | null) =>
+  isFileId(photoUrl) ? photoUrl : photoSource(photoUrl);

@@ -50,7 +50,15 @@ export function buildRatesXml(
       byMin.find(
         (t) =>
           reference >= t.minAmount && (!t.maxAmount || reference <= t.maxAmount),
-      ) ?? byMin[0];
+      ) ??
+      // Tiers need not cover every amount: UAH company transfers jump from
+      // [2000, 9999] straight to [25000, unbounded], and a 350 USD reference
+      // lands in the hole between them. Falling back to the cheapest tier
+      // quoted a band the reference does not even belong to and hid the top
+      // rate from the feed entirely. Snap up to the first band the order can
+      // actually reach, and only take the top tier when it is above them all.
+      byMin.find((t) => t.minAmount > reference) ??
+      byMin[byMin.length - 1];
     const out = tier.rate;
     // Advertise the floor that <out> is actually good for. Taking the smallest
     // tier's minAmount here would promise the quoted rate from an amount that

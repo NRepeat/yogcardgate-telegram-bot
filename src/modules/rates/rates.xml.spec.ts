@@ -37,6 +37,22 @@ describe('buildRatesXml', () => {
     expect(xml).toContain('<out>45.6</out>');
   });
 
+  it('snaps up to the next tier when the reference falls between two bands', () => {
+    // The live UAH company schedule: [2000, 9999] then [25000, unbounded].
+    // 350 USD x 43.5 = 15225 UAH belongs to neither, and the cheapest tier is
+    // not a legal quote for it — the feed has to advertise the 25000 band.
+    const xml = buildRatesXml(
+      [
+        { xml: 'CORPUAH', rate: 43.5, minAmount: 2000, maxAmount: 9999 },
+        { xml: 'CORPUAH', rate: 45.45, minAmount: 25000, maxAmount: 0 },
+      ],
+      '2026-09-01T00:00:00.000Z',
+    );
+
+    expect(xml).toContain('<out>45.45</out>');
+    expect(xml).toContain('<minamount>25000</minamount>');
+  });
+
   it('stays on the low tier when the top one is out of our reach', () => {
     // 350 USD x 420 = 147000 KZT — the 300000+ tier is not something we hit
     const xml = buildRatesXml(

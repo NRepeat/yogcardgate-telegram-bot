@@ -173,12 +173,14 @@ export class RequestService {
   async getRequestsForVendorSinceLastReport(
     vendorId: string,
     lastReportedAt: Date,
+    // Вызывающий передаёт ту же метку, которую потом пишет в lastReportedAt,
+    // иначе между выборкой и апдейтом остаётся окно потерянных заявок.
+    to: Date = new Date(),
   ) {
-    const now = new Date();
     return this.requestRepo.getRequestsForVendorBetween(
       vendorId,
       lastReportedAt,
-      now,
+      to,
     );
   }
 

@@ -645,7 +645,9 @@ export class RequestRepository {
       where: {
         status: 'COMPLETED',
         vendorId,
-        createdAt: {
+        // Окно по дате закрытия: заявка, созданная до прошлого отчёта, но
+        // закрытая после него, иначе не попадёт ни в один отчёт.
+        completedAt: {
           gte: from,
           lte: to,
         },

@@ -86,10 +86,12 @@ export class MenuActions {
       return;
     }
     const lastReportedAt = vendor.lastReportedAt || new Date(0);
+    const reportedUpTo = new Date();
     const requests =
       await this.requestService.getRequestsForVendorSinceLastReport(
         vendor.id,
         lastReportedAt,
+        reportedUpTo,
       );
     if (!requests.length) return;
     if (requests.length === 0) return ctx.reply('No requests to report');
@@ -115,7 +117,7 @@ export class MenuActions {
       // console.log(`Report sent to vendor ${vendor.title}`);
       await this.vendorService.updateVendor({
         ...vendor,
-        lastReportedAt: new Date(),
+        lastReportedAt: reportedUpTo,
       });
     } catch (e) {
       await ctx.reply(
@@ -147,10 +149,12 @@ export class MenuActions {
       }
       if (!chatId) continue;
       const lastReportedAt = vendor.lastReportedAt || new Date(0);
+      const reportedUpTo = new Date();
       const requests =
         await this.requestService.getRequestsForVendorSinceLastReport(
           vendor.id,
           lastReportedAt,
+          reportedUpTo,
         );
       if (!requests.length) continue;
       if (requests.length === 0) continue;
@@ -179,7 +183,7 @@ export class MenuActions {
         });
         await this.vendorService.updateVendor({
           ...vendor,
-          lastReportedAt: new Date(),
+          lastReportedAt: reportedUpTo,
         });
         sentCount++;
       } catch (e) {

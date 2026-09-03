@@ -5,6 +5,14 @@ import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
 import { FullRequestType, ReplyPhotoMessage } from 'src/types/types';
 import { RequestMessageFactory } from './request/request-message.factory';
 import { composeCopyableCaption } from './request/copyable-block';
+
+/** Методы, где реквизиты переносят в банк целиком — им нужен копируемый блок. */
+const IBAN_METHODS = new Set<PaymentMethodEnum>([
+  PaymentMethodEnum.IBAN,
+  PaymentMethodEnum.IBAN_PERSONAL,
+  PaymentMethodEnum.IBAN_COMPANY,
+  PaymentMethodEnum.EUR_IBAN_BUSINESS,
+]);
 import {
   BUTTON_CALLBACKS,
   BUTTON_TEXTS,
@@ -232,10 +240,13 @@ abstract class BaseRequestMenu {
 
     const visible = lines.filter((line): line is string => Boolean(line));
 
-    // Тот же копируемый блок, что и в RequestMessageFactory: сюда карточка
-    // проваливается, когда метод не распознан, а оператору всё равно нужны
-    // реквизиты одним куском.
-    return accessType === 'WORKER'
+    // Тот же копируемый блок, что и в RequestMessageFactory, и по тому же
+    // правилу: только IBAN и только рабочая группа с группами операторов.
+    const copyable = IBAN_METHODS.has(
+      (method?.method ?? this.request.paymentMethod?.nameEn) as PaymentMethodEnum,
+    );
+
+    return copyable && accessType === 'WORKER'
       ? composeCopyableCaption(visible)
       : visible.join('\n');
   }

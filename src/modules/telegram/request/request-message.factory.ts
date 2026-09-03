@@ -206,7 +206,7 @@ export class RequestMessageFactory {
       this.partnerLine(request),
     ]);
 
-    return this.wrapWithButtons(accessType, request.id, lines);
+    return this.wrapWithButtons(accessType, request.id, lines, true);
   }
 
   private static buildSkrillMessage(
@@ -371,15 +371,17 @@ export class RequestMessageFactory {
     accessType: AccessType,
     requestId: string,
     lines: string[],
+    copyable = false,
   ): ReplyPhotoMessage {
     const sanitizedLines =
       accessType === 'PUBLIC'
         ? lines.filter((line) => !line.startsWith('👤<b>Принята:'))
         : lines;
-    // WORKER — это рабочая группа и группы операторов: там реквизиты уезжают
-    // копируемым блоком. Клиенту и админке карточка остаётся прежней.
+    // Копируемый блок — только у IBAN и только в рабочей группе и группах
+    // операторов: там реквизиты переносят в банк целиком. По карте оператор
+    // копирует один номер, и блок ему только мешает.
     const caption =
-      accessType === 'WORKER'
+      copyable && accessType === 'WORKER'
         ? composeCopyableCaption(sanitizedLines)
         : sanitizedLines.join('\n');
 

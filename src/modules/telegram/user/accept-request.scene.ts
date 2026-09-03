@@ -3,6 +3,8 @@ import { SceneLeave, Wizard, WizardStep } from 'nestjs-telegraf';
 import { RequestService } from 'src/modules/request/request.service';
 import { CustomSceneContext, FullRequestType } from 'src/types/types';
 import { MenuFactory } from '../telegram-keyboards';
+import { Markup } from 'telegraf';
+import { BUTTON_CALLBACKS, BUTTON_TEXTS } from '../telegram.constants';
 import { TelegramService } from '../telegram.service';
 import { AccessControlService } from '../access-control/access-control.service';
 import { UserService } from 'src/modules/user/user.service';
@@ -143,14 +145,17 @@ export class AcceptRequestScene {
       false,
       true,
     );
-    // Кнопку берём из меню вместе с requestId: самодельная «В работе» ходила
-    // на колбэк `in_work_`, которого в боте нет ни одного обработчика, —
-    // нажатие молчало, а нормальные кнопки статуса затирались.
-    const inWork = workerMenu.inWork(undefined, requestId);
+    // В чужих группах заявка уже занята: оставляем плашку статуса на DUMMY,
+    // как в остальных «отменена»/«не в работе». Прежняя кнопка висела на
+    // колбэке `in_work_`, которого в боте нет, — нажатие просто молчало, а
+    // «Взять заявку» здесь показывать нельзя: заявка не свободна.
+    const statusOnly = Markup.inlineKeyboard([
+      [Markup.button.callback(BUTTON_TEXTS.IN_WORK, BUTTON_CALLBACKS.DUMMY)],
+    ]).reply_markup;
     await this.telegramService.updateAllWorkersMessagesWithRequestsId(
       {
-        text: inWork.caption,
-        inline_keyboard: inWork.markup,
+        text: workerMenu.inWork(undefined, requestId).caption,
+        inline_keyboard: statusOnly,
       },
       requestId,
       [state.msId],

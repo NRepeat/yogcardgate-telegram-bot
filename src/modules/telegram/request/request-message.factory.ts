@@ -2,6 +2,7 @@ import { Markup } from 'telegraf';
 import { AccessType, PaymentMethodEnum } from '@prisma/client';
 import { FullRequestType, ReplyPhotoMessage } from 'src/types/types';
 import { BUTTON_CALLBACKS, BUTTON_TEXTS } from '../telegram.constants';
+import { composeCopyableCaption } from './copyable-block';
 
 type RequestMethodWithDetails = NonNullable<FullRequestType['methods']>[number];
 
@@ -375,7 +376,12 @@ export class RequestMessageFactory {
       accessType === 'PUBLIC'
         ? lines.filter((line) => !line.startsWith('👤<b>Принята:'))
         : lines;
-    const caption = sanitizedLines.join('\n');
+    // WORKER — это рабочая группа и группы операторов: там реквизиты уезжают
+    // копируемым блоком. Клиенту и админке карточка остаётся прежней.
+    const caption =
+      accessType === 'WORKER'
+        ? composeCopyableCaption(sanitizedLines)
+        : sanitizedLines.join('\n');
 
     let inline_keyboard = Markup.inlineKeyboard([
       [Markup.button.callback(BUTTON_TEXTS.IN_WORK, BUTTON_CALLBACKS.IN_WORK)],

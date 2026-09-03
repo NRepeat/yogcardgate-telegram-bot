@@ -4,6 +4,7 @@ import { Markup } from 'telegraf';
 import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
 import { FullRequestType, ReplyPhotoMessage } from 'src/types/types';
 import { RequestMessageFactory } from './request/request-message.factory';
+import { composeCopyableCaption } from './request/copyable-block';
 import {
   BUTTON_CALLBACKS,
   BUTTON_TEXTS,
@@ -229,7 +230,14 @@ abstract class BaseRequestMenu {
       lines.push(`💸<b>Оплачено:</b> @${this.request.payedByUser.username}`);
     }
 
-    return lines.filter(Boolean).join('\n');
+    const visible = lines.filter((line): line is string => Boolean(line));
+
+    // Тот же копируемый блок, что и в RequestMessageFactory: сюда карточка
+    // проваливается, когда метод не распознан, а оператору всё равно нужны
+    // реквизиты одним куском.
+    return accessType === 'WORKER'
+      ? composeCopyableCaption(visible)
+      : visible.join('\n');
   }
 
   private buildMethodLabel(

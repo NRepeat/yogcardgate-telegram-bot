@@ -1,3 +1,4 @@
+import PaymentWizard from './paymnet.scene';
 import { TelegramController } from '../telegram.controller';
 import { findForeignCloseSession, localSession } from 'src/session.store';
 
@@ -115,5 +116,65 @@ describe('курс бухгалтера в чужом визарде', () => {
     };
     await makeController(close).on(ctx as never);
     expect(close).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Деньги: строка закрытия собирается из полей заявки, поэтому карточку
+ * рисуем по свежей записи. Читали до update — в карточке не было ни курса
+ * закрытия, ни площадки, хотя в базе они стояли.
+ */
+describe('finishClose: карточка рисуется после записи закрытия', () => {
+  it('findById вызывается после completeRequestWithClose', async () => {
+    const calls: string[] = [];
+    const requestService = {
+      closeFeeFor: jest.fn(async () => '0.1'),
+      completeRequestWithClose: jest.fn(async () => {
+        calls.push('complete');
+      }),
+      findById: jest.fn(async () => {
+        calls.push('find');
+        return { id: 'r1', amount: 1000, rate: 40 };
+      }),
+      getAllPublicMessagesWithRequestsId: jest.fn(async () => []),
+      setMessagesPhoto: jest.fn(async () => undefined),
+    };
+    const telegramService = {
+      deleteReminderMessagesForRequest: jest.fn(async () => undefined),
+      updateAllWorkersMessagesWithRequestsId: jest.fn(async () => 'file-1'),
+      updateAllAdminsMessagesWithRequestsId: jest.fn(async () => 'file-1'),
+      updateAllPublicMessagesWithRequestsId: jest.fn(async () => 'file-1'),
+      deleteAllTelegramMessages: jest.fn(async () => undefined),
+    };
+    const wizard = new PaymentWizard(
+      telegramService as never,
+      {} as never,
+      { telegram: { editMessageText: jest.fn(async () => ({})) } } as never,
+      { get: jest.fn(() => '777') } as never,
+      requestService as never,
+      {} as never,
+    );
+
+    const ctx = {
+      wizard: {
+        state: {
+          requestId: 'r1',
+          paymentPhotos: [{ file_id: 'p1' }],
+          closeStage: 'rate',
+          closeAccount: 'okx',
+          closePromptId: 10,
+        },
+      },
+      session: { messagesToDelete: [], requestMenuMessageId: [] },
+      chat: { id: -1 },
+      from: { id: 777 },
+      message: { text: '46.21', message_id: 1 },
+      reply: jest.fn(async () => ({ message_id: 2 })),
+      scene: { leave: jest.fn() },
+    };
+    await wizard.proceedFinalStep(ctx as never);
+
+    expect(requestService.completeRequestWithClose).toHaveBeenCalled();
+    expect(calls.indexOf('complete')).toBeLessThan(calls.indexOf('find'));
   });
 });

@@ -585,17 +585,20 @@ export default class PaymentWizard {
     if (!userId) {
       throw new Error('User ID not found in context');
     }
-    const request = await this.requestService.findById(requestId);
-    if (!request) {
-      await ctx.scene.leave();
-      throw new Error('Request not found');
-    }
     await this.requestService.completeRequestWithClose(requestId, userId, {
       account: state.closeAccount!,
       rate: close.rate,
       fee: close.fee,
       orderId: close.orderId,
     });
+    // Заявку читаем после записи: в карточку идёт строка закрытия
+    // («Закрытие: Binance · курс 46.21 · …»), а её собирают из тех самых
+    // полей, которые только что проставили.
+    const request = await this.requestService.findById(requestId);
+    if (!request) {
+      await ctx.scene.leave();
+      throw new Error('Request not found');
+    }
     await this.telegramService.deleteReminderMessagesForRequest(requestId);
 
     const publicMenu = MenuFactory.createPublicMenu(

@@ -4,15 +4,13 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { TelegramModule } from './modules/telegram/telegram.module';
-import * as LocalSession from 'telegraf-session-local';
 import { RequestTaskModule } from './modules/request-task/request-task.module';
 import { UserService } from './modules/user/user.service';
 import { WorkGroupService } from './modules/telegram/work-group.service';
 import { UserModule } from './modules/user/user.module';
 import { ExternalApiModule } from './modules/external-api/external-api.module';
 import { PayoutFieldsModule } from './modules/payout-fields/payout-fields.module';
-
-const session = new LocalSession({});
+import { localSession } from './session.store';
 
 @Module({
   imports: [
@@ -30,7 +28,7 @@ const session = new LocalSession({});
       useFactory: (configService: ConfigService) => {
         const webhookDomain = configService.get<string>('WEBHOOK_DOMAIN');
         return {
-          middlewares: [session.middleware()],
+          middlewares: [localSession.middleware()],
           token: configService.get<string>('TELEGRAM_BOT_TOKEN') || '',
           launchOptions: {
             allowedUpdates: [

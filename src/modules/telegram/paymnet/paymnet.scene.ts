@@ -16,6 +16,10 @@ import { InlineKeyboardMarkup } from 'telegraf/typings/core/types/typegram';
 import { RequestService } from 'src/modules/request/request.service';
 import { ExchangeCheckService } from 'src/modules/external-api/exchange-check.service';
 import { MenuFactory } from '../telegram-keyboards';
+import {
+  ForeignCloseSession,
+  saveForeignSession,
+} from 'src/session.store';
 
 export type PaymentPhoto = {
   file_id: string;
@@ -552,6 +556,9 @@ export default class PaymentWizard {
     ctx: CustomSceneContext,
     state: PaymentWizardState,
     close: { rate: string; fee: string; orderId: string | null },
+    // Курс мог проставить бухгалтер за оператора: выплата всё равно
+    // числится за тем, кто вёл заявку, а не за тем, кто вписал число.
+    actorTgId?: number,
   ) {
     const photos = state.paymentPhotos?.length
       ? state.paymentPhotos
@@ -574,7 +581,7 @@ export default class PaymentWizard {
       buffer = await this.utilsService.mergeImagesGrid(buffers);
     }
 
-    const userId = ctx.from?.id;
+    const userId = actorTgId ?? ctx.from?.id;
     if (!userId) {
       throw new Error('User ID not found in context');
     }
@@ -649,6 +656,61 @@ export default class PaymentWizard {
     await this.deletePhotoFileIfExists(photoUrl);
 
     await ctx.scene.leave();
+  }
+
+  /**
+   * Ручной курс бухгалтера в чужой визард. Сессии в этом боте разложены по
+   * ключу `chat:user`, поэтому сообщение бухгалтера в шаг оператора не
+   * попадает — состояние оператора приходит сюда из стора (`foreign`).
+   * Выплата остаётся за оператором: в базу уходит его id.
+   *
+   * Возвращает false, если заявка уже исчезла — звать её незачем.
+   */
+  async closeForeignWithRate(
+    ctx: CustomSceneContext,
+    foreign: ForeignCloseSession,
+    rate: string,
+  ): Promise<boolean> {
+    const state = foreign.state as PaymentWizardState;
+    const previousStage = state.closeStage;
+    if (!state.requestId || !state.closeAccount) return false;
+
+    // 'checking' на время работы: второй такой же ввод (или сам оператор)
+    // не закроет заявку повторно — та же защита, что у сверки по ордеру.
+    state.closeStage = 'checking';
+    await saveForeignSession(foreign.key, foreign.data);
+    try {
+      const fee = await this.requestService.closeFeeFor(state.closeAccount);
+      await this.finishClose(
+        ctx,
+        state,
+        { rate, fee, orderId: null },
+        foreign.operatorTgId,
+      );
+    } catch (error) {
+      // Не закрылось — возвращаем оператора на его шаг, иначе визард
+      // застрянет в 'checking' и перестанет принимать ввод.
+      state.closeStage = previousStage;
+      await saveForeignSession(foreign.key, foreign.data);
+      throw error;
+    }
+
+    // Визард оператора отработал не в его апдейте: @SceneLeave не сработает,
+    // прибираем его сообщения и гасим сцену руками.
+    await this.telegramService.deleteAllTelegramMessages(
+      foreign.data.messagesToDelete,
+      ctx.chat?.id,
+    );
+    await this.telegramService.deleteAllTelegramMessages(
+      foreign.data.requestMenuMessageId,
+      ctx.chat?.id,
+    );
+    foreign.data.__scenes = {};
+    foreign.data.messagesToDelete = [];
+    foreign.data.customState = '';
+    foreign.data.requestMenuMessageId = undefined;
+    await saveForeignSession(foreign.key, foreign.data);
+    return true;
   }
 
   /** Подсказка текущего шага закрытия: правим одно сообщение, переписка не растёт. */

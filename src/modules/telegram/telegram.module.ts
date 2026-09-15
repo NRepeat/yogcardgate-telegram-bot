@@ -25,6 +25,7 @@ import { PayoutFieldsActions } from './payout-fields/payout-fields.actions';
 import { BoxApiService } from '../payout-fields/box-api.service';
 import { AdminGuard } from './admin.guard';
 import { WorkGroupService } from './work-group.service';
+import { TelegramController } from './telegram.controller';
 
 @Module({
   imports: [
@@ -58,6 +59,9 @@ import { WorkGroupService } from './work-group.service';
     BoxApiService,
     AdminGuard,
     WorkGroupService,
+    // @Update-класс: без регистрации в DI nestjs-telegraf его не видит и
+    // курс бухгалтера в чужой визард не доходит вообще.
+    TelegramController,
   ],
 })
 export class TelegramModule {}

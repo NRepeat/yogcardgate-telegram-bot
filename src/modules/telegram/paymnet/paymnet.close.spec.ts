@@ -1,4 +1,8 @@
-import PaymentWizard, { isBookkeeperId, parseCloseNum } from './paymnet.scene';
+import PaymentWizard, {
+  isBookkeeperId,
+  parseCloseNum,
+  parseOrderIds,
+} from './paymnet.scene';
 
 /** Деньги: запятая оператора не должна валить шаг, мусор не должен пройти. */
 describe('parseCloseNum', () => {
@@ -67,7 +71,8 @@ describe('closeStage во время сверки', () => {
     // ордер либо не найдётся, либо найдётся чужой
     expect(verify).toHaveBeenCalledWith(
       'r1',
-      '1234567',
+      // список: закрытие частями идёт одним запросом, одиночный ордер — список из одного
+      ['1234567'],
       expect.any(String),
       'binance',
       777,
@@ -159,5 +164,86 @@ describe('гард бухгалтера', () => {
     expect(orderCtx.reply).toHaveBeenCalledWith(
       expect.stringContaining('бухгалтер'),
     );
+  });
+});
+
+/**
+ * Партнёр берётся из заявки: её поставщик и есть партнёр закрытия. Ручной ввод
+ * оставлен только на случай пустого title — иначе отчёт по площадкам сыпется на
+ * опечатках операторов.
+ */
+describe('закрытие по партнёру', () => {
+  const makeWizard = (vendorTitle: string | null) => {
+    const requestService = {
+      findById: jest.fn(async () => ({
+        id: 'r1',
+        vendor: vendorTitle === null ? null : { title: vendorTitle },
+      })),
+    };
+    const wizard = new PaymentWizard(
+      {} as never,
+      {} as never,
+      { telegram: { editMessageText: jest.fn(async () => ({})) } } as never,
+      {} as never,
+      requestService as never,
+      {} as never,
+    );
+    const state: Record<string, unknown> = {
+      requestId: 'r1',
+      paymentPhotos: [],
+      closeStage: 'account',
+      closePromptId: 10,
+    };
+    const ctx = {
+      wizard: { state },
+      session: { messagesToDelete: [], requestMenuMessageId: [] },
+      chat: { id: 1 },
+      from: { id: 777 },
+      answerCbQuery: jest.fn(),
+      editMessageReplyMarkup: jest.fn(async () => ({})),
+      reply: jest.fn(async () => ({ message_id: 2 })),
+      callbackQuery: { data: 'close_acc_partner' },
+    };
+    return { wizard, state, ctx };
+  };
+
+  it('имя партнёра — из заявки, шаг ввода пропускается', async () => {
+    const { wizard, state, ctx } = makeWizard('WB');
+    await wizard.proceedFinalStep(ctx as never);
+    expect(state.closeAccount).toBe('partner:WB');
+    expect(state.closeStage).toBe('rate');
+  });
+
+  it('пустой title поставщика — спрашиваем руками, как раньше', async () => {
+    const { wizard, state, ctx } = makeWizard('   ');
+    await wizard.proceedFinalStep(ctx as never);
+    expect(state.closeAccount).toBeUndefined();
+    expect(state.closeStage).toBe('partner');
+  });
+});
+
+/**
+ * Закрытие частями: несколько ID в одном сообщении. Сумму сверяет
+ * exchange-check (допуск 5%), бот отвечает за разбор ввода.
+ */
+describe('parseOrderIds', () => {
+  it('разбирает один и несколько ID, дубли схлопывает', () => {
+    expect(parseOrderIds('12345678')).toEqual(['12345678']);
+    expect(parseOrderIds(' 12345678  87654321 ')).toEqual(['12345678', '87654321']);
+    expect(parseOrderIds('12345678,87654321')).toEqual(['12345678', '87654321']);
+    expect(parseOrderIds('12345678\n87654321')).toEqual(['12345678', '87654321']);
+    // список из заметок: нумерация и маркеры — оформление, не номера
+    expect(parseOrderIds('1. 12345678\n2. 87654321')).toEqual(['12345678', '87654321']);
+    expect(parseOrderIds('- 12345678\n- 87654321')).toEqual(['12345678', '87654321']);
+    expect(parseOrderIds('№12345678 #87654321')).toEqual(['12345678', '87654321']);
+    // повтор того же номера не должен удваивать сумму
+    expect(parseOrderIds('12345678 12345678')).toEqual(['12345678']);
+  });
+
+  it('курс и мусор — не ID', () => {
+    expect(parseOrderIds('44.12')).toBeNull();
+    expect(parseOrderIds('курс 44')).toBeNull();
+    expect(parseOrderIds('12345678 44.12')).toBeNull();
+    expect(parseOrderIds('')).toBeNull();
   });
 });

@@ -54,7 +54,8 @@ export class ExchangeCheckService {
 
   async verify(
     requestId: string,
-    orderId: string,
+    /** Один ордер или несколько: закрытие частями идёт одним запросом. */
+    orderId: string | string[],
     expectedAmount: string,
     exchange: string,
     operatorId: number,
@@ -69,7 +70,10 @@ export class ExchangeCheckService {
           workspace: 'klim',
           request_id: requestId,
           exchange,
-          order_id: orderId,
+          // order_id — старый контракт (сервис принимает оба);
+          // order_ids сверяется суммой с допуском 5%
+          order_id: Array.isArray(orderId) ? (orderId[0] ?? '') : orderId,
+          order_ids: Array.isArray(orderId) ? orderId : [orderId],
           expected_amount: expectedAmount,
           expected_asset: 'USDT',
           // ключи берутся по закрывающему: у каждого сотрудника свой аккаунт

@@ -62,7 +62,8 @@ const displayAccount = (account: string) =>
   account.charAt(0).toUpperCase() + account.slice(1);
 
 const askOrder = (account: string) =>
-  `🧾 ID P2P-ордера ${displayAccount(account)}`;
+  `🧾 ID P2P-ордера ${displayAccount(account)}\n` +
+  'Закрыли частями — пришлите все ID списком, каждый с новой строки.';
 const checking = (account: string) => `⏳ Сверяю с ${displayAccount(account)}…`;
 
 const CLOSE_TYPE_KB = Markup.inlineKeyboard([
@@ -112,6 +113,29 @@ export function isBookkeeperId(
  * ошибка. Возвращает нормализованную строку («41,25 » → "41.25") — в БД
  * уходит ровно то, что распарсилось, без float-округления.
  */
+/** Мусор вокруг номеров: маркеры списка и нумерация «1.» / «2)». */
+const LIST_NOISE = /^(?:[-–—*•·]|\d{1,3}[.)])$/u;
+
+/**
+ * ID ордеров из одного сообщения: закрытие частями — оператор шлёт их списком
+ * (с новой строки, через пробел или запятую), часто с маркерами или
+ * нумерацией, копипастой из своих заметок. Номера достаём, оформление
+ * выбрасываем. Дубли схлопываем: повторённый номер иначе удвоил бы сумму и
+ * «сошёлся» там, где недоплата.
+ * `null` — среди слов есть что-то кроме номера и оформления: значит это курс
+ * или мусор, и в сверку такой текст пускать нельзя.
+ */
+export function parseOrderIds(s: string): string[] | null {
+  const ids: string[] = [];
+  for (const raw of s.split(/[\s,;]+/u).filter(Boolean)) {
+    if (LIST_NOISE.test(raw)) continue;
+    const id = raw.replace(/^[#№]/u, '');
+    if (!/^\d{5,}$/.test(id)) return null;
+    if (!ids.includes(id)) ids.push(id);
+  }
+  return ids.length ? ids : null;
+}
+
 export function parseCloseNum(s: string): string | null {
   const norm = s.trim().replace(',', '.');
   const v = Number(norm);
@@ -286,8 +310,25 @@ export default class PaymentWizard {
         const account = data.substring('close_acc_'.length);
         await ctx.answerCbQuery();
         if (account === 'partner') {
-          state.closeStage = 'partner';
-          await this.editClosePrompt(ctx, state, ASK_PARTNER, CLOSE_CANCEL_KB);
+          // Партнёр заявки уже известен — это её поставщик. Спрашивать имя
+          // руками значит получать тот же текст с опечатками, а по ним потом
+          // не сходится отчёт по площадкам. Спрашиваем, только если у
+          // поставщика пустой title.
+          const request = await this.requestService.findById(state.requestId);
+          const partner = request?.vendor?.title?.trim();
+          if (partner) {
+            state.closeAccount = `partner:${partner}`;
+            state.closeStage = 'rate';
+            await this.editClosePrompt(
+              ctx,
+              state,
+              `${ASK_RATE}\n🤝 Партнёр: ${partner}`,
+              CLOSE_CANCEL_KB,
+            );
+          } else {
+            state.closeStage = 'partner';
+            await this.editClosePrompt(ctx, state, ASK_PARTNER, CLOSE_CANCEL_KB);
+          }
         } else if (AUTO_CHECKED.includes(account)) {
           state.closeAccount = account;
           state.closeStage = 'order';
@@ -470,7 +511,8 @@ export default class PaymentWizard {
 
       // Голое короткое число («44.12») — это ручной курс, а не ID:
       // тот же путь и тот же гард, что у «курс N».
-      if (!/^\d{5,}$/.test(text)) {
+      const orderIds = parseOrderIds(text);
+      if (!orderIds) {
         const bareRate = parseCloseNum(text);
         if (bareRate) {
           if (!this.isBookkeeper(ctx)) {
@@ -483,7 +525,8 @@ export default class PaymentWizard {
         }
         await this.replyCloseError(
           ctx,
-          `ID ордера — число из ордера ${displayAccount(state.closeAccount!)}.`,
+          `ID ордера — число из ордера ${displayAccount(state.closeAccount!)}. ` +
+            'Несколько ордеров — списком, каждый с новой строки.',
         );
         return;
       }
@@ -519,7 +562,7 @@ export default class PaymentWizard {
       // биржевого аккаунта, чужим ключом он не найдётся
       const verdict = await this.exchangeCheckService.verify(
         state.requestId,
-        text,
+        orderIds,
         usdtAmount.toFixed(8),
         state.closeAccount!,
         ctx.from?.id ?? 0,
@@ -542,7 +585,9 @@ export default class PaymentWizard {
       await this.finishClose(ctx, state, {
         rate: verdict.rate,
         fee: verdict.fee,
-        orderId: text,
+        // несколько ордеров на заявку — храним списком в том же поле:
+        // реестр «ордер тратится один раз» живёт в exchange-check
+        orderId: orderIds.join(','),
       });
     }
   }

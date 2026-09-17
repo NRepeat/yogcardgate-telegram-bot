@@ -310,25 +310,8 @@ export default class PaymentWizard {
         const account = data.substring('close_acc_'.length);
         await ctx.answerCbQuery();
         if (account === 'partner') {
-          // Партнёр заявки уже известен — это её поставщик. Спрашивать имя
-          // руками значит получать тот же текст с опечатками, а по ним потом
-          // не сходится отчёт по площадкам. Спрашиваем, только если у
-          // поставщика пустой title.
-          const request = await this.requestService.findById(state.requestId);
-          const partner = request?.vendor?.title?.trim();
-          if (partner) {
-            state.closeAccount = `partner:${partner}`;
-            state.closeStage = 'rate';
-            await this.editClosePrompt(
-              ctx,
-              state,
-              `${ASK_RATE}\n🤝 Партнёр: ${partner}`,
-              CLOSE_CANCEL_KB,
-            );
-          } else {
-            state.closeStage = 'partner';
-            await this.editClosePrompt(ctx, state, ASK_PARTNER, CLOSE_CANCEL_KB);
-          }
+          state.closeStage = 'partner';
+          await this.editClosePrompt(ctx, state, ASK_PARTNER, CLOSE_CANCEL_KB);
         } else if (AUTO_CHECKED.includes(account)) {
           state.closeAccount = account;
           state.closeStage = 'order';

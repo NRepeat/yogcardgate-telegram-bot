@@ -167,25 +167,15 @@ describe('гард бухгалтера', () => {
   });
 });
 
-/**
- * Партнёр берётся из заявки: её поставщик и есть партнёр закрытия. Ручной ввод
- * оставлен только на случай пустого title — иначе отчёт по площадкам сыпется на
- * опечатках операторов.
- */
+/** Партнёр закрытия вводится оператором руками — имя из заявки не подставляем. */
 describe('закрытие по партнёру', () => {
-  const makeWizard = (vendorTitle: string | null) => {
-    const requestService = {
-      findById: jest.fn(async () => ({
-        id: 'r1',
-        vendor: vendorTitle === null ? null : { title: vendorTitle },
-      })),
-    };
+  const makeWizard = () => {
     const wizard = new PaymentWizard(
       {} as never,
       {} as never,
       { telegram: { editMessageText: jest.fn(async () => ({})) } } as never,
       {} as never,
-      requestService as never,
+      {} as never,
       {} as never,
     );
     const state: Record<string, unknown> = {
@@ -207,15 +197,8 @@ describe('закрытие по партнёру', () => {
     return { wizard, state, ctx };
   };
 
-  it('имя партнёра — из заявки, шаг ввода пропускается', async () => {
-    const { wizard, state, ctx } = makeWizard('WB');
-    await wizard.proceedFinalStep(ctx as never);
-    expect(state.closeAccount).toBe('partner:WB');
-    expect(state.closeStage).toBe('rate');
-  });
-
-  it('пустой title поставщика — спрашиваем руками, как раньше', async () => {
-    const { wizard, state, ctx } = makeWizard('   ');
+  it('кнопка «Партнёр» ведёт на ручной ввод имени', async () => {
+    const { wizard, state, ctx } = makeWizard();
     await wizard.proceedFinalStep(ctx as never);
     expect(state.closeAccount).toBeUndefined();
     expect(state.closeStage).toBe('partner');

@@ -49,19 +49,14 @@ export class TelegramController {
     // своей на руках нет.
     if ((ctx.session as any)?.__scenes?.state?.closeStage) return;
 
+    // Закрывать нечего — молчим: «курс 41» в рабочем чате пишут и просто так,
+    // предупреждение на каждое такое сообщение читается как поломка бота.
+    const foreign = findForeignCloseSession(chatId, fromId, OPEN_CLOSE_STAGES);
+    if (!foreign) return;
+
     // «курс 41.25» — явная форма; голое число — тоже курс, но на шаге ордера
     // длинное число это ID ордера, а не курс.
     const manual = /^курс\s+(.+)$/iu.exec(text);
-
-    const foreign = findForeignCloseSession(chatId, fromId, OPEN_CLOSE_STAGES);
-    if (!foreign) {
-      // На явную команду «курс N» молчать нельзя: бухгалтер решит, что бот
-      // сломался, хотя он просто промахнулся чатом.
-      if (manual) {
-        await ctx.reply('⚠️ В этом чате нет заявки, ожидающей курс.');
-      }
-      return;
-    }
     const raw = manual
       ? manual[1]
       : foreign.state.closeStage === 'order' && /^\d{5,}$/.test(text)

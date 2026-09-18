@@ -98,6 +98,15 @@ describe('курс бухгалтера в чужом визарде', () => {
     expect(close2).toHaveBeenCalledWith(manual, expect.anything(), '41.25');
   });
 
+  it('«курс 41» без открытого визарда — молчим', async () => {
+    seed([]);
+    const close = jest.fn();
+    const ctx = makeCtx('курс 41');
+    await makeController(close).on(ctx as never);
+    expect(close).not.toHaveBeenCalled();
+    expect(ctx.reply).not.toHaveBeenCalled();
+  });
+
   it('обычная болтовня в группе — молчим', async () => {
     seed([closeRow('-1:555', 'rate')]);
     const close = jest.fn();

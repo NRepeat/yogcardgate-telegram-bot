@@ -237,10 +237,11 @@ export class UtilsService {
           methodLabel = 'Kapital/Leo/M10';
         } else if (method === 'AZN_OTHER_BANKS') {
           methodLabel = 'CARD остальные банки';
-        } else if (method === 'CARD' && currencyCode.toUpperCase() === 'USD') {
+        } else if (
+          method === 'CARD' &&
+          ['USD', 'EUR'].includes(currencyCode.toUpperCase())
+        ) {
           methodLabel = 'CARD VISA/Master';
-        } else if (method === 'CARD' && currencyCode.toUpperCase() === 'EUR') {
-          methodLabel = 'CARD VISA';
         } else if (method === 'IBAN' && currencyCode.toUpperCase() === 'EUR') {
           methodLabel = 'IBAN PERSONAL';
         } else if (method === 'EUR_IBAN_BUSINESS') {

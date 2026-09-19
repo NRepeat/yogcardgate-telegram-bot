@@ -230,3 +230,64 @@ describe('parseOrderIds', () => {
     expect(parseOrderIds('')).toBeNull();
   });
 });
+
+/**
+ * Кнопку закрытия жмёт не владелец визарда: сессии по `chat:user`, апдейт в
+ * сцену не попадает. Без моста такой апдейт пропадал молча — кнопка висела.
+ */
+describe('кнопка закрытия из чужой сессии', () => {
+  it('двигает шаг оператора и сохраняет его сессию', async () => {
+    const store = require('src/session.store');
+    const data = {
+      __scenes: {
+        current: 'payment_photo_proceed',
+        state: { requestId: 'r1', closeStage: 'account', closePromptId: 10 },
+      },
+    };
+    const find = jest
+      .spyOn(store, 'findForeignCloseSession')
+      .mockReturnValue({
+        key: '-100:777',
+        operatorTgId: 777,
+        data,
+        state: data.__scenes.state,
+      });
+    const save = jest
+      .spyOn(store, 'saveForeignSession')
+      .mockResolvedValue(undefined);
+
+    const bot = { telegram: { editMessageText: jest.fn(async () => ({})) } };
+    const wizard = new PaymentWizard(
+      {} as never,
+      {} as never,
+      bot as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    const ctx = {
+      chat: { id: -100 },
+      from: { id: 555 },
+      callbackQuery: { data: 'close_acc_binance' },
+      answerCbQuery: jest.fn(),
+      reply: jest.fn(async () => ({ message_id: 2 })),
+      session: { requestMenuMessageId: [] },
+    };
+
+    await expect(wizard.handleForeignCloseCallback(ctx as never)).resolves.toBe(
+      true,
+    );
+    expect(data.__scenes.state.closeStage).toBe('order');
+    expect((data.__scenes.state as any).closeAccount).toBe('binance');
+    expect(ctx.answerCbQuery).toHaveBeenCalled();
+    expect(save).toHaveBeenCalledWith('-100:777', data);
+
+    // закрывать в чате нечего — кнопка не наша, глобальный обработчик идёт дальше
+    find.mockReturnValue(null);
+    await expect(wizard.handleForeignCloseCallback(ctx as never)).resolves.toBe(
+      false,
+    );
+    find.mockRestore();
+    save.mockRestore();
+  });
+});

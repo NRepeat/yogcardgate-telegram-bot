@@ -11,6 +11,7 @@ import { BUTTON_CALLBACKS, BUTTON_TEXTS } from '../telegram.constants';
 import { User } from '@prisma/client';
 import { AccessControlService } from '../access-control/access-control.service';
 import { VendorCallbackService } from '../callback/vendors';
+import PaymentWizard from '../paymnet/paymnet.scene';
 
 @Update()
 export class UserActions {
@@ -20,6 +21,7 @@ export class UserActions {
     private readonly telegramService: TelegramService,
     private readonly accessControlService: AccessControlService,
     private readonly VendorCallbackService: VendorCallbackService,
+    private readonly paymentWizard: PaymentWizard,
   ) {}
 
   private async getPhotoUrlFromDatabase(requestId: string): Promise<string> {
@@ -85,6 +87,19 @@ export class UserActions {
     } else if ('data' in callbackQuery) {
       const data = callbackQuery.data;
       const currentUserId = callbackQuery.from.id;
+
+      // Кнопки шага закрытия: у владельца визарда их разбирает сцена, сюда
+      // падает нажатие чужого человека в том же чате — иначе апдейт молча
+      // пропадал и кнопка «не работала».
+      if (
+        data === 'close_exchanges' ||
+        data === 'close_back' ||
+        data.startsWith('close_acc_')
+      ) {
+        if (await this.paymentWizard.handleForeignCloseCallback(ctx as CustomSceneContext)) {
+          return;
+        }
+      }
 
       // Vendor-related callbacks — delegate and return
       if (data.startsWith('provider_') || data.startsWith('toggle_off_') || data === 'close') {

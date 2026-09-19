@@ -18,6 +18,7 @@ import { ExchangeCheckService } from 'src/modules/external-api/exchange-check.se
 import { MenuFactory } from '../telegram-keyboards';
 import {
   ForeignCloseSession,
+  findForeignCloseSession,
   saveForeignSession,
 } from 'src/session.store';
 
@@ -292,42 +293,9 @@ export default class PaymentWizard {
         return;
       }
 
-      // [Биржи] ⇄ [◀ Назад] — листание экранов выбора площадки
-      if (data === 'close_exchanges' && state.closeStage === 'account') {
-        await ctx.answerCbQuery();
-        await ctx.editMessageReplyMarkup(CLOSE_EXCHANGES_KB).catch(() => {});
-        return;
-      }
-      if (data === 'close_back' && state.closeStage === 'account') {
-        await ctx.answerCbQuery();
-        await ctx.editMessageReplyMarkup(CLOSE_TYPE_KB).catch(() => {});
-        return;
-      }
-
-      // Кнопка площадки: где есть автосверка — по ID ордера, партнёр — сначала
-      // имя, остальные биржи — сразу курс.
-      if (data.startsWith('close_acc_') && state.closeStage === 'account') {
-        const account = data.substring('close_acc_'.length);
-        await ctx.answerCbQuery();
-        if (account === 'partner') {
-          state.closeStage = 'partner';
-          await this.editClosePrompt(ctx, state, ASK_PARTNER, CLOSE_CANCEL_KB);
-        } else if (AUTO_CHECKED.includes(account)) {
-          state.closeAccount = account;
-          state.closeStage = 'order';
-          await this.editClosePrompt(
-            ctx,
-            state,
-            askOrder(account),
-            CLOSE_CANCEL_KB,
-          );
-        } else {
-          state.closeAccount = account;
-          state.closeStage = 'rate';
-          await this.editClosePrompt(ctx, state, ASK_RATE, CLOSE_CANCEL_KB);
-        }
-        return;
-      }
+      // Кнопки шага «где закрыта» — общий обработчик: тот же код двигает и
+      // чужую сессию, когда жмёт бухгалтер.
+      if (await this.onCloseAccountCallback(ctx, state, data)) return;
 
       if (data === 'retry_receipt') {
         if (state.closeStage) {
@@ -426,6 +394,90 @@ export default class PaymentWizard {
       return;
     }
     await ctx.scene.leave();
+  }
+
+  /**
+   * Кнопки шага «где закрыта»: площадка, листание [Биржи] ⇄ [◀ Назад].
+   * Состояние приходит аргументом — тем же кодом ходит и владелец визарда, и
+   * бухгалтер по чужой сессии. `false` — кнопка не про этот шаг.
+   */
+  async onCloseAccountCallback(
+    ctx: CustomSceneContext,
+    state: PaymentWizardState,
+    data: string,
+  ): Promise<boolean> {
+    if (state.closeStage !== 'account') return false;
+
+    if (data === 'close_exchanges') {
+      await ctx.answerCbQuery();
+      await ctx.editMessageReplyMarkup(CLOSE_EXCHANGES_KB).catch(() => {});
+      return true;
+    }
+    if (data === 'close_back') {
+      await ctx.answerCbQuery();
+      await ctx.editMessageReplyMarkup(CLOSE_TYPE_KB).catch(() => {});
+      return true;
+    }
+    if (!data.startsWith('close_acc_')) return false;
+
+    // Где есть автосверка — по ID ордера, партнёр — сначала имя, остальные
+    // биржи — сразу курс.
+    const account = data.substring('close_acc_'.length);
+    await ctx.answerCbQuery();
+    if (account === 'partner') {
+      state.closeStage = 'partner';
+      await this.editClosePrompt(ctx, state, ASK_PARTNER, CLOSE_CANCEL_KB);
+    } else if (AUTO_CHECKED.includes(account)) {
+      state.closeAccount = account;
+      state.closeStage = 'order';
+      await this.editClosePrompt(ctx, state, askOrder(account), CLOSE_CANCEL_KB);
+    } else {
+      state.closeAccount = account;
+      state.closeStage = 'rate';
+      await this.editClosePrompt(ctx, state, ASK_RATE, CLOSE_CANCEL_KB);
+    }
+    return true;
+  }
+
+  /**
+   * Кнопку закрытия нажал не владелец визарда (бухгалтер, второй оператор,
+   * анонимный админ). Сессии разложены по `chat:user`, поэтому такой апдейт до
+   * шага оператора сам не доходит и молча пропадает — кнопка «не работает».
+   * Находим открытый шаг в этом чате и двигаем его, как курс бухгалтера.
+   */
+  async handleForeignCloseCallback(ctx: CustomSceneContext): Promise<boolean> {
+    const chatId = ctx.chat?.id;
+    const fromId = ctx.from?.id;
+    const data = (ctx.callbackQuery as { data?: string } | undefined)?.data;
+    if (!chatId || !fromId || !data) return false;
+
+    const foreign = findForeignCloseSession(chatId, fromId, ['account']);
+    if (!foreign) return false;
+
+    const handled = await this.onCloseAccountCallback(
+      ctx,
+      foreign.state as PaymentWizardState,
+      data,
+    );
+    if (handled) await saveForeignSession(foreign.key, foreign.data);
+    return handled;
+  }
+
+  /**
+   * Имя партнёра от бухгалтера: шаг 'partner' — это текст, а не кнопка,
+   * и приходит он тем же чужим апдейтом, что и курс.
+   */
+  async setForeignPartner(
+    ctx: CustomSceneContext,
+    foreign: ForeignCloseSession,
+    name: string,
+  ): Promise<void> {
+    const state = foreign.state as PaymentWizardState;
+    if (state.closeStage !== 'partner' || !name) return;
+    state.closeAccount = `partner:${name}`;
+    state.closeStage = 'rate';
+    await this.editClosePrompt(ctx, state, ASK_RATE, CLOSE_CANCEL_KB);
+    await saveForeignSession(foreign.key, foreign.data);
   }
 
   /** Проверяем id отправителя текста — не чата: гард именно на человека. */

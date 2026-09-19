@@ -9,8 +9,11 @@ import PaymentWizard, {
 import { CustomSceneContext } from 'src/types/types';
 import { findForeignCloseSession } from 'src/session.store';
 
-/** Шаги закрытия, куда можно вписать курс: 'checking' — сверка, туда нельзя. */
-const OPEN_CLOSE_STAGES = ['rate', 'order'];
+/**
+ * Шаги закрытия, куда бухгалтер может вписать текст: 'partner' — имя партнёра,
+ * 'rate'/'order' — курс. 'checking' — сверка, туда нельзя.
+ */
+const OPEN_CLOSE_STAGES = ['partner', 'rate', 'order'];
 
 @Update()
 export class TelegramController {
@@ -53,6 +56,12 @@ export class TelegramController {
     // предупреждение на каждое такое сообщение читается как поломка бота.
     const foreign = findForeignCloseSession(chatId, fromId, OPEN_CLOSE_STAGES);
     if (!foreign) return;
+
+    // Имя партнёра — не курс: просто записываем и двигаем шаг к курсу.
+    if (foreign.state.closeStage === 'partner') {
+      await this.paymentWizard.setForeignPartner(ctx, foreign, text);
+      return;
+    }
 
     // «курс 41.25» — явная форма; голое число — тоже курс, но на шаге ордера
     // длинное число это ID ордера, а не курс.

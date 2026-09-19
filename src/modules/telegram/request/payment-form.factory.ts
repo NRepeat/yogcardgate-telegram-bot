@@ -233,7 +233,7 @@ const FORM_REGISTRY: PaymentFormRegistry = {
   },
   [CurrencyEnum.USD]: {
     [PaymentMethodEnum.CARD]: {
-      title: 'CARD VISA',
+      title: 'CARD VISA/Master',
       intro: DEFAULT_INTRO,
       fields: [
         {

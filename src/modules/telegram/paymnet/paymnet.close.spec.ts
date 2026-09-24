@@ -16,6 +16,10 @@ describe('parseCloseNum', () => {
     expect(parseCloseNum('-1')).toBeNull();
     expect(parseCloseNum('41.2.5')).toBeNull();
     expect(parseCloseNum('сорок')).toBeNull();
+    // хеш транзакции вместо курса: Number('0x…') — конечное число
+    expect(
+      parseCloseNum('0x6a85a1160dce26d4b9e789a99344cd18741ac725'),
+    ).toBeNull();
     expect(parseCloseNum('')).toBeNull();
   });
 });

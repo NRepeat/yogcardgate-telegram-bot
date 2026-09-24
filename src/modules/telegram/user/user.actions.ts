@@ -12,6 +12,7 @@ import { User } from '@prisma/client';
 import { AccessControlService } from '../access-control/access-control.service';
 import { VendorCallbackService } from '../callback/vendors';
 import PaymentWizard from '../paymnet/paymnet.scene';
+import { photoMedia } from '../photo-source';
 
 @Update()
 export class UserActions {
@@ -520,9 +521,7 @@ export class UserActions {
         const inline_keyboard = Markup.inlineKeyboard([[button]]);
         await ctx.editMessageMedia(
           {
-            media: {
-              source: photoUrl,
-            },
+            media: photoMedia(photoUrl),
             type: 'photo',
             caption: workerMenu.inProcess().caption,
             parse_mode: 'HTML',

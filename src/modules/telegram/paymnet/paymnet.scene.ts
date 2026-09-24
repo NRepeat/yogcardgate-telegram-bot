@@ -21,6 +21,7 @@ import {
   findForeignCloseSession,
   saveForeignSession,
 } from 'src/session.store';
+import { photoMedia } from '../photo-source';
 
 export type PaymentPhoto = {
   file_id: string;
@@ -139,9 +140,11 @@ export function parseOrderIds(s: string): string[] | null {
 
 export function parseCloseNum(s: string): string | null {
   const norm = s.trim().replace(',', '.');
-  const v = Number(norm);
+  // Number() читает и '0x…', и 'Infinity': хеш транзакции, присланный вместо
+  // курса, доезжал до базы и валил запись на `invalid digit found in string`.
+  if (!/^\d+(\.\d+)?$/.test(norm)) return null;
   // курс нулевым не бывает — ноль здесь всегда опечатка
-  return Number.isFinite(v) && v > 0 && norm !== '' ? norm : null;
+  return Number(norm) > 0 ? norm : null;
 }
 
 // Таймер дебаунса media_group живёт вне scene state: telegraf-session-local
@@ -343,9 +346,7 @@ export default class PaymentWizard {
           messageId!,
           undefined,
           {
-            media: {
-              source: photoUrl,
-            },
+            media: photoMedia(photoUrl),
             type: 'photo',
             caption: workerMenu.inProcess(undefined, request.id).caption,
             parse_mode: 'HTML',

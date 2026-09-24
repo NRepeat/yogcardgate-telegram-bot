@@ -26,6 +26,7 @@ import { BoxApiService } from '../payout-fields/box-api.service';
 import { AdminGuard } from './admin.guard';
 import { WorkGroupService } from './work-group.service';
 import { TelegramController } from './telegram.controller';
+import { RequestCompleteController } from './request-complete.controller';
 
 @Module({
   imports: [
@@ -39,7 +40,10 @@ import { TelegramController } from './telegram.controller';
     CurrencyModule,
     ExternalApiModule,
   ],
-  controllers: [],
+  // Эндпоинт ручного закрытия живёт здесь, а не в RequestModule: ему нужен
+  // TelegramService, а тот уже импортирует RequestModule — обратная связь
+  // замкнула бы модули в кольцо.
+  controllers: [RequestCompleteController],
   exports: [TelegramService, WorkGroupService],
   providers: [
     TelegramService,

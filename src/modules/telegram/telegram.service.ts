@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { promises as fsPromises } from 'fs';
 import { Context } from 'telegraf';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf } from 'telegraf';
@@ -276,6 +277,141 @@ export class TelegramService {
         `Failed to delete reminder messages for request ${requestId}`,
         err,
       );
+    }
+  }
+
+  /**
+   * Закрытие заявки и обновление всех её карточек — общий путь визарда выплаты
+   * и ручного эндпоинта. Квитанция приходит сюда уже готовой: визард берёт её
+   * из Telegram (file_id, склейка нескольких — буфером), эндпоинт — из
+   * загруженных файлов. Порядок важен: сначала статус, потом чтение заявки,
+   * потому что в карточку идёт строка закрытия из только что записанных полей.
+   *
+   * `close` не обязателен: до появления визарда заявки закрывались без
+   * площадки и курса, и партнёрский отчёт их всё равно не показывает.
+   */
+  async completeRequestAndRefreshCards(
+    requestId: string,
+    opts: {
+      actorTgId: number;
+      receipt?: { fileId?: string; buffer?: Buffer };
+      close?: {
+        account: string;
+        rate: string;
+        fee: string;
+        orderId: string | null;
+      };
+    },
+  ): Promise<void> {
+    if (opts.close) {
+      await this.requestService.completeRequestWithClose(
+        requestId,
+        opts.actorTgId,
+        opts.close,
+      );
+    } else {
+      await this.requestService.updateRequestStatus(
+        requestId,
+        'COMPLETED',
+        opts.actorTgId,
+      );
+    }
+
+    const request = await this.requestService.findById(requestId);
+    if (!request) {
+      throw new Error('Request not found');
+    }
+    await this.deleteReminderMessagesForRequest(requestId);
+
+    const buffer = opts.receipt?.buffer;
+    const publicMenu = MenuFactory.createPublicMenu(
+      request as unknown as FullRequestType,
+      '',
+      buffer,
+    );
+    const workerMenu = MenuFactory.createWorkerMenu(
+      request as unknown as FullRequestType,
+      '',
+      buffer,
+    );
+    const adminMenu = MenuFactory.createAdminMenu(
+      request as unknown as FullRequestType,
+      '',
+      buffer,
+    );
+
+    // Первая рассылка отдаёт file_id залитой квитанции — им же кроем
+    // остальные каналы, чтобы во всех карточках висела одна картинка.
+    let fileId = opts.receipt?.fileId;
+    fileId =
+      (await this.updateAllWorkersMessagesWithRequestsId(
+        {
+          fileId,
+          source: fileId ? undefined : buffer,
+          text: workerMenu.done(undefined, requestId).caption,
+          inline_keyboard: workerMenu.done(undefined, requestId).markup,
+        },
+        requestId,
+      )) ?? fileId;
+    fileId =
+      (await this.updateAllAdminsMessagesWithRequestsId(
+        {
+          fileId,
+          source: fileId ? undefined : buffer,
+          text: adminMenu.done().caption,
+          inline_keyboard: adminMenu.done().markup,
+        },
+        requestId,
+      )) ?? fileId;
+    fileId =
+      (await this.updateAllPublicMessagesWithRequestsId(
+        {
+          fileId,
+          source: fileId ? undefined : buffer,
+          text: publicMenu.done().caption,
+          inline_keyboard: publicMenu.done().markup,
+        },
+        requestId,
+      )) ?? fileId;
+
+    const previousPhotoUrl = await this.photoUrlFromDatabase(requestId);
+    if (fileId) {
+      // Дальше карточки правятся по photoUrl из базы: держим там квитанцию,
+      // иначе следующая же правка вернёт заглушку.
+      await this.requestService.setMessagesPhoto(requestId, fileId);
+    }
+    await this.deletePhotoFileIfExists(previousPhotoUrl);
+  }
+
+  /** Квитанция заявки из базы; старые ссылки на CDN Telegram уже протухли. */
+  private async photoUrlFromDatabase(requestId: string): Promise<string> {
+    try {
+      const messages =
+        await this.requestService.getAllPublicMessagesWithRequestsId(requestId);
+      const withPhoto = messages?.find((m) => m.photoUrl && m.photoUrl !== '');
+      if (withPhoto?.photoUrl) {
+        if (
+          withPhoto.photoUrl.startsWith('https://api.telegram.org/file/bot')
+        ) {
+          return DEFAULT_PHOTO;
+        }
+        return withPhoto.photoUrl;
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to read photo for request ${requestId}`, error);
+    }
+    return DEFAULT_PHOTO;
+  }
+
+  /** Удаляем только свой временный файл: заглушку и чужие пути не трогаем. */
+  private async deletePhotoFileIfExists(url: string): Promise<void> {
+    if (!url || !url.startsWith('./storage/request-photos/')) return;
+    try {
+      await fsPromises.unlink(url);
+    } catch (error: any) {
+      if (error?.code !== 'ENOENT') {
+        this.logger.warn(`Failed to delete photo file ${url}`, error);
+      }
     }
   }
 

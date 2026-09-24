@@ -665,80 +665,22 @@ export default class PaymentWizard {
     if (!userId) {
       throw new Error('User ID not found in context');
     }
-    await this.requestService.completeRequestWithClose(requestId, userId, {
-      account: state.closeAccount!,
-      rate: close.rate,
-      fee: close.fee,
-      orderId: close.orderId,
-    });
-    // Заявку читаем после записи: в карточку идёт строка закрытия
-    // («Закрытие: Binance · курс 46.21 · …»), а её собирают из тех самых
-    // полей, которые только что проставили.
-    const request = await this.requestService.findById(requestId);
-    if (!request) {
+    try {
+      await this.telegramService.completeRequestAndRefreshCards(requestId, {
+        actorTgId: userId,
+        receipt: { fileId: singleFileId, buffer },
+        close: {
+          account: state.closeAccount!,
+          rate: close.rate,
+          fee: close.fee,
+          orderId: close.orderId,
+        },
+      });
+    } finally {
+      // Визард закрываем в любом случае: оператор не должен застрять в шаге,
+      // если рассылка карточек упала уже после записи COMPLETED.
       await ctx.scene.leave();
-      throw new Error('Request not found');
     }
-    await this.telegramService.deleteReminderMessagesForRequest(requestId);
-
-    const publicMenu = MenuFactory.createPublicMenu(
-      request as unknown as FullRequestType,
-      '',
-      buffer,
-    );
-    const workerMenu = MenuFactory.createWorkerMenu(
-      request as unknown as FullRequestType,
-      '',
-      buffer,
-    );
-    const adminMenu = MenuFactory.createAdminMenu(
-      request as unknown as FullRequestType,
-      '',
-      buffer,
-    );
-    // Первая рассылка отдаёт file_id залитой квитанции — им же кроем
-    // остальные каналы, чтобы во всех карточках висела одна картинка.
-    let fileId = singleFileId;
-    fileId =
-      (await this.telegramService.updateAllWorkersMessagesWithRequestsId(
-        {
-          fileId,
-          source: fileId ? undefined : buffer,
-          text: workerMenu.done(undefined, requestId).caption,
-          inline_keyboard: workerMenu.done(undefined, requestId).markup,
-        },
-        requestId,
-      )) ?? fileId;
-    fileId =
-      (await this.telegramService.updateAllAdminsMessagesWithRequestsId(
-        {
-          fileId,
-          source: fileId ? undefined : buffer,
-          text: adminMenu.done().caption,
-          inline_keyboard: adminMenu.done().markup,
-        },
-        requestId,
-      )) ?? fileId;
-    fileId =
-      (await this.telegramService.updateAllPublicMessagesWithRequestsId(
-        {
-          fileId,
-          source: fileId ? undefined : buffer,
-          text: publicMenu.done().caption,
-          inline_keyboard: publicMenu.done().markup,
-        },
-        requestId,
-      )) ?? fileId;
-
-    const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
-    if (fileId) {
-      // Дальше карточки правятся по photoUrl из базы: держим там квитанцию,
-      // иначе следующая же правка вернёт заглушку.
-      await this.requestService.setMessagesPhoto(requestId, fileId);
-    }
-    await this.deletePhotoFileIfExists(photoUrl);
-
-    await ctx.scene.leave();
   }
 
   /**

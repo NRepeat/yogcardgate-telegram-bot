@@ -129,32 +129,21 @@ describe('курс бухгалтера в чужом визарде', () => {
 });
 
 /**
- * Деньги: строка закрытия собирается из полей заявки, поэтому карточку
- * рисуем по свежей записи. Читали до update — в карточке не было ни курса
- * закрытия, ни площадки, хотя в базе они стояли.
+ * Деньги: сам порядок «сначала запись, потом чтение» теперь живёт в
+ * TelegramService.completeRequestAndRefreshCards и проверяется там же
+ * (telegram.service.complete.spec.ts). Здесь — что визард отдаёт туда всё
+ * нужное: заявку, оператора, квитанцию и поля закрытия.
  */
-describe('finishClose: карточка рисуется после записи закрытия', () => {
-  it('findById вызывается после completeRequestWithClose', async () => {
-    const calls: string[] = [];
+describe('finishClose: визард делегирует закрытие общему методу', () => {
+  it('в общий метод уходят оператор, квитанция и площадка с курсом', async () => {
     const requestService = {
       closeFeeFor: jest.fn(async () => '0.1'),
-      completeRequestWithClose: jest.fn(async () => {
-        calls.push('complete');
-      }),
-      findById: jest.fn(async () => {
-        calls.push('find');
-        return { id: 'r1', amount: 1000, rate: 40 };
-      }),
-      getAllPublicMessagesWithRequestsId: jest.fn(async () => []),
-      setMessagesPhoto: jest.fn(async () => undefined),
     };
-    const telegramService = {
-      deleteReminderMessagesForRequest: jest.fn(async () => undefined),
-      updateAllWorkersMessagesWithRequestsId: jest.fn(async () => 'file-1'),
-      updateAllAdminsMessagesWithRequestsId: jest.fn(async () => 'file-1'),
-      updateAllPublicMessagesWithRequestsId: jest.fn(async () => 'file-1'),
-      deleteAllTelegramMessages: jest.fn(async () => undefined),
-    };
+    const completeRequestAndRefreshCards = jest.fn(
+      async (_id: string, _opts: any) => undefined,
+    );
+    const telegramService = { completeRequestAndRefreshCards };
+    const leave = jest.fn();
     const wizard = new PaymentWizard(
       telegramService as never,
       {} as never,
@@ -179,11 +168,17 @@ describe('finishClose: карточка рисуется после записи
       from: { id: 777 },
       message: { text: '46.21', message_id: 1 },
       reply: jest.fn(async () => ({ message_id: 2 })),
-      scene: { leave: jest.fn() },
+      scene: { leave },
     };
     await wizard.proceedFinalStep(ctx as never);
 
-    expect(requestService.completeRequestWithClose).toHaveBeenCalled();
-    expect(calls.indexOf('complete')).toBeLessThan(calls.indexOf('find'));
+    expect(completeRequestAndRefreshCards).toHaveBeenCalledTimes(1);
+    const [requestId, opts] = completeRequestAndRefreshCards.mock.calls[0];
+    expect(requestId).toBe('r1');
+    expect(opts.actorTgId).toBe(777);
+    // Одна квитанция едет file_id: заново её заливать незачем.
+    expect(opts.receipt.fileId).toBe('p1');
+    expect(opts.close).toMatchObject({ account: 'okx', rate: '46.21' });
+    expect(leave).toHaveBeenCalled();
   });
 });

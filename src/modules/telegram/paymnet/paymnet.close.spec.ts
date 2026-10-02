@@ -128,7 +128,9 @@ describe('гард бухгалтера', () => {
     scene: { leave: jest.fn() },
   });
 
-  it('не-бухгалтер: курс для OKX и «курс N» у Binance блокируются, шаг не меняется', async () => {
+  // Гард временно снят: ручной курс вводит любой оператор. Вернут гард —
+  // снять .skip, тест ловит регресс обратно.
+  it.skip('не-бухгалтер: курс для OKX и «курс N» у Binance блокируются, шаг не меняется', async () => {
     const closeFeeFor = jest.fn();
     const verify = jest.fn();
     const wizard = new PaymentWizard(

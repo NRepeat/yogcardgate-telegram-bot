@@ -481,12 +481,18 @@ export default class PaymentWizard {
     await saveForeignSession(foreign.key, foreign.data);
   }
 
-  /** Проверяем id отправителя текста — не чата: гард именно на человека. */
-  private isBookkeeper(ctx: CustomSceneContext): boolean {
-    return isBookkeeperId(
-      ctx.from?.id,
-      this.configService.get<string>('BOOKKEEPER_TG_IDS'),
-    );
+  /**
+   * Проверяем id отправителя текста — не чата: гард именно на человека.
+   *
+   * ВРЕМЕННО ОТКЛЮЧЁН: ручной курс сейчас вводит любой оператор. Чтобы вернуть
+   * гард — убрать `return true` ниже, проверка по env остаётся на месте.
+   */
+  private isBookkeeper(_ctx: CustomSceneContext): boolean {
+    return true;
+    // return isBookkeeperId(
+    //   _ctx.from?.id,
+    //   this.configService.get<string>('BOOKKEEPER_TG_IDS'),
+    // );
   }
 
   /**

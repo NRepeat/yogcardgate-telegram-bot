@@ -41,6 +41,16 @@ describe('WorkGroupService', () => {
     await expect(nowhere.chatId()).resolves.toBeNull();
   });
 
+  it('тема заявок — из env, мусор и пусто = без темы', () => {
+    expect(make({ WORK_GROUP_TOPIC: '8218' }).service.threadId()).toBe(8218);
+    expect(make({ WORK_GROUP_TOPIC: ' 8218 ' }).service.threadId()).toBe(8218);
+    // «без темы» значит General — ключ в sendPhoto просто не уходит
+    expect(make({ WORK_GROUP_TOPIC: '' }).service.threadId()).toBeUndefined();
+    expect(make({ WORK_GROUP_TOPIC: 'General' }).service.threadId()).toBeUndefined();
+    expect(make({ WORK_GROUP_TOPIC: '0' }).service.threadId()).toBeUndefined();
+    expect(make({}).service.threadId()).toBeUndefined();
+  });
+
   it('запись группы кладёт id в базу и обновляет кэш', async () => {
     const { service, prisma } = make({ WORK_GROUP_CHAT: '-100111' }, null);
     await expect(service.chatId()).resolves.toBe(-100111);

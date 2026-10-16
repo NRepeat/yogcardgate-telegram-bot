@@ -485,6 +485,10 @@ export class TelegramService {
       parse_mode: 'HTML',
       reply_markup: payload.inline_keyboard ?? undefined,
       caption: payload.text ?? '',
+      // Общая группа форумная: карточка идёт в тему заявок. Тема не задана —
+      // ключа нет, и сообщение уходит в чат, как до тем. Напоминания темы не
+      // просят: они отвечают на карточку, а ответ Telegram кладёт в её тему.
+      message_thread_id: this.workGroupService.threadId(),
     });
 
     await this.userService.saveMessage({

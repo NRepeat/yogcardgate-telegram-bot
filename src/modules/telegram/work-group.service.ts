@@ -61,6 +61,19 @@ export class WorkGroupService {
     return this.cached;
   }
 
+  /**
+   * Тема общей группы под заявки. Группа стала форумной, и карточки, уходящие
+   * без темы, валятся в General вперемешку с перепиской.
+   *
+   * Только env: тема задаётся один раз на группу, и команда регистрации ради
+   * одноразовой настройки — лишний путь, который потом надо помнить. Пусто или
+   * мусор — `undefined`, и заявка уходит в чат как раньше.
+   */
+  threadId(): number | undefined {
+    const raw = Number(this.configService.get<string>('WORK_GROUP_TOPIC'));
+    return Number.isInteger(raw) && raw > 0 ? raw : undefined;
+  }
+
   /** Зарегистрировать текущий чат общей группой. */
   async setChatId(chatId: number): Promise<void> {
     await this.prismaService.settings.upsert({

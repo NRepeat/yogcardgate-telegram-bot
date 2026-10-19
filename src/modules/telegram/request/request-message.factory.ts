@@ -605,6 +605,7 @@ export class RequestMessageFactory {
       [PaymentMethodEnum.BANK]: 'Банковская оплата',
       [PaymentMethodEnum.PAYONEER]: 'PAYONEER',
       [PaymentMethodEnum.PAYPAL]: 'PayPal',
+      [PaymentMethodEnum.ZELLE]: 'Zelle',
     };
 
     return methodDisplayMap[method] || method;

@@ -284,6 +284,7 @@ export class CreateRequestWizard {
           [PaymentMethodEnum.IBAN_COMPANY]: BUTTON_TEXTS.IBAN_COMPANY,
           [PaymentMethodEnum.WISE]: 'Wise',
           [PaymentMethodEnum.PAYPAL]: 'PayPal',
+          [PaymentMethodEnum.ZELLE]: 'Zelle',
           [PaymentMethodEnum.PHONE]: 'Phone transfer',
           [PaymentMethodEnum.SKRILL]: 'Skrill / email',
           [PaymentMethodEnum.QR]: 'QR',

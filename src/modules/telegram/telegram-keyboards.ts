@@ -303,6 +303,7 @@ abstract class BaseRequestMenu {
       BANK: 'Банковская оплата',
       PAYONEER: 'PAYONEER',
       PAYPAL: 'PayPal',
+      ZELLE: 'Zelle',
     };
 
     return methodDisplayMap[methodName] || methodName;

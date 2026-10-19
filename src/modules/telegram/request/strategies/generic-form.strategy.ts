@@ -22,6 +22,10 @@ const AMOUNT_LABEL = 'Сумма';
 // and need no dedicated parsing logic. Specific strategies always win because
 // this strategy is registered last.
 const GENERIC_CURRENCIES = new Set<CurrencyEnum>([
+  // USD попал сюда ради Zelle: у остальных методов доллара свои стратегии, и
+  // они зарегистрированы раньше, поэтому сюда доходит только то, у чего
+  // выделенной стратегии нет.
+  CurrencyEnum.USD,
   CurrencyEnum.GBP,
   CurrencyEnum.SEK,
   CurrencyEnum.MDL,

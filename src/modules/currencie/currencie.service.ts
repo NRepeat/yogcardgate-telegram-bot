@@ -51,6 +51,7 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethodEnum, string> = {
   [PaymentMethodEnum.AZN_OTHER_BANKS]: 'CARD остальные банки',
   [PaymentMethodEnum.EUR_IBAN_BUSINESS]: 'IBAN BUSINESS',
   [PaymentMethodEnum.PAYPAL]: 'PayPal',
+  [PaymentMethodEnum.ZELLE]: 'Zelle',
 };
 
 const CHUNK_SIZE = 2;

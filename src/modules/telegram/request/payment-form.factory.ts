@@ -319,6 +319,25 @@ const FORM_REGISTRY: PaymentFormRegistry = {
       ],
       sample: 'paypal@mail.com\nJOHN DOE\n5000',
     },
+    [PaymentMethodEnum.ZELLE]: {
+      title: 'Zelle',
+      intro: DEFAULT_INTRO,
+      fields: [
+        {
+          label: 'Email Zelle',
+          description: 'например zelle@mail.com',
+        },
+        {
+          label: 'ФИО латиницей',
+          description: 'точно как в Zelle',
+        },
+        {
+          label: 'Сумма',
+          description: 'например 1000',
+        },
+      ],
+      sample: 'Worldcoinsexport@gmail.com\nKirill Makarov\n1000',
+    },
   },
   [CurrencyEnum.PLN]: {
     [PaymentMethodEnum.IBAN]: {

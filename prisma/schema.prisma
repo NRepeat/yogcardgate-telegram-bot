@@ -78,6 +78,7 @@ enum PaymentMethodEnum {
   ARS_MERCADO_PAGO
   AZN_OTHER_BANKS
   EUR_IBAN_BUSINESS
+  ZELLE
 }
 
 enum RoleEnum {

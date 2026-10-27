@@ -114,4 +114,26 @@ export class RequestCompleteController {
       cards: updated?.message?.length ?? 0,
     };
   }
+
+  /**
+   * Вернуть заявку в общий список — то же, что кнопка «Отказаться от
+   * заявки». Нужен, когда у оператора на карточке не осталось кнопок.
+   *
+   * POST /api/request/:id/release   x-api-token: <API_TOKEN>
+   */
+  @Post(':id/release')
+  async release(@Param('id') id: string) {
+    const request = await this.requestService.findById(id);
+    if (!request) {
+      throw new HttpException(`Заявка ${id} не найдена`, HttpStatus.NOT_FOUND);
+    }
+    if (request.status === 'COMPLETED') {
+      throw new HttpException(`Заявка ${id} уже закрыта`, HttpStatus.CONFLICT);
+    }
+    await this.requestService.unlinkUser(id);
+    await this.telegramService.updateAdminMessages(id);
+    await this.telegramService.updateWorkerMessages(id, false, true);
+    const updated = await this.requestService.findById(id);
+    return { id, status: updated?.status, cards: updated?.message?.length ?? 0 };
+  }
 }

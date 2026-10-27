@@ -517,18 +517,22 @@ export class UserActions {
         // Кнопки на карточке оставляем: визард квитанции выходит молча на
         // любом постороннем сообщении оператора, и без кнопок карточка
         // повисала «Принята» навсегда. Повторный «Перевел» вне визарда
-        // просто открывает его заново.
-        await ctx.editMessageMedia(
-          {
-            media: photoMedia(photoUrl),
-            type: 'photo',
-            caption: workerMenu.inProcess().caption,
-            parse_mode: 'HTML',
-          },
-          {
-            reply_markup: workerMenu.inProcess(undefined, requestId).markup,
-          },
-        );
+        // просто открывает его заново. Карточка обычно уже ровно такая —
+        // Telegram отвечает «message is not modified», и падать на этом
+        // нельзя: иначе визард квитанции не откроется вовсе.
+        await ctx
+          .editMessageMedia(
+            {
+              media: photoMedia(photoUrl),
+              type: 'photo',
+              caption: workerMenu.inProcess().caption,
+              parse_mode: 'HTML',
+            },
+            {
+              reply_markup: workerMenu.inProcess(undefined, requestId).markup,
+            },
+          )
+          .catch(() => {});
         await ctx.scene.enter('payment_photo_proceed', {
           requestId,
           messageId,

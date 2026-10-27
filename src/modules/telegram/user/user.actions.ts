@@ -514,11 +514,10 @@ export class UserActions {
           true,
           false,
         );
-        const button = Markup.button.callback(
-          'Отменить',
-          'accept_request_' + requestId,
-        );
-        const inline_keyboard = Markup.inlineKeyboard([[button]]);
+        // Кнопки на карточке оставляем: визард квитанции выходит молча на
+        // любом постороннем сообщении оператора, и без кнопок карточка
+        // повисала «Принята» навсегда. Повторный «Перевел» вне визарда
+        // просто открывает его заново.
         await ctx.editMessageMedia(
           {
             media: photoMedia(photoUrl),
@@ -527,7 +526,7 @@ export class UserActions {
             parse_mode: 'HTML',
           },
           {
-            reply_markup: undefined,
+            reply_markup: workerMenu.inProcess(undefined, requestId).markup,
           },
         );
         await ctx.scene.enter('payment_photo_proceed', {

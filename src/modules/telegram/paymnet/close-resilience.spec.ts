@@ -117,6 +117,35 @@ describe('close wizard resilience', () => {
     expect(ctx.scene.leave).toHaveBeenCalled();
   });
 
+  it('cancel is refused while finishClose runs after a successful verify', async () => {
+    const releases: (() => void)[] = [];
+    const utils = {
+      downloadTelegramPhoto: jest.fn(
+        () => new Promise<Buffer>((res) => releases.push(() => res(Buffer.from('x')))),
+      ),
+      mergeImagesGrid: jest.fn(async () => Buffer.from('m')),
+    };
+    const { wizard } = makeWizard({ utils });
+    const state = {
+      requestId: 'r1',
+      paymentPhotos: [photo('a'), photo('b')],
+      closeStage: 'order',
+      closeAccount: 'binance',
+      closePromptId: 10,
+    } as { closeStage: string; checkingSince?: number };
+    const orderCtx = makeCtx(state, { message: { text: '1234567', message_id: 1 } });
+    const inFlight = wizard.proceedFinalStep(orderCtx as never);
+    while (utils.downloadTelegramPhoto.mock.calls.length === 0) await Promise.resolve();
+    // still 'checking' with a live timestamp: watchdog must not see it as stuck
+    expect(state.closeStage).toBe('checking');
+    expect(state.checkingSince).toBeDefined();
+    const ctx = cancelCtx(state);
+    await wizard.proceedFinalStep(ctx as never);
+    expect(ctx.scene.leave).not.toHaveBeenCalled();
+    releases.forEach((r) => r());
+    await inFlight.catch(() => undefined);
+  });
+
   it('cancel inside the lock window is refused', async () => {
     const { wizard } = makeWizard();
     const ctx = cancelCtx({ requestId: 'r1', closeStage: 'checking', checkingSince: Date.now() });

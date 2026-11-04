@@ -608,9 +608,11 @@ export default class PaymentWizard {
         await this.failClose(ctx, state, 'order');
         return;
       }
-      state.checkingSince = undefined;
       if (!verdict.ok) {
+        // timestamp is cleared only when leaving 'checking': while finishClose
+        // runs, cancel stays locked and the watchdog sees a live session
         state.closeStage = 'order';
+        state.checkingSince = undefined;
         await this.editClosePrompt(
           ctx,
           state,

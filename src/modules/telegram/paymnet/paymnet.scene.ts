@@ -45,7 +45,14 @@ interface PaymentWizardState {
   closeStage?: 'account' | 'partner' | 'rate' | 'order' | 'checking';
   closeAccount?: string;
   closePromptId?: number;
+  /** Epoch ms when 'checking' started: cancel and the watchdog key off it. */
+  checkingSince?: number;
 }
+
+/** Cancel is refused during 'checking' only this long; after that it works. */
+export const CHECKING_CANCEL_LOCK_MS = 2 * 60_000;
+export const NETWORK_FAIL_ORDER = '⚠️ Сбой сети — пришлите ID ордера ещё раз';
+const NETWORK_FAIL_RATE = '⚠️ Сбой сети — повторите ввод';
 
 // Тексты шагов закрытия — как в greatbot, флоу единый для всех ботов.
 // Комиссию не спрашиваем: биржа отдаёт её из ордера, остальным — справочник CloseFee.
@@ -320,41 +327,20 @@ export default class PaymentWizard {
       }
 
       if (data === 'cancel_payment_photo_proceed') {
-        if (state.closeStage === 'checking') {
-          // сверка уже ушла на биржу — отменять поздно, дождёмся вердикта
+        if (
+          state.closeStage === 'checking' &&
+          Date.now() - (state.checkingSince ?? 0) < CHECKING_CANCEL_LOCK_MS
+        ) {
+          // сверка уже ушла на биржу — отменять рано, дождёмся вердикта
           await ctx.answerCbQuery('⏳ Идёт сверка, подождите…');
           return;
         }
-        const requestId = state.requestId;
-        const messageId = state.messageId;
-        const request = await this.requestService.findById(requestId);
-        if (!request) {
-          await ctx.scene.leave();
-          throw new Error('Request not found');
+        // Whatever happens to the card, the operator must leave the scene.
+        try {
+          await this.restoreCard(ctx.chat?.id!, state);
+        } catch (error) {
+          console.error('Cancel: failed to restore card:', error);
         }
-        const photoUrl = await this.getPhotoUrlFromDatabase(requestId);
-
-        const workerMenu = MenuFactory.createWorkerMenu(
-          request as unknown as FullRequestType,
-          photoUrl,
-          undefined,
-          true,
-          false,
-        );
-        await this.bot.telegram.editMessageMedia(
-          ctx.chat?.id!,
-          messageId!,
-          undefined,
-          {
-            media: photoMedia(photoUrl),
-            type: 'photo',
-            caption: workerMenu.inProcess(undefined, request.id).caption,
-            parse_mode: 'HTML',
-          },
-          {
-            reply_markup: workerMenu.inProcess(undefined, request.id).markup,
-          },
-        );
         await ctx.scene.leave();
         return;
       }
@@ -598,22 +584,31 @@ export default class PaymentWizard {
       // игнорируются), cancel отвечает «подождите». verify не бросает —
       // при любом неуспехе вернёмся в 'order'.
       state.closeStage = 'checking';
-      // поиск в истории биржи занимает секунды — показываем, что не зависли
-      await this.editClosePrompt(ctx, state, checking(state.closeAccount!));
-      // сверяем ключами того, кто закрывает: ордер лежит в истории его
-      // биржевого аккаунта, чужим ключом он не найдётся
-      const verdict = await this.exchangeCheckService.verify(
-        state.requestId,
-        orderIds,
-        usdtAmount.toFixed(8),
-        state.closeAccount!,
-        ctx.from?.id ?? 0,
-        // Главная сверка — по фиату: крипта в ордере считается по курсу
-        // оператора, а в заявке по курсу клиента, и расходятся они всегда —
-        // это и есть наш заработок. Гривна у обеих сторон одна.
-        String(request.amount),
-        request.currency?.name ?? request.currency?.nameEn ?? '',
-      );
+      state.checkingSince = Date.now();
+      let verdict;
+      try {
+        // поиск в истории биржи занимает секунды — показываем, что не зависли
+        await this.editClosePrompt(ctx, state, checking(state.closeAccount!));
+        // сверяем ключами того, кто закрывает: ордер лежит в истории его
+        // биржевого аккаунта, чужим ключом он не найдётся
+        verdict = await this.exchangeCheckService.verify(
+          state.requestId,
+          orderIds,
+          usdtAmount.toFixed(8),
+          state.closeAccount!,
+          ctx.from?.id ?? 0,
+          // Главная сверка — по фиату: крипта в ордере считается по курсу
+          // оператора, а в заявке по курсу клиента, и расходятся они всегда —
+          // это и есть наш заработок. Гривна у обеих сторон одна.
+          String(request.amount),
+          request.currency?.name ?? request.currency?.nameEn ?? '',
+        );
+      } catch (error) {
+        console.error('Close: verify step failed:', error);
+        await this.failClose(ctx, state, 'order');
+        return;
+      }
+      state.checkingSince = undefined;
       if (!verdict.ok) {
         state.closeStage = 'order';
         await this.editClosePrompt(
@@ -646,7 +641,7 @@ export default class PaymentWizard {
     // Курс мог проставить бухгалтер за оператора: выплата всё равно
     // числится за тем, кто вёл заявку, а не за тем, кто вписал число.
     actorTgId?: number,
-  ) {
+  ): Promise<boolean> {
     const photos = state.paymentPhotos?.length
       ? state.paymentPhotos
       : state.paymentPhoto
@@ -659,13 +654,19 @@ export default class PaymentWizard {
     const singleFileId = photos.length === 1 ? photos[0].file_id : undefined;
     let buffer: Buffer | undefined;
     if (!singleFileId) {
-      const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN')!;
-      const buffers = await Promise.all(
-        photos.map((p) =>
-          this.utilsService.downloadTelegramPhoto(token, p.file_id),
-        ),
-      );
-      buffer = await this.utilsService.mergeImagesGrid(buffers);
+      try {
+        const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN')!;
+        const buffers = await Promise.all(
+          photos.map((p) =>
+            this.utilsService.downloadTelegramPhoto(token, p.file_id),
+          ),
+        );
+        buffer = await this.utilsService.mergeImagesGrid(buffers);
+      } catch (error) {
+        console.error('Close: receipt download/merge failed:', error);
+        await this.failClose(ctx, state, state.closeStage === 'checking' ? 'order' : state.closeStage!);
+        return false;
+      }
     }
 
     const userId = actorTgId ?? ctx.from?.id;
@@ -688,6 +689,23 @@ export default class PaymentWizard {
       // если рассылка карточек упала уже после записи COMPLETED.
       await ctx.scene.leave();
     }
+    return true;
+  }
+
+  /** Back to a step that accepts input, tell the operator, never stay in 'checking'. */
+  private async failClose(
+    ctx: CustomSceneContext,
+    state: PaymentWizardState,
+    stage: NonNullable<PaymentWizardState['closeStage']>,
+  ) {
+    state.closeStage = stage;
+    state.checkingSince = undefined;
+    await this.editClosePrompt(
+      ctx,
+      state,
+      stage === 'order' ? NETWORK_FAIL_ORDER : NETWORK_FAIL_RATE,
+      CLOSE_CANCEL_KB,
+    );
   }
 
   /**
@@ -710,39 +728,117 @@ export default class PaymentWizard {
     // 'checking' на время работы: второй такой же ввод (или сам оператор)
     // не закроет заявку повторно — та же защита, что у сверки по ордеру.
     state.closeStage = 'checking';
+    state.checkingSince = Date.now();
     await saveForeignSession(foreign.key, foreign.data);
     try {
       const fee = await this.requestService.closeFeeFor(state.closeAccount);
-      await this.finishClose(
+      const done = await this.finishClose(
         ctx,
         state,
         { rate, fee, orderId: null },
         foreign.operatorTgId,
       );
+      if (!done) {
+        // network failure: finishClose already told the chat, stage is restored below
+        state.closeStage = previousStage;
+        state.checkingSince = undefined;
+        await saveForeignSession(foreign.key, foreign.data);
+        return false;
+      }
     } catch (error) {
       // Не закрылось — возвращаем оператора на его шаг, иначе визард
       // застрянет в 'checking' и перестанет принимать ввод.
       state.closeStage = previousStage;
+      state.checkingSince = undefined;
       await saveForeignSession(foreign.key, foreign.data);
       throw error;
     }
 
     // Визард оператора отработал не в его апдейте: @SceneLeave не сработает,
     // прибираем его сообщения и гасим сцену руками.
+    await this.clearForeignScene(ctx.chat?.id, foreign);
+    return true;
+  }
+
+  /** Put the in-work buttons back on the request card. */
+  async restoreCard(chatId: number, state: { requestId: string; messageId?: number }) {
+    const request = await this.requestService.findById(state.requestId);
+    if (!request) throw new Error('Request not found');
+    const photoUrl = await this.getPhotoUrlFromDatabase(state.requestId);
+    const workerMenu = MenuFactory.createWorkerMenu(
+      request as unknown as FullRequestType,
+      photoUrl,
+      undefined,
+      true,
+      false,
+    );
+    const view = workerMenu.inProcess(undefined, request.id);
+    try {
+      await this.bot.telegram.editMessageMedia(
+        chatId,
+        state.messageId!,
+        undefined,
+        {
+          media: photoMedia(photoUrl),
+          type: 'photo',
+          caption: view.caption,
+          parse_mode: 'HTML',
+        },
+        { reply_markup: view.markup },
+      );
+    } catch (error) {
+      // card already shows these buttons
+      if (!/message is not modified/i.test(String(error))) throw error;
+    }
+  }
+
+  /** Staff /reset: wipe another operator's wizard and give the card its buttons back. */
+  async resetForeign(chatId: number, foreign: ForeignCloseSession) {
+    const { state } = foreign;
+    await this.clearForeignScene(chatId, foreign);
+    if (state.requestId && state.messageId) {
+      try {
+        await this.restoreCard(chatId, state as PaymentWizardState);
+      } catch (error) {
+        console.error('Reset: failed to restore card:', error);
+      }
+    }
+  }
+
+  /** Return a stuck 'checking' session to 'order' and refresh its prompt (watchdog). */
+  async recoverStuck(chatId: number, foreign: ForeignCloseSession) {
+    const state = foreign.state as PaymentWizardState;
+    state.closeStage = 'order';
+    state.checkingSince = undefined;
+    await saveForeignSession(foreign.key, foreign.data);
+    if (!state.closePromptId) return;
+    try {
+      await this.bot.telegram.editMessageText(
+        chatId,
+        state.closePromptId,
+        undefined,
+        `${NETWORK_FAIL_ORDER}\n\n${askOrder(state.closeAccount ?? '')}`,
+        { reply_markup: CLOSE_CANCEL_KB },
+      );
+    } catch (error) {
+      console.error('Watchdog: failed to edit close prompt:', error);
+    }
+  }
+
+  private async clearForeignScene(chatId: number | undefined, foreign: ForeignCloseSession) {
     await this.telegramService.deleteAllTelegramMessages(
       foreign.data.messagesToDelete,
-      ctx.chat?.id,
+      chatId,
     );
     await this.telegramService.deleteAllTelegramMessages(
       foreign.data.requestMenuMessageId,
-      ctx.chat?.id,
+      chatId,
     );
     foreign.data.__scenes = {};
     foreign.data.messagesToDelete = [];
     foreign.data.customState = '';
     foreign.data.requestMenuMessageId = undefined;
     await saveForeignSession(foreign.key, foreign.data);
-    return true;
   }
 
   /** Подсказка текущего шага закрытия: правим одно сообщение, переписка не растёт. */

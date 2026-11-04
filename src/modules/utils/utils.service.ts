@@ -1,4 +1,5 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { withRetry } from './retry';
 import { UserService } from '../user/user.service';
 import { VendorService } from '../vendor/vendor.service';
 import { Context, Markup } from 'telegraf';
@@ -438,16 +439,24 @@ export class UtilsService {
     botToken: string,
     fileId: string,
   ): Promise<Buffer> {
-    const fileInfo = await fetch(
-      `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`,
+    // Each fetch is checked and retried on its own: a reset connection used to
+    // throw straight out of the close wizard.
+    // Status check and body read sit inside the retry: a reset mid-body
+    // must be retried too.
+    const get = (url: string) =>
+      withRetry(async () => {
+        const res = await fetch(url);
+        if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+        return Buffer.from(await res.arrayBuffer());
+      });
+    const info = JSON.parse(
+      (
+        await get(`https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`)
+      ).toString(),
+    ) as { result: { file_path: string } };
+    return get(
+      `https://api.telegram.org/file/bot${botToken}/${info.result.file_path}`,
     );
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const { result } = await fileInfo.json();
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const url = `https://api.telegram.org/file/bot${botToken}/${result.file_path}`;
-    const response = await fetch(url);
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
   }
   async mergeImagesGrid(images: Buffer[], columns = 2): Promise<Buffer> {
     if (images.length === 1) return images[0];

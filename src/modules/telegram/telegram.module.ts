@@ -26,6 +26,7 @@ import { BoxApiService } from '../payout-fields/box-api.service';
 import { AdminGuard } from './admin.guard';
 import { WorkGroupService } from './work-group.service';
 import { TelegramController } from './telegram.controller';
+import { CloseWatchdogService } from './close-watchdog.service';
 import { RequestCompleteController } from './request-complete.controller';
 
 @Module({
@@ -66,6 +67,7 @@ import { RequestCompleteController } from './request-complete.controller';
     // @Update-класс: без регистрации в DI nestjs-telegraf его не видит и
     // курс бухгалтера в чужой визард не доходит вообще.
     TelegramController,
+    CloseWatchdogService,
   ],
 })
 export class TelegramModule {}

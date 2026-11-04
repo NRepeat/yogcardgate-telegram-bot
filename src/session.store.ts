@@ -58,3 +58,28 @@ export async function saveForeignSession(
 ): Promise<void> {
   await localSession.saveSession(key, data);
 }
+
+const toForeign = (row: any): ForeignCloseSession => ({
+  key: row.id,
+  operatorTgId: Number(String(row.id).split(':')[1]),
+  data: row.data,
+  state: row.data?.__scenes?.state ?? {},
+});
+
+/** One operator's session in a chat (any stage), or null. */
+export function findSessionByKey(key: string): ForeignCloseSession | null {
+  const rows: any[] = (localSession as any).DB.get('sessions').value() ?? [];
+  const row = rows.find((r) => r?.id === key);
+  return row ? toForeign(row) : null;
+}
+
+/** Sessions stuck in 'checking' for longer than `maxAgeMs` (missing timestamp = stuck). */
+export function findStuckCheckingSessions(maxAgeMs: number): ForeignCloseSession[] {
+  const rows: any[] = (localSession as any).DB.get('sessions').value() ?? [];
+  return rows
+    .filter((r) => {
+      const st = r?.data?.__scenes?.state;
+      return st?.closeStage === 'checking' && Date.now() - (st.checkingSince ?? 0) > maxAgeMs;
+    })
+    .map(toForeign);
+}

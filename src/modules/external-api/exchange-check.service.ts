@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { withRetry } from '../utils/retry';
 
 export type ExchangeVerifyResult =
   | { ok: true; rate: string; fee: string }
@@ -63,7 +64,10 @@ export class ExchangeCheckService {
     fiat?: string,
   ): Promise<ExchangeVerifyResult> {
     try {
-      const res = await fetch(`${this.url}/verify`, {
+      // Network errors and 5xx are retried; the service accepts the same order
+      // ids again for the same request, so a repeat is safe.
+      const res = await withRetry(async () => {
+        const r = await fetch(`${this.url}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Secret': this.secret },
         body: JSON.stringify({
@@ -84,6 +88,9 @@ export class ExchangeCheckService {
         }),
         // сервис сам листает историю биржи — даём ему больше времени, чем себе
         signal: AbortSignal.timeout(30_000),
+        });
+        if (r.status >= 500) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
+        return r;
       });
       if (!res.ok) {
         // 401 — неверный EXCHANGE_CHECK_SECRET; оператору это не починить

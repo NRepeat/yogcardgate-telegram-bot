@@ -7,7 +7,7 @@ import PaymentWizard, {
   parseCloseNum,
 } from './paymnet/paymnet.scene';
 import { CustomSceneContext } from 'src/types/types';
-import { findForeignCloseSession } from 'src/session.store';
+import { findForeignCloseSession, findSessionByKey } from 'src/session.store';
 
 /**
  * Шаги закрытия, куда бухгалтер может вписать текст: 'partner' — имя партнёра,
@@ -25,7 +25,40 @@ export class TelegramController {
   ) {}
   @On('message')
   async on(@Ctx() ctx: Context) {
+    if (await this.staffReset(ctx as CustomSceneContext)) return;
     await this.bookkeeperRate(ctx as CustomSceneContext);
+  }
+
+  /**
+   * `/reset` as a reply to an operator's message (bookkeeper/owner only): wipes that
+   * operator's wizard in this chat and gives the request card its buttons back.
+   */
+  private async staffReset(ctx: CustomSceneContext): Promise<boolean> {
+    const msg = ctx.message as
+      | { text?: string; reply_to_message?: { from?: { id: number } } }
+      | undefined;
+    if (!msg?.text || !/^\/reset(@\w+)?$/i.test(msg.text.trim())) return false;
+    const chatId = ctx.chat?.id;
+    const fromId = ctx.from?.id;
+    const targetId = msg.reply_to_message?.from?.id;
+    const staff = [
+      this.configService.get<string>('BOOKKEEPER_TG_IDS'),
+      this.configService.get<string>('OWNER_TG_IDS'),
+    ].some((csv) => isBookkeeperId(fromId, csv));
+    if (!staff || !chatId || !targetId) return false;
+    const foreign = findSessionByKey(`${chatId}:${targetId}`);
+    if (!foreign) {
+      await ctx.reply('Нет открытого шага у этого оператора.');
+      return true;
+    }
+    try {
+      await this.paymentWizard.resetForeign(chatId, foreign);
+      await ctx.reply('✅ Сессия оператора сброшена.');
+    } catch (error) {
+      console.error('staff reset failed:', error);
+      await ctx.reply('⚠️ Не удалось сбросить сессию.');
+    }
+    return true;
   }
 
   /**

@@ -176,6 +176,13 @@ export class UserActions {
         // Delete saved photo file if it exists
         await this.deletePhotoFileIfExists(photoUrl);
       }
+      // «Отмена» визарда квитанции: у владельца её разбирает сцена, сюда
+      // падает нажатие чужого — без этой ветки `photo_proceed` уходил ниже
+      // как id заявки и человек видел «Заявка не найдена».
+      if (data === 'cancel_payment_photo_proceed') {
+        await ctx.answerCbQuery('Отменить может только тот, кто закрывает заявку');
+        return;
+      }
       if (callbackQuery.data.startsWith('cancel_payment_')) {
         const requestId = callbackQuery.data.substring('cancel_payment_'.length);
 

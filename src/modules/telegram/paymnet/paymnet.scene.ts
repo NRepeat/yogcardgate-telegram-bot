@@ -341,20 +341,25 @@ export default class PaymentWizard {
           true,
           false,
         );
-        await this.bot.telegram.editMessageMedia(
-          ctx.chat?.id!,
-          messageId!,
-          undefined,
-          {
-            media: photoMedia(photoUrl),
-            type: 'photo',
-            caption: workerMenu.inProcess(undefined, request.id).caption,
-            parse_mode: 'HTML',
-          },
-          {
-            reply_markup: workerMenu.inProcess(undefined, request.id).markup,
-          },
-        );
+        // Карточка с «Перевел» обычно уже ровно такая — Telegram отвечает
+        // «message is not modified», и без catch визард не закрывался:
+        // оператор жал «Отмена» и оставался в шаге закрытия.
+        await this.bot.telegram
+          .editMessageMedia(
+            ctx.chat?.id!,
+            messageId!,
+            undefined,
+            {
+              media: photoMedia(photoUrl),
+              type: 'photo',
+              caption: workerMenu.inProcess(undefined, request.id).caption,
+              parse_mode: 'HTML',
+            },
+            {
+              reply_markup: workerMenu.inProcess(undefined, request.id).markup,
+            },
+          )
+          .catch(() => {});
         await ctx.scene.leave();
         return;
       }

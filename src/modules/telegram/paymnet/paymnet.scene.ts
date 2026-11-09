@@ -629,13 +629,28 @@ export default class PaymentWizard {
         );
         return;
       }
-      await this.finishClose(ctx, state, {
-        rate: verdict.rate,
-        fee: verdict.fee,
-        // несколько ордеров на заявку — храним списком в том же поле:
-        // реестр «ордер тратится один раз» живёт в exchange-check
-        orderId: orderIds.join(','),
-      });
+      try {
+        await this.finishClose(ctx, state, {
+          rate: verdict.rate,
+          fee: verdict.fee,
+          // несколько ордеров на заявку — храним списком в том же поле:
+          // реестр «ордер тратится один раз» живёт в exchange-check
+          orderId: orderIds.join(','),
+        });
+      } catch (error) {
+        // Сверка прошла, но закрыть не вышло (например, не скачались фото
+        // квитанции): без отката визард застрянет в 'checking' и перестанет
+        // принимать ввод. Ордер зарезервирован за этой же заявкой — повтор
+        // тем же номером пройдёт.
+        state.closeStage = 'order';
+        await this.editClosePrompt(
+          ctx,
+          state,
+          `⚠️ Не удалось закрыть заявку, отправьте номер ордера ещё раз.\n\n${askOrder(state.closeAccount!)}`,
+          CLOSE_CANCEL_KB,
+        );
+        throw error;
+      }
     }
   }
 

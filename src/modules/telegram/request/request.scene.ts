@@ -2,7 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import { photoSource as photoInput } from '../photo-source';
 import * as path from 'path';
-import { Wizard, WizardStep, Ctx, SceneLeave, On } from 'nestjs-telegraf';
+import {
+  Wizard,
+  WizardStep,
+  Ctx,
+  SceneLeave,
+  On,
+  Command,
+} from 'nestjs-telegraf';
 import { RatesService } from 'src/modules/rates/rates.service';
 import { RequestService } from 'src/modules/request/request.service';
 import { DEDUP_WINDOW_MS } from 'src/modules/request/request.dedup';
@@ -105,6 +112,15 @@ export class CreateRequestWizard {
     private readonly prismaService: PrismaService,
   ) {
     this.paymentStrategies = this.registerStrategies();
+  }
+
+  // /pay внутри открытого визарда иначе уходит в текущий шаг: шаг 0 молча
+  // правит меню, оставшееся далеко вверху чата, и человек ответа не видит.
+  @Command('pay')
+  async restart(@Ctx() ctx: CustomSceneContext) {
+    await ctx.deleteMessage(ctx.message?.message_id).catch(() => undefined);
+    await ctx.scene.leave();
+    await ctx.scene.enter('create-request');
   }
 
   @WizardStep(0)

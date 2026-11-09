@@ -118,9 +118,12 @@ export class CreateRequestWizard {
   // правит меню, оставшееся далеко вверху чата, и человек ответа не видит.
   @Command('pay')
   async restart(@Ctx() ctx: CustomSceneContext) {
+    // Без scene.enter: он прогоняет этот же /pay через сцену ещё раз, и
+    // обработчик зовёт сам себя бесконечно.
     await ctx.deleteMessage(ctx.message?.message_id).catch(() => undefined);
-    await ctx.scene.leave();
-    await ctx.scene.enter('create-request');
+    await this.onSceneLeave(ctx);
+    ctx.wizard.selectStep(0);
+    await this.selectMethod(ctx);
   }
 
   @WizardStep(0)
